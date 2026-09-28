@@ -8,7 +8,7 @@ import { useStore } from '@/lib/store';
 import WasherBottomNav from '@/components/WasherBottomNav';
 
 export default function WasherProfilePage() {
-  const { washerEarnings, setRole } = useStore();
+  const { washerEarnings } = useStore();
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">
@@ -107,15 +107,6 @@ export default function WasherProfilePage() {
             </span>
             <ChevronRight className="w-4 h-4 text-slate-400" />
           </Link>
-        </div>
-
-        <div className="pt-2 text-center">
-          <button
-            onClick={() => setRole('owner')}
-            className="text-xs font-bold text-blue-600 hover:underline"
-          >
-            Switch to Vehicle Owner Mode →
-          </button>
         </div>
       </div>
 
