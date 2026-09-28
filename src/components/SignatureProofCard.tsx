@@ -34,6 +34,7 @@ export default function SignatureProofCard({
 
   const afterPhoto = wash?.after_photo || '/images/honda_city_after.jpg';
   const vehicleName = wash?.vehicle_name || 'Honda City';
+  const regNumber = wash?.registration_number || 'DL 01 AB 4291';
   const time = wash?.completed_at || '7:42 AM';
   const washerName = wash?.washer_name || 'Amit Kumar';
   const washerAvatar = wash?.washer_avatar || '/images/washer_amit.jpg';
@@ -47,27 +48,14 @@ export default function SignatureProofCard({
         <div className="absolute -top-24 -right-24 w-60 h-60 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Top Bar: Verification Label & Live Washed Badge */}
+        {/* Top Bar: Honda City on Left, Washed Today on Right in a Single Line */}
         <div className="relative z-10 flex items-center justify-between mb-3.5">
-          <div>
-            <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                Morning Wash Proof
-              </span>
-            </div>
-            <div className="flex items-center gap-2.5">
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                {vehicleName}
-              </h2>
-              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-white/10 border border-white/10 text-slate-300">
-                DL 01 AB 4291
-              </span>
-            </div>
-          </div>
+          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            {vehicleName}
+          </h2>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-bold">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
             <span>Washed Today</span>
           </div>
         </div>
@@ -102,6 +90,15 @@ export default function SignatureProofCard({
           >
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
+        </div>
+
+        {/* Below the Image: Car Number Plate */}
+        <div className="relative z-10 mt-3 flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-slate-100 font-mono text-xs sm:text-sm font-extrabold tracking-wider shadow-sm">
+            <span className="text-[10px] font-sans font-bold text-blue-400 border-r border-white/20 pr-1.5">IND</span>
+            <span>{regNumber}</span>
+          </div>
+          <span className="text-xs text-slate-400 font-medium">Daily Bay Care</span>
         </div>
 
 
