@@ -169,6 +169,8 @@ export default function WashHistoryPage() {
                   key={tab.id}
                   onClick={() => setActiveFilter(tab.id)}
                   className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    tab.id === 'detail' ? 'hidden md:inline-block' : ''
+                  } ${
                     activeFilter === tab.id
                       ? 'bg-white text-[#080D1A] shadow-md'
                       : 'bg-white/5 text-slate-300 hover:text-white hover:bg-white/10 border border-white/10'
