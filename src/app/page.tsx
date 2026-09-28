@@ -497,7 +497,7 @@ export default function HomePage() {
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-[#050811] border-t border-white/10 py-14 px-4 sm:px-6 lg:px-8 text-xs text-slate-500">
+      <footer className="bg-[#050811] border-t border-white/10 pt-14 pb-[calc(3.5rem+env(safe-area-inset-bottom))] px-4 sm:px-6 lg:px-8 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-white">

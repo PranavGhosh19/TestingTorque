@@ -18,7 +18,12 @@ const inter = Inter({
 });
 
 export const viewport: Viewport = {
-  themeColor: "#0B132B",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#060B19" },
+    { media: "(prefers-color-scheme: dark)", color: "#060B19" },
+  ],
+  colorScheme: "dark",
+  viewportFit: "cover",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -46,15 +51,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${manrope.variable} ${inter.variable} h-full antialiased`}>
+    <html lang="en" className={`${manrope.variable} ${inter.variable} h-full bg-[#060B19] antialiased`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="theme-color" content="#060B19" />
       </head>
-      <body className="min-h-full flex flex-col bg-[#F5F7FA] text-[#18212F]">
+      <body className="min-h-full flex flex-col bg-[#060B19] text-white">
         <StoreProvider>
           <Navbar />
-          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          <main className="flex-1">{children}</main>
           <RoleSwitcher />
         </StoreProvider>
       </body>

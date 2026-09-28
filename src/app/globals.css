@@ -22,16 +22,25 @@
 }
 
 :root {
-  --background: #F5F7FA;
-  --foreground: #18212F;
+  --background: #060B19;
+  --foreground: #F8FAFC;
+  color-scheme: dark;
+}
+
+html {
+  background-color: #060B19 !important;
+  color-scheme: dark;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background-color: var(--background);
+  background-color: #060B19 !important;
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  min-height: 100%;
+  min-height: 100dvh;
 }
 
 /* Glassmorphism & Elevation utilities */
