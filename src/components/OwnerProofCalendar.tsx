@@ -197,37 +197,30 @@ export default function OwnerProofCalendar() {
   return (
     <div className="w-full rounded-3xl bg-[#0B132B]/90 border border-white/15 backdrop-blur-2xl shadow-2xl p-6 sm:p-8 space-y-7 relative overflow-hidden luxury-sheen">
       {/* BACKGROUND ACCENT GLOWS */}
-      <div className="absolute -top-24 -right-24 w-80 h-80 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute -bottom-24 -left-24 w-80 h-80 bg-amber-500/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute -top-24 -right-24 w-72 h-72 bg-emerald-500/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-blue-500/10 rounded-full blur-[100px] pointer-events-none" />
 
       {/* TOP CALENDAR HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-5">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
-              <CalendarIcon className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">
-                Monthly Subscription Audit
-              </span>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Wash Proof Calendar
-              </h2>
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-emerald-400">
+              Subscription Proof Log
+            </span>
           </div>
-          <p className="text-xs text-slate-300">
-            Click any date to inspect timestamped camera proof, washer logs, or protected credits.
-          </p>
+          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+            Wash Proof Calendar
+          </h2>
         </div>
 
         {/* Car Switcher + Month Navigator */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
           {vehicles.length > 1 && (
             <select
               value={selectedVehicleId}
               onChange={(e) => setSelectedVehicleId(e.target.value)}
-              className="px-3 py-2 rounded-xl bg-white/5 border border-white/15 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-400"
+              className="px-3 py-1.5 rounded-xl bg-white/5 border border-white/15 text-xs font-bold text-white focus:outline-hidden focus:border-emerald-400"
             >
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id} className="bg-[#0B132B] text-white">
@@ -237,11 +230,11 @@ export default function OwnerProofCalendar() {
             </select>
           )}
 
-          <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-2xl p-1">
+          <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
             <button
               onClick={() => setMonthOffset(0)}
               disabled={monthOffset === 0}
-              className={`p-2 rounded-xl transition-all ${
+              className={`p-1.5 rounded-lg transition-all ${
                 monthOffset === 0
                   ? 'text-slate-600 cursor-not-allowed'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
@@ -251,14 +244,14 @@ export default function OwnerProofCalendar() {
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <span className="text-xs font-extrabold text-white px-3 font-mono">
+            <span className="text-xs font-bold text-white px-2.5 font-mono">
               {monthData.name}
             </span>
 
             <button
               onClick={() => setMonthOffset(1)}
               disabled={monthOffset === 1}
-              className={`p-2 rounded-xl transition-all ${
+              className={`p-1.5 rounded-lg transition-all ${
                 monthOffset === 1
                   ? 'text-slate-600 cursor-not-allowed'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
@@ -271,123 +264,35 @@ export default function OwnerProofCalendar() {
         </div>
       </div>
 
-      {/* QUICK STATUS METRIC PILLS */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Neon Green Verified */}
-        <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-400/30 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-emerald-400 text-slate-950 font-black flex items-center justify-center text-xs shadow-[0_0_12px_rgba(52,211,153,0.5)]">
-            ✓
-          </div>
-          <div>
-            <div className="text-lg font-black text-emerald-300 font-mono">
-              {verifiedCount} Days
-            </div>
-            <div className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">
-              Proof Uploaded
-            </div>
-          </div>
+      {/* COMPACT CUTE STATS RIBBON */}
+      <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-400/25 text-xs">
+          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          <span className="text-slate-300 text-[11px] font-medium">Proof Uploaded:</span>
+          <span className="text-emerald-300 font-bold font-mono">{verifiedCount}</span>
         </div>
 
-        {/* Orange Yellow Alert */}
-        <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-400/30 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 font-black flex items-center justify-center text-xs shadow-[0_0_12px_rgba(251,191,36,0.5)]">
-            !
-          </div>
-          <div>
-            <div className="text-lg font-black text-amber-300 font-mono">
-              {missingOrAlertCount} Days
-            </div>
-            <div className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">
-              Proof Missing / Saved
-            </div>
-          </div>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/25 text-xs">
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          <span className="text-slate-300 text-[11px] font-medium">Attention / Away:</span>
+          <span className="text-amber-300 font-bold font-mono">{missingOrAlertCount}</span>
         </div>
 
-        {/* Light Green Upcoming Subscription */}
-        <div className="p-3.5 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl border-2 border-emerald-400/40 bg-emerald-500/10 flex items-center justify-center text-emerald-400">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          </div>
-          <div>
-            <div className="text-lg font-black text-white font-mono">
-              {scheduledCount} Days
-            </div>
-            <div className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">
-              Paid Sub Active
-            </div>
-          </div>
-        </div>
-
-        {/* Overall Guarantee */}
-        <div className="p-3.5 rounded-2xl bg-blue-500/10 border border-blue-400/30 flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
-            <ShieldCheck className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-lg font-black text-blue-300 font-mono">
-              100%
-            </div>
-            <div className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">
-              Zero-Doubt Protocol
-            </div>
-          </div>
+        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs">
+          <span className="w-2 h-2 rounded-full bg-emerald-400/40 border border-emerald-400" />
+          <span className="text-slate-300 text-[11px] font-medium">Paid Sub Covered:</span>
+          <span className="text-white font-bold font-mono">{scheduledCount}</span>
         </div>
       </div>
 
-      {/* CALENDAR VISUAL COLOR LEGEND (Strictly Matching User Rules) */}
-      <div className="p-4 rounded-2xl bg-white/5 border border-white/10 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 font-mono">
-          Color Guide:
-        </span>
-
-        <div className="flex items-center gap-5 flex-wrap">
-          {/* Bright Neon Green */}
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded-lg bg-emerald-400 text-slate-950 font-black text-[9px] flex items-center justify-center shadow-[0_0_10px_rgba(52,211,153,0.7)]">
-              ✓
-            </span>
-            <span className="text-slate-200 font-bold">
-              Bright Neon Green{' '}
-              <span className="text-emerald-400 font-medium">(Proof Uploaded)</span>
-            </span>
-          </div>
-
-          {/* Orange Yellow */}
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded-lg bg-amber-400 text-slate-950 font-black text-[9px] flex items-center justify-center shadow-[0_0_10px_rgba(251,191,36,0.7)]">
-              !
-            </span>
-            <span className="text-slate-200 font-bold">
-              Orange Yellow{' '}
-              <span className="text-amber-400 font-medium">
-                (Proof Not Uploaded / Absent / Unavailable)
-              </span>
-            </span>
-          </div>
-
-          {/* Light Green / Circle */}
-          <div className="flex items-center gap-2">
-            <span className="w-4 h-4 rounded-lg border-2 border-emerald-400/50 bg-emerald-500/10 flex items-center justify-center">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            </span>
-            <span className="text-slate-200 font-bold">
-              Light Green Circle{' '}
-              <span className="text-emerald-400/90 font-medium">
-                (Full Month Paid Subscription)
-              </span>
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* CALENDAR GRID */}
-      <div>
+      {/* CUTE CALENDAR GRID */}
+      <div className="space-y-2">
         {/* Weekday Labels Mon-Sun */}
-        <div className="grid grid-cols-7 gap-2 sm:gap-3 mb-2 text-center">
-          {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map((day) => (
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2 text-center">
+          {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
             <div
               key={day}
-              className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-400 py-1"
+              className="text-[11px] font-bold text-slate-400 uppercase tracking-wider py-1"
             >
               {day}
             </div>
@@ -395,54 +300,34 @@ export default function OwnerProofCalendar() {
         </div>
 
         {/* Days Matrix */}
-        <div className="grid grid-cols-7 gap-2 sm:gap-3">
+        <div className="grid grid-cols-7 gap-1.5 sm:gap-2.5">
           {/* Empty padding slots before startDayOffset */}
           {Array.from({ length: monthData.startDayOffset }).map((_, i) => (
             <div
               key={`empty-${i}`}
-              className="h-16 sm:h-24 rounded-2xl bg-white/[0.02] border border-white/5 opacity-30"
+              className="aspect-square w-full rounded-2xl bg-transparent"
             />
           ))}
 
           {/* Actual Month Days */}
           {days.map((day) => {
-            // Determine visual styling classes
-            let cardClasses = '';
-            let badgeContent = null;
-            let statusLabel = '';
+            // Elegant styling based on status
+            let cellClasses = 'bg-white/[0.03] text-slate-300 border border-white/10 hover:border-emerald-400/40 hover:bg-white/[0.06]';
+            let dotColor = 'bg-emerald-400/30';
 
             if (day.hasProofUploaded) {
-              // 1. PROOF UPLOADED: BRIGHT NEON GREEN
-              cardClasses =
-                'bg-emerald-400 text-slate-950 font-black shadow-[0_0_20px_rgba(52,211,153,0.65)] ring-2 ring-emerald-300 border-emerald-200 hover:scale-[1.04] transition-all cursor-pointer';
-              badgeContent = (
-                <div className="w-5 h-5 rounded-full bg-slate-950 text-emerald-400 flex items-center justify-center text-[10px] font-black">
-                  ✓
-                </div>
-              );
-              statusLabel = 'Proof Verified';
+              // Verified wash proof: Soft elegant emerald
+              cellClasses = 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/35 hover:bg-emerald-500/25';
+              dotColor = 'bg-emerald-400';
             } else if (day.isMissingProof || day.isVehicleUnavailable) {
-              // 2. PROOF NOT UPLOADED / UNAVAILABLE: ORANGE YELLOW
-              cardClasses =
-                'bg-amber-400 text-slate-950 font-black shadow-[0_0_20px_rgba(251,191,36,0.65)] ring-2 ring-amber-300 border-amber-200 hover:scale-[1.04] transition-all cursor-pointer';
-              badgeContent = (
-                <div className="w-5 h-5 rounded-full bg-slate-950 text-amber-400 flex items-center justify-center text-[10px] font-black">
-                  !
-                </div>
-              );
-              statusLabel = day.isVehicleUnavailable
-                ? 'Bay Empty'
-                : 'Auto-Credited';
-            } else {
-              // 3. UPCOMING / ACTIVE MONTHLY SUB: LIGHT GREEN / SUBTLE CIRCLE GREEN
-              cardClasses =
-                'bg-emerald-500/5 text-emerald-300 border-2 border-emerald-500/30 hover:border-emerald-400/60 hover:bg-emerald-500/10 transition-all cursor-pointer group';
-              badgeContent = (
-                <div className="w-5 h-5 rounded-full border border-emerald-400/40 bg-emerald-500/10 flex items-center justify-center">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                </div>
-              );
-              statusLabel = 'Covered';
+              // Issue / Away: Soft elegant amber
+              cellClasses = 'bg-amber-500/15 text-amber-300 border border-amber-400/35 hover:bg-amber-500/25';
+              dotColor = 'bg-amber-400';
+            }
+
+            if (day.isToday) {
+              cellClasses = 'bg-emerald-400 text-slate-950 font-black shadow-[0_0_15px_rgba(52,211,153,0.5)] border-emerald-300 scale-[1.03]';
+              dotColor = 'bg-slate-950';
             }
 
             return (
@@ -453,55 +338,38 @@ export default function OwnerProofCalendar() {
                   setSelectedDay(day);
                   setActivePhotoTab('after');
                 }}
-                className={`h-18 sm:h-24 p-2 sm:p-2.5 rounded-2xl flex flex-col justify-between text-left relative overflow-hidden active:scale-95 ${cardClasses}`}
+                className={`aspect-square w-full rounded-xl sm:rounded-2xl p-1 flex flex-col items-center justify-center relative transition-all active:scale-95 cursor-pointer ${cellClasses}`}
+                title={`Day ${day.date}: Click to view wash details`}
               >
-                {/* Date header + Status Badge */}
-                <div className="flex items-center justify-between w-full">
-                  <span
-                    className={`text-sm sm:text-base font-black ${
-                      day.hasProofUploaded || day.isMissingProof || day.isVehicleUnavailable
-                        ? 'text-slate-950'
-                        : 'text-white'
-                    }`}
-                  >
-                    {day.date}
-                  </span>
+                <span className={`text-xs sm:text-sm font-bold ${day.isToday ? 'text-slate-950 font-black' : ''}`}>
+                  {day.date}
+                </span>
 
-                  {badgeContent}
-                </div>
-
-                {/* Sub-label & Today tag */}
-                <div className="w-full">
-                  {day.isToday && (
-                    <span className="inline-block text-[8px] sm:text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-slate-950 text-white mb-0.5">
-                      Today
-                    </span>
-                  )}
-                  <div
-                    className={`text-[9px] sm:text-[10px] font-bold truncate ${
-                      day.hasProofUploaded || day.isMissingProof || day.isVehicleUnavailable
-                        ? 'text-slate-900 font-extrabold'
-                        : 'text-emerald-400/90'
-                    }`}
-                  >
-                    {statusLabel}
-                  </div>
-                </div>
-
-                {/* Bottom subtle camera icon when proof exists */}
-                {day.hasProofUploaded && (
-                  <div className="absolute -bottom-1 -right-1 text-slate-950/20">
-                    <Camera className="w-8 h-8" />
-                  </div>
-                )}
+                {/* Cute minimal indicator dot */}
+                <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotColor}`} />
               </button>
             );
           })}
+      </div>
+
+      {/* CUTE COLOR GUIDE LEGEND */}
+      <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap text-xs pt-1">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          <span className="text-[11px] font-medium text-slate-300">Proof Uploaded ({verifiedCount})</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          <span className="text-[11px] font-medium text-slate-300">Flagged / Away ({missingOrAlertCount})</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-emerald-400/40 border border-emerald-400/60" />
+          <span className="text-[11px] font-medium text-slate-300">Upcoming ({scheduledCount})</span>
         </div>
       </div>
 
       {/* FOOTER NOTE: ASSIGNMENT & PROTECTION GUARANTEE */}
-      <div className="pt-4 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs text-slate-400">
+      <div className="pt-3 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-400">
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
           <span>
