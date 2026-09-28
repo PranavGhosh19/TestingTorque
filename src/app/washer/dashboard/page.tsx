@@ -282,23 +282,20 @@ export default function WasherDashboardPage() {
 
             {filteredStops.map((stop) => {
               const isCompleted = stop.status === 'completed';
-              const isCurrent = stop.status === 'current';
               const isUnavailable = stop.status === 'vehicle_unavailable';
 
               return (
                 <div
                   key={stop.stop_number}
                   className={`p-4 sm:p-5 rounded-3xl border backdrop-blur-xl shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-all ${
-                    isCurrent
-                      ? 'bg-linear-to-r from-blue-900/40 via-white/5 to-white/5 border-blue-400/50 shadow-blue-500/10'
-                      : isCompleted
+                    isCompleted
                       ? 'bg-white/5 border-white/10 hover:border-white/20'
                       : isUnavailable
                       ? 'bg-amber-500/10 border-amber-400/30'
                       : 'bg-white/5 border-white/10 hover:border-white/20'
                   }`}
                 >
-                  {/* LEFT SIDE: GREEN TICK, NUMBER PLATE, CAR BRAND (COMPLETED) OR ACTIVE STOP DETAILS */}
+                  {/* LEFT SIDE: GREEN TICK, NUMBER PLATE, CAR BRAND (COMPLETED) OR PENDING STOP DETAILS */}
                   {isCompleted ? (
                     <div className="flex items-center gap-3.5">
                       {/* Green Tick */}
@@ -306,12 +303,12 @@ export default function WasherDashboardPage() {
                         ✓
                       </div>
 
-                      {/* Number Plate & Brand */}
-                      <div className="flex items-center gap-2.5 flex-wrap">
+                      {/* Number Plate & Brand Below */}
+                      <div className="flex flex-col items-start gap-1">
                         <span className="text-base sm:text-lg font-black text-white font-mono tracking-wider bg-white/10 px-2.5 py-1 rounded-lg border border-white/15">
                           {stop.registration_number}
                         </span>
-                        <span className="text-sm font-bold text-slate-300">
+                        <span className="text-xs sm:text-sm font-bold text-slate-300">
                           {stop.vehicle_name}
                         </span>
                       </div>
@@ -321,9 +318,7 @@ export default function WasherDashboardPage() {
                       {/* Stop Number Badge */}
                       <div
                         className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 shadow-md ${
-                          isCurrent
-                            ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.6)] animate-pulse'
-                            : isUnavailable
+                          isUnavailable
                             ? 'bg-amber-400 text-slate-950'
                             : 'bg-white/10 text-white border border-white/15'
                         }`}
@@ -331,28 +326,23 @@ export default function WasherDashboardPage() {
                         {`#${stop.stop_number}`}
                       </div>
 
-                      <div className="space-y-1">
-                        {/* Top Badges & Time */}
+                      <div className="space-y-1.5">
+                        {/* Number Plate & Status (if unavailable) */}
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-base sm:text-lg font-black text-white font-mono tracking-wider bg-white/10 px-2.5 py-0.5 rounded-lg border border-white/15">
                             {stop.registration_number}
                           </span>
-
-                          <span className="text-xs font-bold text-slate-300">
-                            {stop.vehicle_name}
-                          </span>
-
-                          {isCurrent && (
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-500 text-white animate-pulse">
-                              Active Next
-                            </span>
-                          )}
 
                           {isUnavailable && (
                             <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
                               <AlertTriangle className="w-3 h-3" /> Vehicle Unavailable (Protected)
                             </span>
                           )}
+                        </div>
+
+                        {/* Car Model Name Below Number Plate */}
+                        <div className="text-xs sm:text-sm font-bold text-slate-300">
+                          {stop.vehicle_name}
                         </div>
 
                         {/* Location & Time details */}
