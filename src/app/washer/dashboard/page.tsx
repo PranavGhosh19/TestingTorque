@@ -298,100 +298,99 @@ export default function WasherDashboardPage() {
                       : 'bg-white/5 border-white/10 hover:border-white/20'
                   }`}
                 >
-                  {/* LEFT SIDE: STOP NUMBER & CAR NUMBER PROMINENTLY */}
-                  <div className="flex items-start sm:items-center gap-3.5">
-                    {/* Stop Number Badge */}
-                    <div
-                      className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 shadow-md ${
-                        isCompleted
-                          ? 'bg-emerald-400 text-slate-950 shadow-[0_0_12px_rgba(52,211,153,0.5)]'
-                          : isCurrent
-                          ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.6)] animate-pulse'
-                          : isUnavailable
-                          ? 'bg-amber-400 text-slate-950'
-                          : 'bg-white/10 text-white border border-white/15'
-                      }`}
-                    >
-                      {isCompleted ? '✓' : `#${stop.stop_number}`}
-                    </div>
+                  {/* LEFT SIDE: GREEN TICK, NUMBER PLATE, CAR BRAND (COMPLETED) OR ACTIVE STOP DETAILS */}
+                  {isCompleted ? (
+                    <div className="flex items-center gap-3.5">
+                      {/* Green Tick */}
+                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 bg-emerald-400 text-slate-950 shadow-[0_0_12px_rgba(52,211,153,0.5)]">
+                        ✓
+                      </div>
 
-                    <div className="space-y-1">
-                      {/* Top Badges & Time */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* CAR NUMBER PROMINENTLY DISPLAYED */}
-                        <span className="text-base sm:text-lg font-black text-white font-mono tracking-wider bg-white/10 px-2.5 py-0.5 rounded-lg border border-white/15">
+                      {/* Number Plate & Brand */}
+                      <div className="flex items-center gap-2.5 flex-wrap">
+                        <span className="text-base sm:text-lg font-black text-white font-mono tracking-wider bg-white/10 px-2.5 py-1 rounded-lg border border-white/15">
                           {stop.registration_number}
                         </span>
-
-                        <span className="text-xs font-bold text-slate-300">
+                        <span className="text-sm font-bold text-slate-300">
                           {stop.vehicle_name}
-                        </span>
-
-                        {isCurrent && (
-                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-500 text-white animate-pulse">
-                            Active Next
-                          </span>
-                        )}
-
-                        {isCompleted && (
-                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1">
-                            <Check className="w-3 h-3" /> Proof Verified
-                          </span>
-                        )}
-
-                        {isUnavailable && (
-                          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" /> Vehicle Unavailable (Protected)
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Location & Time details */}
-                      <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-                        <span className="flex items-center gap-1 text-emerald-300 font-semibold">
-                          <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-                          {stop.parking_location}
-                        </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1 font-mono text-slate-300">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" />
-                          {stop.scheduled_time}
-                        </span>
-                        <span>•</span>
-                        <span className="text-slate-400">
-                          Owner: <span className="text-white">{stop.owner_name}</span>
-                        </span>
-                        <span>•</span>
-                        <span className="text-emerald-400 font-bold font-mono">
-                          +₹{stop.payout_amount}
                         </span>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="flex items-start sm:items-center gap-3.5">
+                      {/* Stop Number Badge */}
+                      <div
+                        className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 shadow-md ${
+                          isCurrent
+                            ? 'bg-blue-600 text-white shadow-[0_0_12px_rgba(37,99,235,0.6)] animate-pulse'
+                            : isUnavailable
+                            ? 'bg-amber-400 text-slate-950'
+                            : 'bg-white/10 text-white border border-white/15'
+                        }`}
+                      >
+                        {`#${stop.stop_number}`}
+                      </div>
 
-                  {/* RIGHT SIDE: BUTTON TO UPLOAD WASH PROOF PHOTO */}
-                  <div className="flex items-center gap-2.5 shrink-0 self-end lg:self-center">
+                      <div className="space-y-1">
+                        {/* Top Badges & Time */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-base sm:text-lg font-black text-white font-mono tracking-wider bg-white/10 px-2.5 py-0.5 rounded-lg border border-white/15">
+                            {stop.registration_number}
+                          </span>
+
+                          <span className="text-xs font-bold text-slate-300">
+                            {stop.vehicle_name}
+                          </span>
+
+                          {isCurrent && (
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-blue-500 text-white animate-pulse">
+                              Active Next
+                            </span>
+                          )}
+
+                          {isUnavailable && (
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> Vehicle Unavailable (Protected)
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Location & Time details */}
+                        <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+                          <span className="flex items-center gap-1 text-emerald-300 font-semibold">
+                            <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                            {stop.parking_location}
+                          </span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1 font-mono text-slate-300">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            {stop.scheduled_time}
+                          </span>
+                          <span>•</span>
+                          <span className="text-slate-400">
+                            Owner: <span className="text-white">{stop.owner_name}</span>
+                          </span>
+                          <span>•</span>
+                          <span className="text-emerald-400 font-bold font-mono">
+                            +₹{stop.payout_amount}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* RIGHT SIDE: VIEW PROOF OR UPLOAD ACTIONS */}
+                  <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
                     {/* If proof is already completed */}
                     {isCompleted ? (
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setViewingProofStop(stop)}
-                          className="px-4 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/30 text-emerald-300 text-xs font-black flex items-center gap-2 transition-all cursor-pointer"
-                        >
-                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                          <span>View Proof Photo</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleOpenUploadProof(stop)}
-                          className="p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition-all text-xs cursor-pointer"
-                          title="Retake or re-upload proof photo"
-                        >
-                          <Camera className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setViewingProofStop(stop)}
+                        className="px-4 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/30 text-emerald-300 text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <span>View Proof Photo</span>
+                      </button>
                     ) : isUnavailable ? (
                       <button
                         type="button"
@@ -506,14 +505,22 @@ export default function WasherDashboardPage() {
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-1.5">
+              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-2">
                 <div className="flex justify-between text-slate-300">
-                  <span>Owner:</span>
+                  <span>Car Owner:</span>
                   <span className="text-white font-bold">{viewingProofStop.owner_name}</span>
                 </div>
                 <div className="flex justify-between text-slate-300">
+                  <span>Bay Location:</span>
+                  <span className="text-emerald-300 font-bold">{viewingProofStop.parking_location}</span>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>Completed Time:</span>
+                  <span className="text-slate-200 font-mono">{viewingProofStop.scheduled_time}</span>
+                </div>
+                <div className="flex justify-between text-slate-300">
                   <span>Payout Protected:</span>
-                  <span className="text-emerald-400 font-bold">+₹{viewingProofStop.payout_amount}</span>
+                  <span className="text-emerald-400 font-bold font-mono">+₹{viewingProofStop.payout_amount}</span>
                 </div>
               </div>
             </div>
