@@ -287,28 +287,28 @@ export default function WasherDashboardPage() {
               return (
                 <div
                   key={stop.stop_number}
-                  className={`p-4 sm:p-5 rounded-3xl border backdrop-blur-xl shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-all ${
+                  className={`p-4 sm:p-5 rounded-3xl border backdrop-blur-xl shadow-xl flex ${
                     isCompleted
-                      ? 'bg-white/5 border-white/10 hover:border-white/20'
+                      ? 'flex-row items-center justify-between gap-3 bg-white/5 border-white/10 hover:border-white/20'
                       : isUnavailable
-                      ? 'bg-amber-500/10 border-amber-400/30'
-                      : 'bg-white/5 border-white/10 hover:border-white/20'
-                  }`}
+                      ? 'flex-col sm:flex-row sm:items-center justify-between gap-4 bg-amber-500/10 border-amber-400/30'
+                      : 'flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/5 border-white/10 hover:border-white/20'
+                  } transition-all`}
                 >
                   {/* LEFT SIDE: GREEN TICK, NUMBER PLATE, CAR BRAND (COMPLETED) OR PENDING STOP DETAILS */}
                   {isCompleted ? (
-                    <div className="flex items-center gap-3.5">
+                    <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
                       {/* Green Tick */}
-                      <div className="w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 bg-emerald-400 text-slate-950 shadow-[0_0_12px_rgba(52,211,153,0.5)]">
+                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 bg-emerald-400 text-slate-950 shadow-[0_0_12px_rgba(52,211,153,0.5)]">
                         ✓
                       </div>
 
                       {/* Number Plate & Brand Below */}
-                      <div className="flex flex-col items-start gap-1">
-                        <span className="text-base sm:text-lg font-black text-white font-mono tracking-wider bg-white/10 px-2.5 py-1 rounded-lg border border-white/15">
+                      <div className="flex flex-col items-start gap-0.5 sm:gap-1 min-w-0">
+                        <span className="text-sm sm:text-base md:text-lg font-black text-white font-mono tracking-wider bg-white/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-white/15">
                           {stop.registration_number}
                         </span>
-                        <span className="text-xs sm:text-sm font-bold text-slate-300">
+                        <span className="text-xs sm:text-sm font-bold text-slate-300 truncate">
                           {stop.vehicle_name}
                         </span>
                       </div>
@@ -370,13 +370,13 @@ export default function WasherDashboardPage() {
                   )}
 
                   {/* RIGHT SIDE: VIEW PROOF OR UPLOAD ACTIONS */}
-                  <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-center">
+                  <div className={`flex items-center gap-2.5 shrink-0 ${isCompleted ? 'self-center' : 'self-end sm:self-center'}`}>
                     {/* If proof is already completed */}
                     {isCompleted ? (
                       <button
                         type="button"
                         onClick={() => setViewingProofStop(stop)}
-                        className="px-4 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/30 text-emerald-300 text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95"
+                        className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/30 text-emerald-300 text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95 whitespace-nowrap"
                       >
                         <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                         <span>View Proof Photo</span>
