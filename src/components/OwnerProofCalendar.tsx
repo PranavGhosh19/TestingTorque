@@ -350,6 +350,7 @@ export default function OwnerProofCalendar() {
               </button>
             );
           })}
+        </div>
       </div>
 
       {/* CUTE COLOR GUIDE LEGEND */}
