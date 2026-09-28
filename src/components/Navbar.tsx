@@ -28,8 +28,12 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center text-white shadow-lg group-hover:scale-105 transition-transform">
-            <Shield className="w-5 h-5 text-blue-400 fill-blue-500/20" />
+          <div className="w-9 h-9 rounded-xl overflow-hidden border border-white/20 shadow-lg group-hover:scale-105 transition-transform flex items-center justify-center bg-black/40">
+            <img
+              src="/images/app_icon.jpg"
+              alt="Torque Care Icon"
+              className="w-full h-full object-cover"
+            />
           </div>
           <div>
             <span className="text-lg font-black tracking-tight text-white flex items-center gap-1">

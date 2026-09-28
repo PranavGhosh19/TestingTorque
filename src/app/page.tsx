@@ -500,8 +500,12 @@ export default function HomePage() {
       <footer className="bg-[#050811] border-t border-white/10 pt-14 pb-[calc(3.5rem+env(safe-area-inset-bottom))] px-4 sm:px-6 lg:px-8 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-white">
-              <Shield className="w-4 h-4 text-blue-400" />
+            <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/20 shadow-md flex items-center justify-center bg-black/40">
+              <img
+                src="/images/app_icon.jpg"
+                alt="Torque Care"
+                className="w-full h-full object-cover"
+              />
             </div>
             <span className="font-bold text-slate-300">Torque Care</span>
             <span>— Daily Verified Car Care</span>

@@ -54,6 +54,8 @@ export default function RootLayout({
     <html lang="en" className={`${manrope.variable} ${inter.variable} h-full bg-[#060B19] antialiased`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
+        <link rel="icon" href="/images/app_icon.jpg" />
+        <link rel="apple-touch-icon" href="/images/app_icon.jpg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#060B19" />

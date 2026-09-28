@@ -4,8 +4,8 @@
   "description": "Your car. Always cared for. Verified morning washes, trusted partners, and effortless peace of mind.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFFFFF",
-  "theme_color": "#0B132B",
+  "background_color": "#060B19",
+  "theme_color": "#060B19",
   "orientation": "portrait",
   "icons": [
     {
