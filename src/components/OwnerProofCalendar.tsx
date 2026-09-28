@@ -374,7 +374,7 @@ export default function OwnerProofCalendar() {
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
           <span>
-            Every verified date is cryptographically signed with GPS bay stamp & time verification.
+            Every verified date is cryptographically signed with bay stamp & time verification.
           </span>
         </div>
         <div className="text-[11px] text-slate-400 font-mono">
@@ -498,7 +498,7 @@ export default function OwnerProofCalendar() {
                             {selectedDay.dateString} 2026 • 07:42 AM
                           </span>
                           <span className="text-slate-400">|</span>
-                          <span className="text-emerald-300">Bay D-14 Verified (GPS)</span>
+                          <span className="text-emerald-300">Bay D-14 Verified</span>
                         </div>
                         <span className="text-[10px] text-slate-400 uppercase tracking-wider">
                           Cryptographic SHA-256 Logged
