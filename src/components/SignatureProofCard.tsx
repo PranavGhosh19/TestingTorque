@@ -48,29 +48,31 @@ export default function SignatureProofCard({
         <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top Bar: Verification Label & Live Washed Badge */}
-        <div className="relative z-10 flex items-center justify-between mb-4">
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-1.5">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Verified Photo Care
+        <div className="relative z-10 flex items-center justify-between mb-3.5">
+          <div>
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Morning Wash Proof
               </span>
             </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
-              <span>{vehicleName}</span>
-              <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-slate-300">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                {vehicleName}
+              </h2>
+              <span className="text-xs font-mono font-semibold px-2 py-0.5 rounded-md bg-white/10 border border-white/10 text-slate-300">
                 DL 01 AB 4291
               </span>
-            </h2>
+            </div>
           </div>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-bold shadow-xs">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-300 text-xs font-bold">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="tracking-wide text-[11px]">WASHED TODAY</span>
+            <span>Washed Today</span>
           </div>
         </div>
 
-        {/* Inspection Photo Showcase */}
+        {/* Clean, Uncluttered Inspection Photo Showcase */}
         <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-slate-950 border border-white/15 group shadow-2xl">
           <Image
             src={afterPhoto}
@@ -81,44 +83,25 @@ export default function SignatureProofCard({
             priority
           />
 
-          {/* Luxury Gloss Gradient Vignette */}
-          <div className="absolute inset-0 bg-gradient-to-t from-[#080D1A] via-transparent to-black/30 pointer-events-none" />
+          {/* Minimal top gradient for contrast */}
+          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
 
-          {/* Top Left: Parking Bay Timestamp Watermark */}
-          <div className="absolute top-3 left-3 flex flex-col gap-1.5">
-            <div className="bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg text-[10px] font-mono font-bold text-white flex items-center gap-2 border border-white/15 shadow-lg">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>BAY-VERIFIED • Bay D-14</span>
-              <span className="text-slate-400">|</span>
-              <span className="text-emerald-400 font-semibold">B-1</span>
-            </div>
-            <div className="bg-black/60 backdrop-blur-md px-2.5 py-1 rounded-md text-[9px] font-mono text-slate-300 flex items-center gap-1.5 border border-white/10 w-fit">
-              <Clock className="w-2.5 h-2.5 text-blue-400" />
-              <span>{time} IST</span>
-            </div>
+          {/* Top Left: Single Clean Information Pill */}
+          <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-xs text-white shadow-lg">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span className="font-semibold text-slate-100">Bay D-14</span>
+            <span className="text-white/40">•</span>
+            <span className="text-slate-300 font-mono text-[11px]">{time} IST</span>
           </div>
 
-          {/* Top Right: Inspection Zoom Trigger */}
+          {/* Top Right: Tap to zoom */}
           <button
             onClick={() => setShowModal(true)}
             aria-label="Enlarge inspection photo"
-            className="absolute top-3 right-3 p-2 rounded-xl bg-black/60 backdrop-blur-md hover:bg-black/80 text-white/80 hover:text-white border border-white/15 transition-all shadow-md group-hover:scale-105"
+            className="absolute top-3 right-3 p-2 rounded-full bg-black/60 backdrop-blur-md hover:bg-black/80 text-white/90 border border-white/15 transition-all shadow-md active:scale-95"
           >
             <Maximize2 className="w-3.5 h-3.5" />
           </button>
-
-          {/* Bottom Overlay: Finish Verification Pill */}
-          <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between">
-            <div className="bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-xl border border-white/15 text-white flex items-center gap-2 shadow-lg">
-              <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="text-[11px] font-bold tracking-tight">
-                Scratch-Safe Microfiber Finish
-              </span>
-            </div>
-            <div className="bg-emerald-500/20 backdrop-blur-md border border-emerald-400/40 text-emerald-300 text-[10px] font-bold px-2.5 py-1.5 rounded-xl">
-              100% Clean Proof
-            </div>
-          </div>
         </div>
 
 
