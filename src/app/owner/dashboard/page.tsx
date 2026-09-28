@@ -79,8 +79,8 @@ export default function OwnerDashboardPage() {
         {/* HERO SIGNATURE PROOF CARD */}
         <SignatureProofCard wash={todayWash} />
 
-        {/* TRAVEL & AWAY MODE PROPOSITION BANNER */}
-        <div className="p-7 rounded-3xl bg-linear-to-r from-amber-500/20 via-[#0B132B] to-[#080D1A] text-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-2xl border border-amber-500/30 specular-border luxury-sheen relative">
+        {/* TRAVEL & AWAY MODE PROPOSITION BANNER - Hidden on small screens */}
+        <div className="hidden md:flex p-7 rounded-3xl bg-linear-to-r from-amber-500/20 via-[#0B132B] to-[#080D1A] text-white flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-2xl border border-amber-500/30 specular-border luxury-sheen relative">
           <div className="space-y-1.5">
             <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase text-amber-300 bg-amber-500/20 px-3 py-1 rounded-full border border-amber-400/30 tracking-wider">
               <span>🚗 Away Mode</span>
@@ -103,8 +103,8 @@ export default function OwnerDashboardPage() {
           </Link>
         </div>
 
-        {/* SERVICE PILLARS STATUS */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* SERVICE PILLARS STATUS (Home 599 & Away 39) - Hidden on small screens */}
+        <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Home */}
           <div className="p-5 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-xl space-y-2">
             <div className="flex items-center justify-between">
@@ -244,8 +244,8 @@ export default function OwnerDashboardPage() {
         {/* MONTHLY PROOF CALENDAR (HIGHLIGHTING ACTIVE SUB, NEON GREEN VERIFIED, ORANGE-YELLOW MISSING) */}
         <OwnerProofCalendar />
 
-        {/* TORQUE CARE VEHICLE HISTORY (Unified across cities) */}
-        <section className="p-6 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl space-y-5">
+        {/* TORQUE CARE VEHICLE HISTORY - Hidden on small screens */}
+        <section className="hidden md:block p-6 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl space-y-5">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div>
               <span className="text-xs font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
