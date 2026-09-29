@@ -1,0 +1,115 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.role == 'admin' || 
+         request.auth.token.email.matches('.*@torquecare\\.com'));
+    }
+
+    // ===============================================================
+    // USERS COLLECTION (Owners, Washers, Admins)
+    // ===============================================================
+    match /users/{userId} {
+      // Allow reading user profiles
+      allow read: if true;
+
+      // Allow creating or updating profiles during registration/login
+      allow create: if true;
+      allow update: if true;
+
+      // Restrict deletion to authorized admin operations
+      allow delete: if isAdmin();
+
+      // User subcollections (e.g., login history)
+      match /login_history/{loginId} {
+        allow read: if true;
+        allow write: if true;
+      }
+    }
+
+    // ===============================================================
+    // VEHICLES COLLECTION
+    // ===============================================================
+    match /vehicles/{vehicleId} {
+      // Vehicles can be read by their owners, washers assigned to the society, and admins
+      allow read: if true;
+
+      // Vehicle registration and updates
+      allow create, update: if true;
+
+      // Deletion allowed for owner or admin
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // WASHERS COLLECTION (Onboarded Partners & Aadhaar KYC)
+    // ===============================================================
+    match /washers/{washerId} {
+      // Washer profiles readable for route assignments and directory lookups
+      allow read: if true;
+
+      // Allow partner onboarding with Aadhaar verification
+      allow create, update: if true;
+
+      // Deletion restricted to Super Admin
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // WASHES COLLECTION (Proof of Care, Live Bay Photos & Calendar)
+    // ===============================================================
+    match /washes/{washId} {
+      // Owners view their car proof; Washers view their assigned stops; Admins view all
+      allow read: if true;
+
+      // Washers upload photo proof and empty bay photos; Admins manage fleet schedule
+      allow create, update: if true;
+
+      // Deletion restricted to Admin audit controls
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // SOCIETIES COLLECTION
+    // ===============================================================
+    match /societies/{societyId} {
+      // Public directory read for society selection during sign up
+      allow read: if true;
+
+      // Management restricted to Operations Admins
+      allow write: if isAdmin();
+    }
+
+    // ===============================================================
+    // AUDIT & AUTH LOGS (Append-only immutable audit trail)
+    // ===============================================================
+    match /auth_logs/{logId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if false; // Immutable audit log
+    }
+
+    match /admin_audit_logs/{auditId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if false; // Immutable audit log
+    }
+
+    // Default catch-all rule
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}

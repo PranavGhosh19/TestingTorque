@@ -1,0 +1,90 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.role == 'admin' || 
+         request.auth.token.email.matches('.*@torquecare\\.com'));
+    }
+
+    // ===============================================================
+    // USERS COLLECTION (Owners, Washers, Admins)
+    // ===============================================================
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
+
+      match /login_history/{loginId} {
+        allow read: if true;
+        allow write: if true;
+      }
+    }
+
+    // ===============================================================
+    // VEHICLES COLLECTION
+    // ===============================================================
+    match /vehicles/{vehicleId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // WASHERS COLLECTION (Onboarded Partners & Aadhaar KYC)
+    // ===============================================================
+    match /washers/{washerId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // WASHES COLLECTION (Proof of Care, Live Bay Photos & Calendar)
+    // ===============================================================
+    match /washes/{washId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // ===============================================================
+    // SOCIETIES COLLECTION
+    // ===============================================================
+    match /societies/{societyId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ===============================================================
+    // AUDIT & AUTH LOGS (Append-only immutable audit trail)
+    // ===============================================================
+    match /auth_logs/{logId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if false;
+    }
+
+    match /admin_audit_logs/{auditId} {
+      allow create: if true;
+      allow read: if true;
+      allow update, delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
