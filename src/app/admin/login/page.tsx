@@ -17,6 +17,7 @@ import {
   Car,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { recordAdminLoginToFirestore, recordUserLogin } from '@/lib/firebaseService';
 
 export default function DedicatedAdminLoginPage() {
   const router = useRouter();
@@ -37,15 +38,25 @@ export default function DedicatedAdminLoginPage() {
     setLoading(true);
     setError('');
 
-    // Set role to admin in store
-    setRole('admin');
-    setUser({
+    const adminUser = {
       id: 'admin-lead-1',
       name: 'Vikram Malhotra (Ops Lead)',
       phone: '+91 99999 00001',
-      role: 'admin',
-      status: 'active',
+      role: 'admin' as const,
+      status: 'active' as const,
       created_at: new Date().toISOString(),
+    };
+
+    // Set role to admin in store
+    setRole('admin');
+    setUser(adminUser);
+
+    // Save admin login to Firebase Firestore
+    recordAdminLoginToFirestore(adminUser, identifier).catch((err) => {
+      console.warn('Firebase admin login notice:', err);
+    });
+    recordUserLogin(adminUser, 'admin_console').catch((err) => {
+      console.warn('Firebase admin user record notice:', err);
     });
 
     setTimeout(() => {
@@ -55,15 +66,25 @@ export default function DedicatedAdminLoginPage() {
 
   const handleQuickBypass = () => {
     setLoading(true);
-    setRole('admin');
-    setUser({
+    const adminUser = {
       id: 'admin-lead-1',
       name: 'Vikram Malhotra (Ops Lead)',
       phone: '+91 99999 00001',
-      role: 'admin',
-      status: 'active',
+      role: 'admin' as const,
+      status: 'active' as const,
       created_at: new Date().toISOString(),
+    };
+    setRole('admin');
+    setUser(adminUser);
+
+    // Save admin bypass login to Firebase Firestore
+    recordAdminLoginToFirestore(adminUser, 'admin_bypass@torquecare.com').catch((err) => {
+      console.warn('Firebase admin bypass notice:', err);
     });
+    recordUserLogin(adminUser, 'quick_bypass').catch((err) => {
+      console.warn('Firebase admin user record notice:', err);
+    });
+
     router.push('/admin/dashboard');
   };
 

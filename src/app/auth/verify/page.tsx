@@ -4,6 +4,13 @@ import React, { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Shield, ArrowRight, Car, CheckCircle2 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import {
+  recordUserLogin,
+  recordAdminLoginToFirestore,
+  findUserByPhoneInFirestore,
+  findWasherByPhoneInFirestore,
+  syncOwnerToFirestore,
+} from '@/lib/firebaseService';
 
 function VerifyForm() {
   const router = useRouter();
@@ -14,7 +21,7 @@ function VerifyForm() {
   const [loading, setLoading] = useState(false);
   const { setRole, setUser, washers, user } = useStore();
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -22,28 +29,89 @@ function VerifyForm() {
 
     if (roleParam === 'washer') {
       setRole('washer');
-      const matched = washers.find((w) => w.phone.replace(/\D/g, '').includes(cleanPhone) || cleanPhone.includes(w.phone.replace(/\D/g, '')));
-      if (matched) {
-        setUser({
-          id: matched.id,
-          name: matched.name,
-          phone: matched.phone,
-          role: 'washer',
-          avatar_url: matched.avatar,
-          status: 'active',
-          created_at: new Date().toISOString(),
-        });
+      let matchedWasher = washers.find(
+        (w) =>
+          w.phone.replace(/\D/g, '').includes(cleanPhone) ||
+          cleanPhone.includes(w.phone.replace(/\D/g, ''))
+      );
+
+      // If not in local store, attempt lookup in Firestore
+      if (!matchedWasher) {
+        matchedWasher = (await findWasherByPhoneInFirestore(cleanPhone)) || undefined;
       }
+
+      const washerUser = {
+        id: matchedWasher?.id || `wsh_${cleanPhone.slice(-6)}`,
+        name: matchedWasher?.name || 'Verified Washer Partner',
+        phone: matchedWasher?.phone || phone,
+        role: 'washer' as const,
+        avatar_url: matchedWasher?.avatar || '/images/washer_amit.jpg',
+        status: 'active' as const,
+        created_at: new Date().toISOString(),
+      };
+
+      setUser(washerUser);
+
+      // Record washer login in Firebase Firestore
+      recordUserLogin(washerUser, 'otp').catch((err) => {
+        console.warn('Firebase washer login record notice:', err);
+      });
+
       setTimeout(() => {
         router.push('/washer/dashboard');
       }, 350);
     } else if (roleParam === 'admin') {
       setRole('admin');
+      const adminUser = {
+        id: 'admin-lead-1',
+        name: 'Vikram Malhotra (Ops Lead)',
+        phone: phone,
+        role: 'admin' as const,
+        status: 'active' as const,
+        created_at: new Date().toISOString(),
+      };
+
+      setUser(adminUser);
+
+      // Record admin login in Firebase Firestore
+      recordAdminLoginToFirestore(adminUser, phone).catch((err) => {
+        console.warn('Firebase admin login record notice:', err);
+      });
+      recordUserLogin(adminUser, 'otp').catch((err) => {
+        console.warn('Firebase user login record notice:', err);
+      });
+
       setTimeout(() => {
         router.push('/admin/dashboard');
       }, 350);
     } else {
       setRole('owner');
+      // Look up user from Firestore or store
+      let ownerName = user?.name && user.name !== 'Unregistered User' ? user.name : 'Verified Vehicle Owner';
+      const existingFirestoreUser = await findUserByPhoneInFirestore(phone);
+      if (existingFirestoreUser) {
+        ownerName = existingFirestoreUser.name;
+      }
+
+      const ownerUser = {
+        id: existingFirestoreUser?.id || user.id || `usr_${Date.now()}`,
+        name: ownerName,
+        phone: phone,
+        role: 'owner' as const,
+        status: 'active' as const,
+        created_at: existingFirestoreUser?.created_at || user.created_at || new Date().toISOString(),
+      };
+
+      setUser(ownerUser);
+
+      // Save/Sync login in Firebase Firestore
+      recordUserLogin(ownerUser, 'otp').catch((err) => {
+        console.warn('Firebase owner login record notice:', err);
+      });
+      syncOwnerToFirestore(ownerUser).catch((err) => {
+        console.warn('Firebase syncOwner notice:', err);
+      });
+
       setTimeout(() => {
         router.push('/owner/dashboard');
       }, 350);

@@ -19,6 +19,8 @@ import {
   syncOwnerToFirestore,
   syncVehicleToFirestore,
   syncWashRecordToFirestore,
+  syncWasherToFirestore,
+  recordUserLogin,
 } from './firebaseService';
 import { WasherPartner, initialWasherPartners } from './washerPartners';
 
@@ -1018,6 +1020,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     });
 
     setIsDataErased(false);
+
+    // Asynchronously sync onboarded washer partner to Firebase Firestore
+    syncWasherToFirestore(newPartner).catch((err) => {
+      console.warn('Firebase syncWasher error:', err);
+    });
 
     setNotifications((prev) => [
       {

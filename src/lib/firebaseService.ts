@@ -7,13 +7,15 @@ import {
   getDocs, 
   query, 
   where,
+  addDoc,
   serverTimestamp 
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { User, Vehicle, WashRecord } from './types';
+import { WasherPartner } from './washerPartners';
 
 /**
- * Saves or updates a user/owner profile in Firestore.
+ * Saves or updates a user/owner profile and their registered vehicles in Firestore.
  */
 export async function syncOwnerToFirestore(
   owner: User,
@@ -25,10 +27,28 @@ export async function syncOwnerToFirestore(
       userRef,
       {
         ...owner,
+        role: 'owner',
+        created_at: owner.created_at || new Date().toISOString(),
+        last_login_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       },
       { merge: true }
     );
+
+    // Save login/signup event to auth_logs collection
+    try {
+      await addDoc(collection(db, 'auth_logs'), {
+        user_id: owner.id,
+        name: owner.name,
+        phone: owner.phone,
+        role: 'owner',
+        event: 'owner_registered',
+        timestamp: serverTimestamp(),
+      });
+    } catch (logErr) {
+      // Non-blocking log warning
+      console.warn('Auth log write notice:', logErr);
+    }
 
     if (vehicles && vehicles.length > 0) {
       for (const vehicle of vehicles) {
@@ -37,6 +57,8 @@ export async function syncOwnerToFirestore(
           vehicleRef,
           {
             ...vehicle,
+            owner_id: owner.id,
+            owner_name: owner.name,
             updated_at: serverTimestamp(),
           },
           { merge: true }
@@ -48,6 +70,250 @@ export async function syncOwnerToFirestore(
   } catch (error: any) {
     console.warn('Firebase syncOwnerToFirestore notice:', error?.message || error);
     return { success: false, error: error?.message || 'Sync failed' };
+  }
+}
+
+/**
+ * Saves or updates a Washer Partner profile in Firestore.
+ */
+export async function syncWasherToFirestore(
+  washer: WasherPartner
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const washerRef = doc(db, 'washers', washer.id);
+    await setDoc(
+      washerRef,
+      {
+        ...washer,
+        created_at: new Date().toISOString(),
+        last_login_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Also mirror to users collection so they have a valid user profile
+    const userRef = doc(db, 'users', washer.id);
+    await setDoc(
+      userRef,
+      {
+        id: washer.id,
+        name: washer.name,
+        phone: washer.phone,
+        role: 'washer',
+        avatar_url: washer.avatar,
+        status: 'active',
+        society: washer.society,
+        aadhaar_number: washer.aadhaarNumber || null,
+        aadhaar_verified: !!washer.aadhaarVerified,
+        phone_verified: !!washer.phoneVerified,
+        last_login_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Write audit event
+    try {
+      await addDoc(collection(db, 'auth_logs'), {
+        user_id: washer.id,
+        name: washer.name,
+        phone: washer.phone,
+        role: 'washer',
+        event: 'washer_onboarded',
+        society: washer.society,
+        timestamp: serverTimestamp(),
+      });
+    } catch (logErr) {
+      console.warn('Auth log write notice:', logErr);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.warn('Firebase syncWasherToFirestore notice:', error?.message || error);
+    return { success: false, error: error?.message || 'Sync failed' };
+  }
+}
+
+/**
+ * Records every user login (Owner, Washer, Admin) into Firestore.
+ */
+export async function recordUserLogin(
+  user: User,
+  method: string = 'otp'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userRef = doc(db, 'users', user.id);
+    await setDoc(
+      userRef,
+      {
+        id: user.id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        avatar_url: user.avatar_url || null,
+        status: user.status || 'active',
+        last_login_at: serverTimestamp(),
+        login_method: method,
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Record login audit event
+    try {
+      await addDoc(collection(db, 'auth_logs'), {
+        user_id: user.id,
+        name: user.name,
+        phone: user.phone,
+        role: user.role,
+        event: 'user_login',
+        method,
+        timestamp: serverTimestamp(),
+      });
+    } catch (logErr) {
+      console.warn('Auth log write notice:', logErr);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.warn('Firebase recordUserLogin notice:', error?.message || error);
+    return { success: false, error: error?.message || 'Sync failed' };
+  }
+}
+
+/**
+ * Records an Admin sign-in session and adds to the immutable admin audit trail in Firestore.
+ */
+export async function recordAdminLoginToFirestore(
+  adminUser: User,
+  identifier: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const userRef = doc(db, 'users', adminUser.id);
+    await setDoc(
+      userRef,
+      {
+        ...adminUser,
+        role: 'admin',
+        identifier,
+        last_login_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Record to admin audit trail
+    try {
+      await addDoc(collection(db, 'admin_audit_logs'), {
+        admin_id: adminUser.id,
+        name: adminUser.name,
+        identifier,
+        event: 'admin_console_login',
+        timestamp: serverTimestamp(),
+      });
+    } catch (auditErr) {
+      console.warn('Admin audit write notice:', auditErr);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.warn('Firebase recordAdminLoginToFirestore notice:', error?.message || error);
+    return { success: false, error: error?.message || 'Sync failed' };
+  }
+}
+
+/**
+ * Finds a registered user by phone in Firestore (Owner or Washer).
+ */
+export async function findUserByPhoneInFirestore(phone: string): Promise<User | null> {
+  try {
+    const cleanPhone = phone.replace(/\D/g, '');
+    const usersRef = collection(db, 'users');
+    
+    // Check formatted phone or clean phone
+    const q1 = query(usersRef, where('phone', '==', phone));
+    const snap1 = await getDocs(q1);
+    if (!snap1.empty) {
+      const data = snap1.docs[0].data();
+      return {
+        id: snap1.docs[0].id,
+        name: data.name || 'Registered User',
+        phone: data.phone || phone,
+        role: data.role || 'owner',
+        status: data.status || 'active',
+        avatar_url: data.avatar_url,
+        created_at: data.created_at || new Date().toISOString(),
+      };
+    }
+
+    // Try clean 10-digit match
+    const q2 = query(usersRef, where('phone', '==', `+91 ${cleanPhone.slice(-10)}`));
+    const snap2 = await getDocs(q2);
+    if (!snap2.empty) {
+      const data = snap2.docs[0].data();
+      return {
+        id: snap2.docs[0].id,
+        name: data.name || 'Registered User',
+        phone: data.phone || phone,
+        role: data.role || 'owner',
+        status: data.status || 'active',
+        avatar_url: data.avatar_url,
+        created_at: data.created_at || new Date().toISOString(),
+      };
+    }
+
+    return null;
+  } catch (error: any) {
+    console.warn('Firebase findUserByPhoneInFirestore notice:', error?.message || error);
+    return null;
+  }
+}
+
+/**
+ * Finds an onboarded WasherPartner by phone number in Firestore.
+ */
+export async function findWasherByPhoneInFirestore(phone: string): Promise<WasherPartner | null> {
+  try {
+    const cleanPhone = phone.replace(/\D/g, '');
+    const washersRef = collection(db, 'washers');
+    
+    const q = query(washersRef, where('phone', '==', phone));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      return snap.docs[0].data() as WasherPartner;
+    }
+
+    // Try with +91 prefix
+    const q2 = query(washersRef, where('phone', '==', `+91 ${cleanPhone.slice(-10)}`));
+    const snap2 = await getDocs(q2);
+    if (!snap2.empty) {
+      return snap2.docs[0].data() as WasherPartner;
+    }
+
+    return null;
+  } catch (error: any) {
+    console.warn('Firebase findWasherByPhoneInFirestore notice:', error?.message || error);
+    return null;
+  }
+}
+
+/**
+ * Fetches all vehicles for an owner from Firestore.
+ */
+export async function fetchVehiclesByOwnerFromFirestore(ownerId: string): Promise<Vehicle[]> {
+  try {
+    const vehiclesRef = collection(db, 'vehicles');
+    const q = query(vehiclesRef, where('owner_id', '==', ownerId));
+    const snap = await getDocs(q);
+    const list: Vehicle[] = [];
+    snap.forEach((docSnap) => {
+      list.push(docSnap.data() as Vehicle);
+    });
+    return list;
+  } catch (error: any) {
+    console.warn('Firebase fetchVehiclesByOwnerFromFirestore notice:', error?.message || error);
+    return [];
   }
 }
 

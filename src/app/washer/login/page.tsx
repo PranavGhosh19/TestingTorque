@@ -14,6 +14,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { findWasherByPhoneInFirestore } from '@/lib/firebaseService';
 
 export default function DedicatedWasherLoginPage() {
   const router = useRouter();
@@ -23,7 +24,7 @@ export default function DedicatedWasherLoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleContinue = (e: React.FormEvent) => {
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     const cleanPhone = phone.replace(/\D/g, '');
     if (cleanPhone.length < 10) {
@@ -35,12 +36,22 @@ export default function DedicatedWasherLoginPage() {
     setError('');
     setRole('washer');
 
-    // If there is an onboarded washer matching this phone, match them
-    const matched = washers.find(
+    // Check local store first
+    let matched = washers.find(
       (w) =>
         w.phone.replace(/\D/g, '').includes(cleanPhone) ||
         cleanPhone.includes(w.phone.replace(/\D/g, ''))
     );
+
+    // If not found in local state, lookup from Firebase Firestore
+    if (!matched) {
+      try {
+        matched = (await findWasherByPhoneInFirestore(cleanPhone)) || undefined;
+      } catch (err) {
+        console.warn('Firestore washer lookup notice:', err);
+      }
+    }
+
     if (matched) {
       setUser({
         id: matched.id,
@@ -53,9 +64,7 @@ export default function DedicatedWasherLoginPage() {
       });
     }
 
-    setTimeout(() => {
-      router.push(`/auth/verify?role=washer&phone=${encodeURIComponent('+91 ' + cleanPhone)}`);
-    }, 350);
+    router.push(`/auth/verify?role=washer&phone=${encodeURIComponent('+91 ' + cleanPhone)}`);
   };
 
   return (
