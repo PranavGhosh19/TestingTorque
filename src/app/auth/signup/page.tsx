@@ -17,8 +17,13 @@ import {
   Sparkles,
   MapPin,
   Clock,
+  Check,
+  Star,
+  Award,
+  Zap,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { WasherPartner } from '@/lib/washerPartners';
 
 interface VehicleDraft {
   make: string;
@@ -30,17 +35,28 @@ interface VehicleDraft {
   preferred_wash_time: string;
 }
 
+interface PlanOption {
+  id: string;
+  name: string;
+  monthlyBasePrice: number;
+  tagline: string;
+  badge?: string;
+  washesPerWeek: string;
+  interiorFrequency: string;
+  features: string[];
+}
+
 export default function SignUpPage() {
   const router = useRouter();
-  const { registerOwner, verifyPhoneNumber } = useStore();
+  const { registerOwner, verifyPhoneNumber, washers } = useStore();
 
-  // Multi-step state: 1 = Owner Details, 2 = Vehicles, 3 = Completed/Redirecting
-  const [step, setStep] = useState<1 | 2>(1);
+  // Multi-step state: 1 = Owner Details, 2 = Vehicles, 3 = Choose Plan, 4 = Choose Washer
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
 
   // Step 1: Owner Details
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
+  const [address, setAddress] = useState('Green Valley Residency, Tower 4');
   const [altPhone, setAltPhone] = useState('');
   const [ownerErrors, setOwnerErrors] = useState<{ name?: string; phone?: string }>({});
 
@@ -50,22 +66,116 @@ export default function SignUpPage() {
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
 
-  // Step 2: Vehicles List (can be 1, 2, or more)
+  // Step 2: Vehicles List
   const [vehicles, setVehicles] = useState<VehicleDraft[]>([
     {
-      make: '',
-      model: '',
+      make: 'Hyundai',
+      model: 'Creta',
       registration_number: '',
-      type: 'car',
-      color: '',
-      parking_location: '',
+      type: 'suv',
+      color: 'Phantom Black',
+      parking_location: 'Bay B-14 (Basement 1)',
       preferred_wash_time: '07:30 AM',
     },
   ]);
   const [vehicleErrors, setVehicleErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Quick suggestions for easy onboarding
+  // Step 3: Choose a Plan
+  const planOptions: PlanOption[] = [
+    {
+      id: 'basic',
+      name: 'HOME BASIC',
+      monthlyBasePrice: 599,
+      tagline: 'Essential weekday care for daily office commuters',
+      washesPerWeek: '5 Days / week (Mon – Fri)',
+      interiorFrequency: '1x Monthly Interior Vacuum',
+      features: [
+        'Exterior microfiber gentle wash',
+        'Windshield & side mirror clarity buff',
+        'Tire dressing & dust wipe',
+        'Verified photo proof every wash',
+        'Washer-appointed backup coverage',
+      ],
+    },
+    {
+      id: 'standard',
+      name: 'HOME COMPLETE',
+      monthlyBasePrice: 799,
+      badge: 'RECOMMENDED',
+      tagline: 'Complete care with 6-day wash and deep cockpit cleaning',
+      washesPerWeek: '6 Days / week (Mon – Sat)',
+      interiorFrequency: '2x Monthly Deep Interior Vacuum',
+      features: [
+        'All Basic plan features',
+        '6 Days comprehensive morning care',
+        '2x Deep interior vacuum & dashboard wipe',
+        'Rims & alloy detailing spray',
+        'Sunday Priority Wash eligibility',
+        'Touchup guarantee within 2 hours',
+      ],
+    },
+    {
+      id: 'premium',
+      name: 'HOME CONNOISSEUR',
+      monthlyBasePrice: 1199,
+      badge: 'PRESTIGE',
+      tagline: 'Showroom finish for luxury and ceramic coated vehicles',
+      washesPerWeek: '6 Days + 1 Sunday Priority Included',
+      interiorFrequency: 'Weekly Interior Cleaning & Disinfection',
+      features: [
+        'All Standard plan features',
+        'Ceramic-safe pH-neutral care products',
+        'Weekly full interior vacuum & steam mat sanitize',
+        '1 Free Sunday Priority slot every month',
+        'Top-rated senior partner assignment (★ 4.9+)',
+        'Quarterly water-beading protective coat',
+      ],
+    },
+  ];
+
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('standard');
+  const selectedPlan = planOptions.find((p) => p.id === selectedPlanId) || planOptions[1];
+
+  // Step 4: Choose a Washer
+  const availableWashers: WasherPartner[] = washers && washers.length > 0
+    ? washers
+    : [
+        {
+          id: 'wsh_amit',
+          name: 'Amit Kumar',
+          phone: '+91 98101 22334',
+          avatar: '/images/washer_amit.jpg',
+          rating: '4.98',
+          reviewsCount: 142,
+          society: 'Green Valley Residency',
+          assignedCarsPerDay: 30,
+          routeWindow: '06:30 AM - 09:30 AM',
+          avgTimePerCar: '5.5 mins',
+          completionRate: '100%',
+          totalLifetimeWashes: 1840,
+          status: 'Active on Route',
+          kyc: 'Verified (Aadhaar & Police Clear)',
+          aadhaarVerified: true,
+          phoneVerified: true,
+          absentThisMonth: 0,
+          absentDates: [],
+          leaveReason: '',
+          backupWasherName: 'Rajesh Sharma',
+          monthlyPayoutsGone: 48200,
+          pendingPayoutDue: 2840,
+          sundayBonusEarned: 1200,
+          disbursements: [],
+        },
+      ];
+
+  const [selectedWasherId, setSelectedWasherId] = useState<string>(
+    availableWashers[0]?.id || 'wsh_amit'
+  );
+  const selectedWasher =
+    availableWashers.find((w) => w.id === selectedWasherId) || availableWashers[0];
+
+  // Quick suggestions for easy vehicle adding
   const popularModels = [
     { make: 'Honda', model: 'City', type: 'car' as const },
     { make: 'Hyundai', model: 'Creta', type: 'suv' as const },
@@ -100,7 +210,7 @@ export default function SignUpPage() {
     }
   };
 
-  // Validate Step 1
+  // Validate Step 1 -> Move to Step 2
   const handleProceedToVehicles = (e: React.FormEvent) => {
     e.preventDefault();
     const errors: { name?: string; phone?: string } = {};
@@ -119,7 +229,6 @@ export default function SignUpPage() {
     }
 
     if (!isPhoneVerified) {
-      // Prompt OTP verification
       setIsPhoneVerifying(true);
       setOtpSent(true);
       return;
@@ -129,7 +238,6 @@ export default function SignUpPage() {
     setStep(2);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
-
 
   // Add another vehicle
   const handleAddVehicle = () => {
@@ -162,11 +270,9 @@ export default function SignUpPage() {
     });
   };
 
-  // Final Submit
-  const handleFinalSubmit = (e: React.FormEvent) => {
+  // Validate Step 2 -> Move to Step 3 (Choose Plan)
+  const handleProceedToPlan = (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate registration numbers
     const errors: string[] = [];
     vehicles.forEach((v, i) => {
       if (!v.registration_number.trim()) {
@@ -179,15 +285,32 @@ export default function SignUpPage() {
       return;
     }
 
+    setVehicleErrors([]);
+    setStep(3);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Validate Step 3 -> Move to Step 4 (Choose Washer)
+  const handleProceedToWasher = () => {
+    setStep(4);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Final Submit on Step 4
+  const handleFinalSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     setIsSubmitting(true);
 
-    // Call store action
+    // Call store action with owner data, selected plan, and selected washer
     registerOwner(
       {
         name: name.trim(),
         phone: phone.trim().startsWith('+91') ? phone.trim() : `+91 ${phone.trim()}`,
         address: address.trim() || undefined,
         alt_phone: altPhone.trim() || undefined,
+        selectedPlan: selectedPlan.name,
+        selectedWasherId: selectedWasher.id,
+        selectedWasherName: selectedWasher.name,
       },
       vehicles
     );
@@ -205,7 +328,7 @@ export default function SignUpPage() {
       <div className="fixed top-1/2 right-10 w-[500px] h-[500px] bg-indigo-600/10 rounded-full blur-[160px] pointer-events-none -z-10" />
       <div className="fixed bottom-10 left-10 w-[500px] h-[500px] bg-emerald-600/10 rounded-full blur-[150px] pointer-events-none -z-10" />
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 space-y-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 space-y-8">
         {/* TOP BRAND HEADER & STEP PROGRESS */}
         <div className="text-center space-y-3">
           <Link
@@ -213,43 +336,79 @@ export default function SignUpPage() {
             className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/15 backdrop-blur-md shadow-lg text-xs font-semibold text-slate-300 hover:text-white transition-colors mb-2"
           >
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Torque Care • Owner Sign Up</span>
+            <span>Torque Care • Owner Onboarding</span>
           </Link>
 
           <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
-            {step === 1 ? 'Owner Registration' : 'Add Your Vehicles'}
+            {step === 1 && '1. Owner Registration'}
+            {step === 2 && '2. Add Your Vehicles'}
+            {step === 3 && '3. Choose a Care Plan'}
+            {step === 4 && '4. Select Your Washer Partner'}
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 max-w-md mx-auto">
-            {step === 1
-              ? 'Enter your name, contact details, and society residence.'
-              : 'Add 1, 2, or more vehicles for verified morning society care.'}
+            {step === 1 && 'Enter your contact details and verified mobile number.'}
+            {step === 2 && 'Add 1, 2, or more vehicles for verified society parking bay care.'}
+            {step === 3 && 'Select a transparent monthly membership plan tailored for your commute.'}
+            {step === 4 && 'Pick your assigned verified partner for morning route execution.'}
           </p>
 
-          {/* Stepper Indicator */}
-          <div className="flex items-center justify-center gap-3 pt-3">
+          {/* Stepper Indicator (4 Steps) */}
+          <div className="flex items-center justify-center gap-2 sm:gap-3 pt-3 flex-wrap">
             <div
-              className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${
                 step === 1
                   ? 'bg-blue-600 text-white shadow-md'
                   : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
               }`}
             >
               <span>1</span>
-              <span>Owner Details</span>
-              {step === 2 && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+              <span>Details</span>
+              {step > 1 && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
             </div>
 
-            <div className="w-8 h-0.5 bg-white/15 rounded-full" />
+            <div className="w-4 sm:w-6 h-0.5 bg-white/15 rounded-full" />
 
             <div
-              className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${
                 step === 2
                   ? 'bg-blue-600 text-white shadow-md'
+                  : step > 2
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
                   : 'bg-white/5 text-slate-500 border border-white/10'
               }`}
             >
               <span>2</span>
-              <span>Add Vehicles ({vehicles.length})</span>
+              <span>Vehicles ({vehicles.length})</span>
+              {step > 2 && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+            </div>
+
+            <div className="w-4 sm:w-6 h-0.5 bg-white/15 rounded-full" />
+
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                step === 3
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : step > 3
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                  : 'bg-white/5 text-slate-500 border border-white/10'
+              }`}
+            >
+              <span>3</span>
+              <span>Plan</span>
+              {step > 3 && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+            </div>
+
+            <div className="w-4 sm:w-6 h-0.5 bg-white/15 rounded-full" />
+
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                step === 4
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'bg-white/5 text-slate-500 border border-white/10'
+              }`}
+            >
+              <span>4</span>
+              <span>Washer</span>
             </div>
           </div>
         </div>
@@ -299,147 +458,125 @@ export default function SignUpPage() {
                     Phone Number <span className="text-rose-400">*</span>
                   </span>
                   {isPhoneVerified && (
-                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                    <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" /> Phone Verified
                     </span>
                   )}
                 </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono">
-                      +91
-                    </span>
-                    <input
-                      type="tel"
-                      required
-                      value={phone}
-                      onChange={(e) => {
-                        setPhone(e.target.value);
-                        setIsPhoneVerified(false);
-                        setOtpSent(false);
-                        if (ownerErrors.phone) setOwnerErrors((prev) => ({ ...prev, phone: undefined }));
-                      }}
-                      placeholder="98765 43210"
-                      className="w-full pl-13 pr-4 py-3.5 bg-white/5 border border-white/15 rounded-2xl text-sm font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all font-mono"
-                    />
-                  </div>
-                  {!isPhoneVerified ? (
+
+                <div className="flex items-center rounded-2xl border border-white/15 bg-white/5 p-1.5 focus-within:border-blue-400 focus-within:bg-white/10 transition-all">
+                  <span className="text-xs font-mono font-bold text-slate-400 px-3 py-1 border-r border-white/10">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    required
+                    value={phone}
+                    disabled={isPhoneVerified}
+                    onChange={(e) => {
+                      setPhone(e.target.value);
+                      if (ownerErrors.phone) setOwnerErrors((prev) => ({ ...prev, phone: undefined }));
+                      setIsPhoneVerified(false);
+                    }}
+                    placeholder="98765 43210"
+                    className="w-full bg-transparent px-3 py-1.5 text-sm font-bold text-white focus:outline-hidden font-mono tracking-wider disabled:opacity-60"
+                  />
+                  {!isPhoneVerified && (
                     <button
                       type="button"
                       onClick={handleSendOtp}
-                      className="px-4 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl cursor-pointer transition-colors shrink-0"
+                      className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shrink-0 transition-all"
                     >
                       {otpSent ? 'Resend' : 'Verify'}
                     </button>
-                  ) : (
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
-                      <CheckCircle2 className="w-5 h-5" />
-                    </div>
                   )}
                 </div>
                 {ownerErrors.phone && (
                   <p className="text-[11px] text-rose-400 mt-1.5 font-medium">{ownerErrors.phone}</p>
                 )}
-
-                {/* Inline OTP Verification Box */}
-                {isPhoneVerifying && !isPhoneVerified && (
-                  <div className="mt-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl space-y-3 animate-in fade-in">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-bold text-blue-200">
-                        Enter 4-digit code sent to {phone}:
-                      </span>
-                      <span className="font-mono text-blue-300 text-[11px]">
-                        Test code: <strong>4291</strong>
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="flex gap-2">
-                        {phoneOtp.map((digit, i) => (
-                          <input
-                            key={i}
-                            type="text"
-                            maxLength={1}
-                            value={digit}
-                            onChange={(e) => {
-                              const copy = [...phoneOtp];
-                              copy[i] = e.target.value;
-                              setPhoneOtp(copy);
-                            }}
-                            className="w-10 h-10 text-center font-bold font-mono text-lg bg-white/10 border border-blue-400/40 text-white rounded-xl focus:outline-none focus:border-blue-400"
-                          />
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={handleConfirmOtp}
-                        className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl cursor-pointer"
-                      >
-                        Confirm OTP
-                      </button>
-                    </div>
-                  </div>
-                )}
               </div>
             </div>
 
-            {/* Additional Details: Home Address & Alternative Phone */}
-            <div className="pt-2 border-t border-white/10 space-y-5">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
-                  Additional Details
-                </span>
-                <span className="text-[10px] text-slate-400">For morning access & backup</span>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
-                  <Home className="w-3.5 h-3.5 text-amber-400" />
-                  Home Address / Society Residence
-                </label>
-                <textarea
-                  rows={2}
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. Flat 402, Tower B, Green Valley Residency, Sector 62, Noida"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-2xl text-sm font-medium text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all leading-relaxed resize-none"
-                />
-                <span className="text-[10px] text-slate-400 mt-1 block">
-                  Used by our verified society partner to locate your assigned tower and bay.
-                </span>
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-blue-400" />
-                  Alternative Phone Number (Optional)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono">
-                    +91
+            {/* OTP Verification Prompt */}
+            {isPhoneVerifying && !isPhoneVerified && (
+              <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-blue-300">
+                    Enter verification code sent to +91 {phone.replace(/\D/g, '')}
                   </span>
-                  <input
-                    type="tel"
-                    value={altPhone}
-                    onChange={(e) => setAltPhone(e.target.value)}
-                    placeholder="98111 22334 (Spouse / Family / Emergency)"
-                    className="w-full pl-13 pr-4 py-3.5 bg-white/5 border border-white/15 rounded-2xl text-sm font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all font-mono"
-                  />
+                  <span className="text-[10px] text-slate-400 font-mono">Test code: 4291</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex gap-2">
+                    {phoneOtp.map((digit, idx) => (
+                      <input
+                        key={idx}
+                        type="text"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => {
+                          const copy = [...phoneOtp];
+                          copy[idx] = e.target.value;
+                          setPhoneOtp(copy);
+                        }}
+                        className="w-10 h-10 text-center font-mono font-black text-lg text-white bg-white/10 border border-white/20 rounded-xl focus:border-blue-400 focus:outline-hidden"
+                      />
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConfirmOtp}
+                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all"
+                  >
+                    Confirm Code
+                  </button>
                 </div>
               </div>
+            )}
+
+            {/* Address & Alternate Phone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div>
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                  <Home className="w-3.5 h-3.5 text-blue-400" />
+                  Society Residence / Apartment
+                </label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="e.g. Green Valley Residency, Tower 4, Flat 602"
+                  className="w-full px-4 py-3.5 bg-white/5 border border-white/15 rounded-2xl text-sm font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                  <Phone className="w-3.5 h-3.5 text-slate-400" />
+                  Alternate Contact (Optional)
+                </label>
+                <input
+                  type="tel"
+                  value={altPhone}
+                  onChange={(e) => setAltPhone(e.target.value)}
+                  placeholder="e.g. Spouse / Driver Phone"
+                  className="w-full px-4 py-3.5 bg-white/5 border border-white/15 rounded-2xl text-sm font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all font-mono"
+                />
+              </div>
             </div>
 
-            {/* Action Button */}
-            <div className="pt-4 border-t border-white/10 flex items-center justify-between gap-4">
+            {/* CTA Button */}
+            <div className="pt-4 flex items-center justify-between">
               <Link
                 href="/auth/login"
-                className="text-xs font-bold text-slate-400 hover:text-white transition-colors"
+                className="text-xs text-slate-400 hover:text-white transition-colors"
               >
-                Already registered? <span className="text-blue-400 underline">Log In</span>
+                Already have an account? <span className="text-blue-400 underline">Sign In</span>
               </Link>
 
               <button
                 type="submit"
-                className="px-8 py-4 rounded-2xl bg-white hover:bg-slate-100 text-[#080D1A] font-black text-sm shadow-[0_10px_30px_rgba(255,255,255,0.2)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+                className="px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider shadow-[0_10px_25px_rgba(79,124,255,0.3)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
               >
                 <span>Continue to Add Vehicles</span>
                 <ArrowRight className="w-4 h-4" />
@@ -449,101 +586,69 @@ export default function SignUpPage() {
         )}
 
         {/* ============================================================ */}
-        {/* STEP 2: ADD VEHICLES (1, 2, OR MORE)                         */}
+        {/* STEP 2: ADD VEHICLES (1, 2, or more cars/SUVs)               */}
         {/* ============================================================ */}
         {step === 2 && (
-          <form onSubmit={handleFinalSubmit} className="space-y-6">
-            <div className="flex items-center justify-between flex-wrap gap-3">
-              <div>
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-blue-400">
-                  Vehicle Garage
-                </span>
-                <h2 className="text-xl sm:text-2xl font-black text-white">
-                  Add Vehicles for {name || 'Your Account'}
-                </h2>
+          <form onSubmit={handleProceedToPlan} className="space-y-6">
+            <div className="p-6 rounded-3xl bg-blue-500/10 border border-blue-500/20 backdrop-blur-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400">
+                  <Car className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Registered Society Garage</h3>
+                  <p className="text-xs text-slate-400">
+                    Add all cars or SUVs you want our verified partners to wash every morning.
+                  </p>
+                </div>
               </div>
-
-              {/* Add Vehicle Button */}
-              <button
-                type="button"
-                onClick={handleAddVehicle}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-lg transition-all active:scale-95 cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Add Another Vehicle</span>
-              </button>
+              <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-white/10 text-white">
+                {vehicles.length} {vehicles.length === 1 ? 'Vehicle' : 'Vehicles'}
+              </span>
             </div>
 
-            {/* List of Vehicles */}
-            <div className="space-y-6">
+            {/* Vehicle Cards List */}
+            <div className="space-y-5">
               {vehicles.map((v, index) => (
                 <div
                   key={index}
-                  className="p-6 sm:p-8 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl space-y-6 relative luxury-sheen"
+                  className="p-6 sm:p-8 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-xl space-y-5 luxury-sheen relative"
                 >
-                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-sm">
-                        #{index + 1}
-                      </div>
-                      <div>
-                        <h3 className="text-base font-black text-white">
-                          Vehicle #{index + 1}: {v.make} {v.model || 'New Vehicle'}
-                        </h3>
-                        <span className="text-[11px] text-slate-400 font-mono">
-                          {v.type === 'suv' ? 'SUV Care' : v.type === 'car' ? 'Sedan / Hatch' : 'Two-Wheeler'}
-                        </span>
-                      </div>
+                  <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 font-bold text-xs flex items-center justify-center font-mono">
+                        {index + 1}
+                      </span>
+                      <h4 className="text-sm font-black text-white uppercase tracking-wider">
+                        Vehicle #{index + 1} Details
+                      </h4>
                     </div>
 
                     {vehicles.length > 1 && (
                       <button
                         type="button"
                         onClick={() => handleRemoveVehicle(index)}
-                        className="p-2 rounded-xl text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
-                        title="Remove this vehicle"
+                        className="text-xs text-rose-400 hover:text-rose-300 flex items-center gap-1 font-bold p-1 rounded-lg hover:bg-rose-500/10 transition-colors"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remove</span>
                       </button>
                     )}
                   </div>
 
-                  {/* Segment Pills */}
-                  <div>
-                    <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2">
-                      Vehicle Segment
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {(['car', 'suv', 'bike'] as const).map((type) => (
-                        <button
-                          key={type}
-                          type="button"
-                          onClick={() => handleVehicleChange(index, 'type', type)}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold capitalize transition-all ${
-                            v.type === type
-                              ? 'bg-white text-[#080D1A] shadow-md'
-                              : 'bg-white/5 text-slate-400 hover:text-white border border-white/10'
-                          }`}
-                        >
-                          {type === 'car' ? 'Hatch / Sedan' : type === 'suv' ? 'Compact / SUV' : 'Motorcycle'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Make, Model & Registration Number */}
+                  {/* Make, Model, Type */}
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2">
-                        Make <span className="text-rose-400">*</span>
+                        Make / Brand <span className="text-rose-400">*</span>
                       </label>
                       <input
                         type="text"
                         required
                         value={v.make}
                         onChange={(e) => handleVehicleChange(index, 'make', e.target.value)}
-                        placeholder="e.g. Honda, Hyundai"
-                        className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-2xl text-xs font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all"
+                        placeholder="e.g. Hyundai"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-2xl text-xs font-semibold text-white focus:outline-hidden focus:border-blue-400 transition-all"
                       />
                     </div>
 
@@ -556,47 +661,74 @@ export default function SignUpPage() {
                         required
                         value={v.model}
                         onChange={(e) => handleVehicleChange(index, 'model', e.target.value)}
-                        placeholder="e.g. City ZX, Creta"
-                        className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-2xl text-xs font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all"
+                        placeholder="e.g. Creta"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-2xl text-xs font-semibold text-white focus:outline-hidden focus:border-blue-400 transition-all"
                       />
                     </div>
 
                     <div>
                       <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2">
-                        Plate / Reg Number <span className="text-rose-400">*</span>
+                        Body Type
+                      </label>
+                      <select
+                        value={v.type}
+                        onChange={(e) =>
+                          handleVehicleChange(index, 'type', e.target.value as 'car' | 'suv' | 'bike')
+                        }
+                        className="w-full px-4 py-3 bg-[#0B132B] border border-white/15 rounded-2xl text-xs font-semibold text-white focus:outline-hidden focus:border-blue-400 transition-all"
+                      >
+                        <option value="car">Hatchback / Sedan</option>
+                        <option value="suv">SUV / MUV</option>
+                        <option value="bike">Motorcycle / Scooter</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Registration Number & Color */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2">
+                        Number Plate <span className="text-rose-400">*</span>
                       </label>
                       <input
                         type="text"
                         required
                         value={v.registration_number}
-                        onChange={(e) => {
-                          handleVehicleChange(index, 'registration_number', e.target.value.toUpperCase());
-                          if (vehicleErrors[index]) {
-                            const copy = [...vehicleErrors];
-                            delete copy[index];
-                            setVehicleErrors(copy);
-                          }
-                        }}
+                        onChange={(e) =>
+                          handleVehicleChange(index, 'registration_number', e.target.value.toUpperCase())
+                        }
                         placeholder="e.g. DL 01 AB 4291"
-                        className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-2xl text-xs font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all uppercase font-mono tracking-wider"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-2xl text-xs font-mono font-bold text-white uppercase focus:outline-hidden focus:border-blue-400 transition-all tracking-wider"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2">
+                        Vehicle Color
+                      </label>
+                      <input
+                        type="text"
+                        value={v.color}
+                        onChange={(e) => handleVehicleChange(index, 'color', e.target.value)}
+                        placeholder="e.g. Phantom Black"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-2xl text-xs font-semibold text-white focus:outline-hidden focus:border-blue-400 transition-all"
                       />
                     </div>
                   </div>
 
-                  {/* Parking Location Bay & Color */}
+                  {/* Parking Bay & Preferred Wash Time */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-                        Assigned Parking Bay <span className="text-rose-400">*</span>
+                        <MapPin className="w-3.5 h-3.5 text-blue-400" />
+                        Assigned Parking Bay
                       </label>
                       <input
                         type="text"
-                        required
                         value={v.parking_location}
                         onChange={(e) => handleVehicleChange(index, 'parking_location', e.target.value)}
-                        placeholder="e.g. Bay D-14 (Basement 1) or Pillar 42"
-                        className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-2xl text-xs font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all"
+                        placeholder="e.g. Bay B-14 (Basement 1)"
+                        className="w-full px-4 py-3 bg-white/5 border border-white/15 rounded-2xl text-xs font-semibold text-white focus:outline-hidden focus:border-blue-400 transition-all"
                       />
                     </div>
 
@@ -618,7 +750,7 @@ export default function SignUpPage() {
                     </div>
                   </div>
 
-                  {/* Popular preset pills */}
+                  {/* Quick Preset Buttons */}
                   <div className="pt-2">
                     <span className="text-[10px] text-slate-400 font-mono block mb-1.5">
                       Or select quick model:
@@ -670,17 +802,339 @@ export default function SignUpPage() {
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
-                  className="px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-black text-xs shadow-lg transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+                  className="px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider shadow-[0_10px_25px_rgba(79,124,255,0.3)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
                 >
-                  <span>
-                    {isSubmitting
-                      ? 'Creating Your Account...'
-                      : `Complete Sign Up (${vehicles.length} Vehicle${vehicles.length > 1 ? 's' : ''})`}
-                  </span>
+                  <span>Continue to Choose Plan</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
+            </div>
+          </form>
+        )}
+
+        {/* ============================================================ */}
+        {/* STEP 3: CHOOSE A PLAN (Home Basic, Home Complete, Prestige)   */}
+        {/* ============================================================ */}
+        {step === 3 && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200">
+            <div className="p-6 rounded-3xl bg-blue-500/10 border border-blue-500/20 backdrop-blur-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-400">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Select Your Monthly Care Plan</h3>
+                  <p className="text-xs text-slate-400">
+                    Transparent monthly membership with verified photo proof and touchup guarantees.
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-white/10 text-white">
+                Step 3 of 4
+              </span>
+            </div>
+
+            {/* Plan Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {planOptions.map((plan) => {
+                const isSelected = selectedPlanId === plan.id;
+                const totalCost = plan.monthlyBasePrice * vehicles.length;
+
+                return (
+                  <div
+                    key={plan.id}
+                    onClick={() => setSelectedPlanId(plan.id)}
+                    className={`relative p-6 sm:p-7 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-blue-600/15 border-blue-400 shadow-[0_10px_35px_rgba(79,124,255,0.3)] scale-[1.02]'
+                        : 'bg-white/5 border-white/10 hover:border-white/25 hover:bg-white/10'
+                    }`}
+                  >
+                    {/* Badge */}
+                    {plan.badge && (
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-[10px] font-black uppercase tracking-widest text-white shadow-md">
+                        {plan.badge}
+                      </span>
+                    )}
+
+                    <div className="space-y-4">
+                      {/* Plan Header */}
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h4 className="text-base font-black text-white">{plan.name}</h4>
+                          <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{plan.tagline}</p>
+                        </div>
+                        <div
+                          className={`w-6 h-6 rounded-full border flex items-center justify-center ${
+                            isSelected
+                              ? 'bg-blue-500 border-blue-400 text-white'
+                              : 'border-white/20'
+                          }`}
+                        >
+                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                        </div>
+                      </div>
+
+                      {/* Pricing */}
+                      <div className="pt-2 border-t border-white/10">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-3xl font-black text-white">₹{plan.monthlyBasePrice}</span>
+                          <span className="text-xs text-slate-400">/ car / mo</span>
+                        </div>
+                        {vehicles.length > 1 && (
+                          <div className="text-[11px] text-blue-300 font-mono font-semibold mt-1">
+                            Total: ₹{totalCost}/mo ({vehicles.length} cars)
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Key Frequencies */}
+                      <div className="space-y-2 py-2 border-y border-white/10 text-xs">
+                        <div className="flex items-center gap-2 text-slate-200">
+                          <Sparkles className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                          <span className="font-semibold">{plan.washesPerWeek}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-slate-300">
+                          <Zap className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span>{plan.interiorFrequency}</span>
+                        </div>
+                      </div>
+
+                      {/* Bullet Features */}
+                      <ul className="space-y-2 text-[11px] text-slate-400">
+                        {plan.features.map((feat, fIdx) => (
+                          <li key={fIdx} className="flex items-start gap-2">
+                            <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                            <span>{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`w-full mt-6 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        isSelected
+                          ? 'bg-blue-500 text-white font-black shadow-md'
+                          : 'bg-white/10 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {isSelected ? '✓ Selected Plan' : 'Select Plan'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Bottom Actions Bar */}
+            <div className="p-6 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="inline-flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Vehicles</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleProceedToWasher}
+                className="px-8 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider shadow-[0_10px_25px_rgba(79,124,255,0.3)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                <span>Continue to Choose Washer</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================ */}
+        {/* STEP 4: CHOOSE A WASHER PARTNER                              */}
+        {/* ============================================================ */}
+        {step === 4 && (
+          <form
+            onSubmit={handleFinalSubmit}
+            className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200"
+          >
+            <div className="p-6 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-xl flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
+                  <span className="text-xl">🧼</span>
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Choose Your Dedicated Washer Partner</h3>
+                  <p className="text-xs text-slate-400">
+                    Verified service partner assigned to your society morning route with daily photo verification.
+                  </p>
+                </div>
+              </div>
+              <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-white/10 text-white">
+                Step 4 of 4
+              </span>
+            </div>
+
+            {/* Washer Partner Cards Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {availableWashers.map((washer) => {
+                const isSelected = selectedWasherId === washer.id;
+
+                return (
+                  <div
+                    key={washer.id}
+                    onClick={() => setSelectedWasherId(washer.id)}
+                    className={`p-6 rounded-3xl border transition-all cursor-pointer relative flex flex-col justify-between ${
+                      isSelected
+                        ? 'bg-emerald-600/15 border-emerald-400 shadow-[0_10px_35px_rgba(16,185,129,0.25)] scale-[1.01]'
+                        : 'bg-white/5 border-white/10 hover:border-white/25 hover:bg-white/10'
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      {/* Washer Avatar */}
+                      <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/20 shrink-0 bg-slate-800">
+                        <img
+                          src={washer.avatar || '/images/washer_amit.jpg'}
+                          alt={washer.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 space-y-1">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-base font-bold text-white">{washer.name}</h4>
+                          <div
+                            className={`w-6 h-6 rounded-full border flex items-center justify-center ${
+                              isSelected
+                                ? 'bg-emerald-500 border-emerald-400 text-slate-950 font-bold'
+                                : 'border-white/20'
+                            }`}
+                          >
+                            {isSelected && <Check className="w-3.5 h-3.5" />}
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-slate-400 flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span>{washer.society || 'Assigned Society Route'}</span>
+                        </p>
+
+                        <div className="flex items-center gap-3 pt-1 text-xs">
+                          <div className="flex items-center gap-1 font-bold text-amber-300">
+                            <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
+                            <span>{washer.rating || '4.98'}</span>
+                            <span className="text-[10px] text-slate-400">
+                              ({washer.reviewsCount || 120}+ reviews)
+                            </span>
+                          </div>
+
+                          <div className="text-[11px] text-emerald-400 font-semibold">
+                            {washer.completionRate || '100%'} on-time
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Partner Metadata Specs */}
+                    <div className="grid grid-cols-2 gap-2 mt-4 pt-4 border-t border-white/10 text-[11px]">
+                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                        <span className="text-slate-400 block text-[10px] uppercase font-mono">
+                          Morning Window
+                        </span>
+                        <span className="font-bold text-slate-200">
+                          {washer.routeWindow || '06:30 AM – 09:30 AM'}
+                        </span>
+                      </div>
+
+                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/5">
+                        <span className="text-slate-400 block text-[10px] uppercase font-mono">
+                          Aadhaar KYC
+                        </span>
+                        <span className="font-bold text-emerald-300 flex items-center gap-1">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>Verified Partner</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className={`w-full mt-4 py-2.5 rounded-xl text-xs font-bold transition-all ${
+                        isSelected
+                          ? 'bg-emerald-400 text-slate-950 font-black shadow-md'
+                          : 'bg-white/10 text-slate-300 hover:text-white'
+                      }`}
+                    >
+                      {isSelected ? '✓ Assigned Partner' : 'Select Partner'}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Summary Review Card */}
+            <div className="p-6 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl space-y-4">
+              <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-blue-400">
+                Membership Summary
+              </h4>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                  <span className="text-slate-400 block text-[10px] uppercase font-mono">
+                    Owner & Vehicles
+                  </span>
+                  <div className="font-bold text-white mt-0.5">{name || 'Car Owner'}</div>
+                  <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                    {vehicles.length} Vehicle{vehicles.length > 1 ? 's' : ''} (
+                    {vehicles.map((v) => v.registration_number).join(', ')})
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                  <span className="text-slate-400 block text-[10px] uppercase font-mono">
+                    Selected Plan
+                  </span>
+                  <div className="font-bold text-blue-400 mt-0.5">{selectedPlan.name}</div>
+                  <div className="text-[11px] text-slate-300 font-semibold mt-0.5">
+                    ₹{selectedPlan.monthlyBasePrice * vehicles.length}/mo • {selectedPlan.washesPerWeek}
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-white/5 border border-white/10">
+                  <span className="text-slate-400 block text-[10px] uppercase font-mono">
+                    Assigned Washer Partner
+                  </span>
+                  <div className="font-bold text-emerald-400 mt-0.5">{selectedWasher.name}</div>
+                  <div className="text-[11px] text-slate-300 mt-0.5 font-mono">
+                    Route: {selectedWasher.routeWindow}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom Actions Bar */}
+            <div className="p-6 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <button
+                type="button"
+                onClick={() => setStep(3)}
+                className="inline-flex items-center gap-2 text-xs font-bold text-slate-300 hover:text-white transition-colors"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Choose Plan</span>
+              </button>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-4 rounded-2xl bg-emerald-400 hover:bg-emerald-300 disabled:opacity-50 text-slate-950 font-black text-xs uppercase tracking-wider shadow-[0_10px_30px_rgba(16,185,129,0.3)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                <span>
+                  {isSubmitting
+                    ? 'Activating Membership & Syncing...'
+                    : 'Activate Care Plan & View Dashboard'}
+                </span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
             </div>
           </form>
         )}

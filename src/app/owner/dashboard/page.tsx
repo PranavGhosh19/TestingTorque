@@ -26,7 +26,7 @@ import OwnerBottomNav from '@/components/OwnerBottomNav';
 import { useStore } from '@/lib/store';
 
 export default function OwnerDashboardPage() {
-  const { user, vehicles, todayWash, washes } = useStore();
+  const { user, vehicles, todayWash, washes, washers } = useStore();
   const [showSundayModal, setShowSundayModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
 
@@ -37,6 +37,19 @@ export default function OwnerDashboardPage() {
     parking_location: 'Block B • Bay D-14',
     washes_this_month: 22,
   };
+
+  const assignedWasher =
+    washers.find(
+      (w) => w.id === user.assigned_washer_id || w.name === user.assigned_washer_name
+    ) || washers[0] || {
+      name: 'Amit Kumar',
+      avatar: '/images/washer_amit.jpg',
+      rating: '4.98',
+      totalLifetimeWashes: 1840,
+      society: 'Green Valley Residency',
+    };
+
+  const activePlanName = user.selected_plan || primaryVehicle.selected_plan || 'HOME COMPLETE';
 
   return (
     <div className="min-h-screen bg-[#080D1A] text-slate-100 pb-28 md:pb-16 selection:bg-blue-500 selection:text-white">
@@ -115,9 +128,9 @@ export default function OwnerDashboardPage() {
                 Active Plan
               </span>
             </div>
-            <div className="text-xl font-black text-white">Starting at ₹599 / month</div>
+            <div className="text-xl font-black text-white">{activePlanName}</div>
             <p className="text-xs text-slate-400">
-              Recurring society bay care by Amit Kumar at Green Valley.
+              Recurring society bay care by {assignedWasher.name} at {primaryVehicle.society_name || 'Green Valley Residency'}.
             </p>
           </div>
 
@@ -167,8 +180,8 @@ export default function OwnerDashboardPage() {
             <div className="flex items-center gap-3.5">
               <div className="relative w-12 h-12 rounded-2xl overflow-hidden border-2 border-emerald-400/40 shrink-0 shadow-md">
                 <Image
-                  src="/images/washer_amit.jpg"
-                  alt="Amit Kumar"
+                  src={assignedWasher.avatar || '/images/washer_amit.jpg'}
+                  alt={assignedWasher.name}
                   fill
                   className="object-cover"
                 />
@@ -178,12 +191,12 @@ export default function OwnerDashboardPage() {
                   Assigned Partner
                 </span>
                 <div className="text-base font-black text-white">
-                  Amit Kumar
+                  {assignedWasher.name}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-amber-400 font-bold mt-0.5">
-                  <span>★ 4.9</span>
+                  <span>★ {assignedWasher.rating || '4.98'}</span>
                   <span className="text-slate-400 text-[11px] font-mono">
-                    (1,240 washes)
+                    ({assignedWasher.totalLifetimeWashes || 140} washes)
                   </span>
                 </div>
               </div>

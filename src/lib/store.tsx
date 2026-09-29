@@ -32,7 +32,15 @@ interface StoreContextType {
   vehicles: Vehicle[];
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'owner_id' | 'owner_name' | 'washes_this_month' | 'subscription_status'>) => void;
   registerOwner: (
-    ownerData: { name: string; phone: string; address?: string; alt_phone?: string },
+    ownerData: {
+      name: string;
+      phone: string;
+      address?: string;
+      alt_phone?: string;
+      selectedPlan?: string;
+      selectedWasherId?: string;
+      selectedWasherName?: string;
+    },
     vehiclesList: Array<{
       make: string;
       model: string;
@@ -813,7 +821,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const registerOwner = (
-    ownerData: { name: string; phone: string; address?: string; alt_phone?: string },
+    ownerData: {
+      name: string;
+      phone: string;
+      address?: string;
+      alt_phone?: string;
+      selectedPlan?: string;
+      selectedWasherId?: string;
+      selectedWasherName?: string;
+    },
     vehiclesList: Array<{
       make: string;
       model: string;
@@ -835,6 +851,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       role: 'owner',
       status: 'active',
       created_at: new Date().toISOString(),
+      selected_plan: ownerData.selectedPlan || 'HOME COMPLETE',
+      assigned_washer_id: ownerData.selectedWasherId || 'wsh_amit',
+      assigned_washer_name: ownerData.selectedWasherName || 'Amit Kumar',
     };
 
     setUser(newUser);
@@ -856,6 +875,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       society_name: v.society_name || 'Green Valley Residency',
       subscription_status: 'active',
       washes_this_month: 0,
+      selected_plan: ownerData.selectedPlan || 'HOME COMPLETE',
+      assigned_washer_id: ownerData.selectedWasherId || 'wsh_amit',
+      assigned_washer_name: ownerData.selectedWasherName || 'Amit Kumar',
     }));
 
     setVehicles(createdVehicles);
@@ -880,6 +902,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       owner_phone: newUser.phone,
       payout_amount: 30,
       status: 'pending',
+      washer_id: ownerData.selectedWasherId || 'wsh_amit',
+      washer_name: ownerData.selectedWasherName || 'Amit Kumar',
     }));
     setRouteStops((prev) => [...prev, ...newStops]);
 
@@ -892,7 +916,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       {
         id: `notif_welcome_${Date.now()}`,
         title: `Welcome to Torque Care, ${ownerData.name}!`,
-        body: `Your account and ${createdVehicles.length} vehicle${createdVehicles.length > 1 ? 's' : ''} have been registered. Verified morning care route active!`,
+        body: `Your ${ownerData.selectedPlan || 'HOME COMPLETE'} plan is active with assigned partner ${ownerData.selectedWasherName || 'Amit Kumar'}. Morning care route active for ${createdVehicles.length} vehicle${createdVehicles.length > 1 ? 's' : ''}!`,
         timestamp: 'Just now',
         read: false,
         category: 'system',

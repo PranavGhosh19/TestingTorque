@@ -13,6 +13,9 @@ export interface User {
   avatar_url?: string;
   status: 'active' | 'suspended';
   created_at: string;
+  selected_plan?: string;
+  assigned_washer_id?: string;
+  assigned_washer_name?: string;
 }
 
 export interface Society {
@@ -60,6 +63,9 @@ export interface Vehicle {
   society_name: string;
   subscription_status: 'active' | 'paused' | 'expired';
   washes_this_month: number;
+  selected_plan?: string;
+  assigned_washer_id?: string;
+  assigned_washer_name?: string;
 }
 
 export interface WashRecord {
@@ -118,6 +124,8 @@ export interface RouteStop {
   payout_amount: number;
   society_name?: string;
   proof_photo?: string;
+  washer_id?: string;
+  washer_name?: string;
 }
 
 export interface WasherEarnings {
