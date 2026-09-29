@@ -30,6 +30,7 @@ interface StoreContextType {
   user: User;
   setUser: (user: User) => void;
   vehicles: Vehicle[];
+  setVehicles: (vehicles: Vehicle[]) => void;
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'owner_id' | 'owner_name' | 'washes_this_month' | 'subscription_status'>) => void;
   registerOwner: (
     ownerData: {
@@ -1454,6 +1455,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         user,
         setUser,
         vehicles,
+        setVehicles,
         addVehicle,
         registerOwner,
         washes,

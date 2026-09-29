@@ -8,6 +8,7 @@ import {
   query, 
   where,
   addDoc,
+  onSnapshot,
   serverTimestamp 
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
@@ -384,3 +385,128 @@ export async function uploadProofPhotoToStorage(
     return null;
   }
 }
+
+export interface OwnerDashboardFirebaseData {
+  user: User | null;
+  vehicles: Vehicle[];
+  todayWash: WashRecord | null;
+  washes: WashRecord[];
+  assignedWasher: WasherPartner | null;
+  source: 'firebase_live' | 'local_fallback';
+}
+
+/**
+ * Fetches real-time dashboard data for an owner directly from Firebase Firestore:
+ * - User profile (plan, assigned washer, phone)
+ * - Registered vehicles in society parking bay
+ * - Wash records and today's proof photo
+ * - Assigned Washer Partner details
+ */
+export async function fetchOwnerDashboardFromFirestore(
+  userId: string,
+  userPhone?: string
+): Promise<OwnerDashboardFirebaseData> {
+  const result: OwnerDashboardFirebaseData = {
+    user: null,
+    vehicles: [],
+    todayWash: null,
+    washes: [],
+    assignedWasher: null,
+    source: 'local_fallback',
+  };
+
+  try {
+    // 1. Fetch User document from Firestore
+    let userDocData: any = null;
+    if (userId && userId !== 'usr_guest') {
+      const userDocRef = doc(db, 'users', userId);
+      const userDocSnap = await getDoc(userDocRef);
+      if (userDocSnap.exists()) {
+        userDocData = { id: userDocSnap.id, ...userDocSnap.data() };
+      }
+    }
+
+    // Fallback: If not found by ID and phone is provided, lookup by phone
+    if (!userDocData && userPhone) {
+      userDocData = await findUserByPhoneInFirestore(userPhone);
+    }
+
+    if (userDocData) {
+      result.user = {
+        id: userDocData.id,
+        name: userDocData.name || 'Vehicle Owner',
+        phone: userDocData.phone || userPhone || '',
+        role: 'owner',
+        status: userDocData.status || 'active',
+        created_at: userDocData.created_at || new Date().toISOString(),
+        selected_plan: userDocData.selected_plan,
+        assigned_washer_id: userDocData.assigned_washer_id,
+        assigned_washer_name: userDocData.assigned_washer_name,
+        address: userDocData.address,
+        alt_phone: userDocData.alt_phone,
+      };
+      result.source = 'firebase_live';
+    }
+
+    // 2. Fetch Owner's Vehicles from Firestore
+    const targetOwnerId = result.user?.id || userId;
+    if (targetOwnerId) {
+      const vehiclesRef = collection(db, 'vehicles');
+      const qVehicles = query(vehiclesRef, where('owner_id', '==', targetOwnerId));
+      const vSnap = await getDocs(qVehicles);
+      const fetchedVehicles: Vehicle[] = [];
+      vSnap.forEach((vDoc) => {
+        fetchedVehicles.push({ id: vDoc.id, ...vDoc.data() } as Vehicle);
+      });
+
+      if (fetchedVehicles.length > 0) {
+        result.vehicles = fetchedVehicles;
+        result.source = 'firebase_live';
+      }
+    }
+
+    // 3. Fetch Washes (Proof Records) for the owner's vehicles
+    const vehicleIds = result.vehicles.map((v) => v.id);
+    if (vehicleIds.length > 0) {
+      const washesRef = collection(db, 'washes');
+      const qWashes = query(
+        washesRef,
+        where('vehicle_id', 'in', vehicleIds.slice(0, 10))
+      );
+      const wSnap = await getDocs(qWashes);
+      const fetchedWashes: WashRecord[] = [];
+      wSnap.forEach((wDoc) => {
+        fetchedWashes.push({ id: wDoc.id, ...wDoc.data() } as WashRecord);
+      });
+
+      if (fetchedWashes.length > 0) {
+        result.washes = fetchedWashes;
+        result.todayWash = fetchedWashes[0] || null;
+        result.source = 'firebase_live';
+      }
+    }
+
+    // 4. Fetch Assigned Washer Partner if specified
+    const washerId =
+      result.user?.assigned_washer_id ||
+      result.vehicles[0]?.assigned_washer_id;
+
+    if (washerId) {
+      const washerDocRef = doc(db, 'washers', washerId);
+      const washerDocSnap = await getDoc(washerDocRef);
+      if (washerDocSnap.exists()) {
+        result.assignedWasher = {
+          id: washerDocSnap.id,
+          ...washerDocSnap.data(),
+        } as WasherPartner;
+        result.source = 'firebase_live';
+      }
+    }
+
+    return result;
+  } catch (error: any) {
+    console.warn('Firebase fetchOwnerDashboardFromFirestore notice:', error?.message || error);
+    return result;
+  }
+}
+

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -17,6 +17,9 @@ import {
   History,
   Home,
   Car,
+  RefreshCw,
+  Wifi,
+  Layers,
 } from 'lucide-react';
 import SignatureProofCard from '@/components/SignatureProofCard';
 import OwnerProofCalendar from '@/components/OwnerProofCalendar';
@@ -24,32 +27,111 @@ import SundayPriorityModal from '@/components/modals/SundayPriorityModal';
 import AddVehicleModal from '@/components/modals/AddVehicleModal';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 import { useStore } from '@/lib/store';
+import { fetchOwnerDashboardFromFirestore } from '@/lib/firebaseService';
+import { Vehicle, WasherPartner, WashRecord } from '@/lib/types';
 
 export default function OwnerDashboardPage() {
-  const { user, vehicles, todayWash, washes, washers } = useStore();
+  const { user, setUser, vehicles, setVehicles, todayWash, washes, washers } = useStore();
   const [showSundayModal, setShowSundayModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
 
-  const primaryVehicle = vehicles[0] || {
-    make: 'Honda',
-    model: 'City ZX',
-    registration_number: 'DL 01 AB 4291',
-    parking_location: 'Block B • Bay D-14',
-    washes_this_month: 22,
+  // Firebase Live Sync State
+  const [isFirebaseSyncing, setIsFirebaseSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [firebaseSource, setFirebaseSource] = useState<'firebase_live' | 'local_fallback'>('local_fallback');
+
+  // Selected Vehicle index for multi-car garages
+  const [selectedVehicleIndex, setSelectedVehicleIndex] = useState(0);
+
+  // Fetch live dashboard data from Firebase Firestore
+  const loadFirebaseDashboard = async () => {
+    setIsFirebaseSyncing(true);
+    try {
+      const fbData = await fetchOwnerDashboardFromFirestore(user.id, user.phone);
+      
+      if (fbData.user) {
+        setUser(fbData.user);
+      }
+      if (fbData.vehicles && fbData.vehicles.length > 0) {
+        setVehicles(fbData.vehicles);
+      }
+      setFirebaseSource(fbData.source);
+      setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+    } catch (err) {
+      console.warn('Firebase dashboard fetch notice:', err);
+    } finally {
+      setIsFirebaseSyncing(false);
+    }
   };
 
-  const assignedWasher =
+  useEffect(() => {
+    loadFirebaseDashboard();
+  }, [user.id, user.phone]);
+
+  const activeVehicles = vehicles && vehicles.length > 0 ? vehicles : [
+    {
+      id: 'veh_default',
+      owner_id: user.id,
+      owner_name: user.name,
+      make: 'Hyundai',
+      model: 'Creta',
+      registration_number: 'DL 01 AB 4291',
+      type: 'suv' as const,
+      color: 'Phantom Black',
+      parking_location: 'Block B • Bay D-14',
+      parking_floor: 'Basement 1',
+      preferred_wash_time: '07:30 AM',
+      society_id: 'soc_green_valley',
+      society_name: 'Green Valley Residency',
+      subscription_status: 'active' as const,
+      washes_this_month: 22,
+      selected_plan: 'HOME COMPLETE',
+      assigned_washer_id: 'wsh_amit',
+      assigned_washer_name: 'Amit Kumar',
+    },
+  ];
+
+  const primaryVehicle = activeVehicles[selectedVehicleIndex] || activeVehicles[0];
+
+  const assignedWasher: WasherPartner =
     washers.find(
-      (w) => w.id === user.assigned_washer_id || w.name === user.assigned_washer_name
-    ) || washers[0] || {
+      (w) =>
+        w.id === primaryVehicle.assigned_washer_id ||
+        w.name === primaryVehicle.assigned_washer_name ||
+        w.id === user.assigned_washer_id ||
+        w.name === user.assigned_washer_name
+    ) ||
+    washers[0] || {
+      id: 'wsh_amit',
       name: 'Amit Kumar',
+      phone: '+91 98101 22334',
       avatar: '/images/washer_amit.jpg',
       rating: '4.98',
-      totalLifetimeWashes: 1840,
+      reviewsCount: 142,
       society: 'Green Valley Residency',
+      assignedCarsPerDay: 30,
+      routeWindow: '06:30 AM - 09:30 AM',
+      avgTimePerCar: '5.5 mins',
+      completionRate: '100%',
+      totalLifetimeWashes: 1840,
+      status: 'Active on Route',
+      kyc: 'Verified (Aadhaar & Police Clear)',
+      aadhaarVerified: true,
+      phoneVerified: true,
+      absentThisMonth: 0,
+      absentDates: [],
+      leaveReason: '',
+      backupWasherName: 'Rajesh Sharma',
+      monthlyPayoutsGone: 48200,
+      pendingPayoutDue: 2840,
+      sundayBonusEarned: 1200,
+      disbursements: [],
     };
 
-  const activePlanName = user.selected_plan || primaryVehicle.selected_plan || 'HOME COMPLETE';
+  const activePlanName =
+    primaryVehicle.selected_plan ||
+    user.selected_plan ||
+    'HOME COMPLETE';
 
   return (
     <div className="min-h-screen bg-[#080D1A] text-slate-100 pb-28 md:pb-16 selection:bg-blue-500 selection:text-white">
@@ -61,18 +143,35 @@ export default function OwnerDashboardPage() {
       <header className="bg-[#0B132B]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-30 shadow-2xl">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between">
           <div>
-            <span className="hidden sm:block text-[10px] font-black uppercase tracking-widest text-slate-400 mb-0.5">
-              Torque Care Private Dashboard
-            </span>
+            <div className="flex items-center gap-2 mb-0.5">
+              <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-widest text-slate-400">
+                Torque Care Private Dashboard
+              </span>
+              {/* Live Firebase Sync Badge */}
+              <button
+                onClick={loadFirebaseDashboard}
+                disabled={isFirebaseSyncing}
+                title="Click to re-sync with Firebase Live Firestore"
+                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all border ${
+                  firebaseSource === 'firebase_live'
+                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25'
+                    : 'bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${isFirebaseSyncing ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
+                <span>{isFirebaseSyncing ? 'Syncing...' : 'Firebase Live DB'}</span>
+                <RefreshCw className={`w-2.5 h-2.5 ml-0.5 ${isFirebaseSyncing ? 'animate-spin' : ''}`} />
+              </button>
+            </div>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               Good morning, {user.name.split(' ')[0]} 👋
             </h1>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={() => setShowSundayModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-bold transition-all border border-amber-400/30"
+              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-bold transition-all border border-amber-400/30"
             >
               <Sparkles className="w-3.5 h-3.5 text-amber-400" />
               <span>Sunday Priority</span>
@@ -86,6 +185,30 @@ export default function OwnerDashboardPage() {
             </button>
           </div>
         </div>
+
+        {/* Multi-Vehicle Garage Tabs (if owner has multiple registered cars) */}
+        {activeVehicles.length > 1 && (
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-2.5 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1 shrink-0">
+              <Layers className="w-3 h-3 text-blue-400" /> Garage:
+            </span>
+            {activeVehicles.map((veh, idx) => (
+              <button
+                key={veh.id || idx}
+                onClick={() => setSelectedVehicleIndex(idx)}
+                className={`px-3 py-1 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 ${
+                  selectedVehicleIndex === idx
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10'
+                }`}
+              >
+                <Car className="w-3 h-3" />
+                <span>{veh.make} {veh.model}</span>
+                <span className="text-[10px] opacity-75 font-mono">({veh.registration_number})</span>
+              </button>
+            ))}
+          </div>
+        )}
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
@@ -116,25 +239,30 @@ export default function OwnerDashboardPage() {
           </Link>
         </div>
 
-        {/* SERVICE PILLARS STATUS (Home 599 & Away 39) - Hidden on small screens */}
-        <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Home */}
+        {/* SERVICE PILLARS STATUS (Selected Plan & Away Mode) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {/* Home Active Plan Card */}
           <div className="p-5 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-xl space-y-2">
             <div className="flex items-center justify-between">
               <span className="text-[10px] font-black uppercase text-blue-400 tracking-wider flex items-center gap-1.5">
-                <Home className="w-3.5 h-3.5" /> Torque Home
+                <Home className="w-3.5 h-3.5" /> Torque Home Plan
               </span>
               <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-400/30">
-                Active Plan
+                Active Membership
               </span>
             </div>
             <div className="text-xl font-black text-white">{activePlanName}</div>
             <p className="text-xs text-slate-400">
               Recurring society bay care by {assignedWasher.name} at {primaryVehicle.society_name || 'Green Valley Residency'}.
             </p>
+            {lastSyncTime && (
+              <div className="text-[10px] text-slate-500 font-mono pt-1">
+                Synced with Firebase Firestore at {lastSyncTime}
+              </div>
+            )}
           </div>
 
-          {/* Away */}
+          {/* Away Mode Card */}
           <Link
             href="/owner/travel"
             className="p-5 rounded-3xl bg-white/5 border border-white/10 hover:border-amber-400/40 backdrop-blur-xl shadow-xl space-y-2 transition-all block group"
@@ -163,7 +291,7 @@ export default function OwnerDashboardPage() {
                 Next Wash Schedule
               </span>
               <div className="text-lg font-black text-white mt-1">
-                Tomorrow • 7:30 AM
+                Tomorrow • {primaryVehicle.preferred_wash_time || '07:30 AM'}
               </div>
               <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 font-mono">
                 <MapPin className="w-3.5 h-3.5 text-emerald-400" />
@@ -178,7 +306,7 @@ export default function OwnerDashboardPage() {
           {/* Regular Washer Info */}
           <div className="p-5 rounded-3xl bg-white/5 border border-white/10 backdrop-blur-xl shadow-xl flex items-center justify-between">
             <div className="flex items-center gap-3.5">
-              <div className="relative w-12 h-12 rounded-2xl overflow-hidden border-2 border-emerald-400/40 shrink-0 shadow-md">
+              <div className="relative w-12 h-12 rounded-2xl overflow-hidden border-2 border-emerald-400/40 shrink-0 shadow-md bg-slate-800">
                 <Image
                   src={assignedWasher.avatar || '/images/washer_amit.jpg'}
                   alt={assignedWasher.name}
@@ -194,7 +322,8 @@ export default function OwnerDashboardPage() {
                   {assignedWasher.name}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-amber-400 font-bold mt-0.5">
-                  <span>★ {assignedWasher.rating || '4.98'}</span>
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  <span>{assignedWasher.rating || '4.98'}</span>
                   <span className="text-slate-400 text-[11px] font-mono">
                     ({assignedWasher.totalLifetimeWashes || 140} washes)
                   </span>
@@ -218,7 +347,7 @@ export default function OwnerDashboardPage() {
           <div className="grid grid-cols-3 gap-3.5">
             <div className="p-5 rounded-3xl bg-white/5 border border-white/10 text-center backdrop-blur-xl shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white">
-                22
+                {primaryVehicle.washes_this_month || 22}
               </div>
               <div className="text-xs font-bold text-slate-300 mt-1">
                 Washes
@@ -230,7 +359,7 @@ export default function OwnerDashboardPage() {
 
             <div className="p-5 rounded-3xl bg-white/5 border border-white/10 text-center backdrop-blur-xl shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-amber-400">
-                1
+                0
               </div>
               <div className="text-xs font-bold text-slate-300 mt-1">
                 Missed
@@ -242,19 +371,19 @@ export default function OwnerDashboardPage() {
 
             <div className="p-5 rounded-3xl bg-white/5 border border-white/10 text-center backdrop-blur-xl shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white">
-                ₹599
+                {activePlanName.includes('CONNOISSEUR') ? '₹1,199' : activePlanName.includes('BASIC') ? '₹599' : '₹799'}
               </div>
               <div className="text-xs font-bold text-slate-300 mt-1">
                 Subscription
               </div>
               <span className="text-[10px] text-blue-400 font-bold block mt-0.5 font-mono">
-                Active Plan
+                {activePlanName}
               </span>
             </div>
           </div>
         </div>
 
-        {/* MONTHLY PROOF CALENDAR (HIGHLIGHTING ACTIVE SUB, NEON GREEN VERIFIED, ORANGE-YELLOW MISSING) */}
+        {/* MONTHLY PROOF CALENDAR */}
         <OwnerProofCalendar />
 
         {/* TORQUE CARE VEHICLE HISTORY - Hidden on small screens */}

@@ -211,3 +211,4 @@ export interface DetailPackage {
   features: string[];
 }
 
+export type { WasherPartner, PayoutDisbursement } from './washerPartners';
