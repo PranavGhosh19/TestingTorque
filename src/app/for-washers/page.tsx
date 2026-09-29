@@ -246,10 +246,10 @@ export default function ForWashersPage() {
 
         <div className="pt-2 text-center">
           <Link
-            href="/washer/auth/login"
+            href="/washer/login"
             className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition-all"
           >
-            <span>Washer Partner Login & Sign Up</span>
+            <span>Washer Partner Login & Onboarding</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

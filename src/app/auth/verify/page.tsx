@@ -63,12 +63,24 @@ function VerifyForm() {
           <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/15 text-white mx-auto flex items-center justify-center shadow-2xl">
             {roleParam === 'washer' ? (
               <span className="text-3xl">🧼</span>
+            ) : roleParam === 'admin' ? (
+              <span className="text-3xl">🛡️</span>
             ) : (
               <Car className="w-8 h-8 text-blue-400" />
             )}
           </div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-[10px] font-black uppercase tracking-widest text-blue-400">
-            {roleParam === 'washer' ? 'Partner Verification' : 'Owner Verification'}
+          <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+            roleParam === 'washer'
+              ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400'
+              : roleParam === 'admin'
+              ? 'bg-amber-500/10 border border-amber-500/20 text-amber-400'
+              : 'bg-blue-500/10 border border-blue-500/20 text-blue-400'
+          }`}>
+            {roleParam === 'washer'
+              ? 'Partner Verification'
+              : roleParam === 'admin'
+              ? 'Operations Admin 2FA'
+              : 'Owner Verification'}
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight">
             Verify One-Time Password

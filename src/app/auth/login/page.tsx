@@ -3,11 +3,10 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, ArrowRight, Car, CheckCircle2, Sparkles, User, ShieldCheck } from 'lucide-react';
+import { Shield, ArrowRight, Car, CheckCircle2, Sparkles, UserCheck } from 'lucide-react';
 import { useStore } from '@/lib/store';
 
-export default function LoginPage() {
-  const [roleSelection, setRoleSelection] = useState<'owner' | 'washer' | 'admin'>('owner');
+export default function OwnerLoginPage() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -16,12 +15,11 @@ export default function LoginPage() {
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setRole(roleSelection);
+    setRole('owner');
     setTimeout(() => {
-      router.push(`/auth/verify?role=${roleSelection}&phone=${encodeURIComponent(phone.startsWith('+91') ? phone : '+91 ' + phone)}`);
+      router.push(`/auth/verify?role=owner&phone=${encodeURIComponent(phone.startsWith('+91') ? phone : '+91 ' + phone)}`);
     }, 350);
   };
-
 
   return (
     <div className="w-full min-h-[calc(100vh-4rem)] flex-1 bg-[#080D1A] text-slate-100 flex items-center justify-center px-4 py-16 selection:bg-blue-500 selection:text-white relative">
@@ -43,53 +41,16 @@ export default function LoginPage() {
             Torque Care for Owners
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 max-w-xs mx-auto leading-relaxed">
-            Enter your mobile number to manage your vehicle, view daily verified photos, and manage parking bay care.
+            Enter your mobile number to view daily verified photos, track schedule, and manage parking bay care.
           </p>
         </div>
 
         {/* Mobile Input Card */}
         <div className="p-7 sm:p-8 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl text-left space-y-6 luxury-sheen">
-          {/* Role Selection Tabs */}
-          <div className="grid grid-cols-3 gap-1.5 p-1 bg-white/5 border border-white/10 rounded-2xl">
-            <button
-              type="button"
-              onClick={() => setRoleSelection('owner')}
-              className={`py-2 px-1 rounded-xl text-center font-bold text-[11px] transition-all cursor-pointer ${
-                roleSelection === 'owner'
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              🚗 Owner
-            </button>
-            <button
-              type="button"
-              onClick={() => setRoleSelection('washer')}
-              className={`py-2 px-1 rounded-xl text-center font-bold text-[11px] transition-all cursor-pointer ${
-                roleSelection === 'washer'
-                  ? 'bg-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              🧼 Washer
-            </button>
-            <button
-              type="button"
-              onClick={() => setRoleSelection('admin')}
-              className={`py-2 px-1 rounded-xl text-center font-bold text-[11px] transition-all cursor-pointer ${
-                roleSelection === 'admin'
-                  ? 'bg-slate-700 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              ⚙️ Admin
-            </button>
-          </div>
-
           <form onSubmit={handleContinue} className="space-y-5">
             <div>
               <label className="text-[11px] font-black text-slate-300 uppercase tracking-wider block mb-2">
-                {roleSelection === 'washer' ? 'Washer Partner Mobile' : roleSelection === 'admin' ? 'Admin Phone Number' : 'Vehicle Owner Mobile'}
+                Registered Mobile Number
               </label>
 
               <div className="flex items-center rounded-2xl border border-white/15 bg-white/5 p-2 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-inner">
@@ -110,7 +71,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 px-4 rounded-2xl bg-white hover:bg-slate-100 text-[#080D1A] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(255,255,255,0.15)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+              className="w-full py-4 px-4 rounded-2xl bg-white hover:bg-slate-100 text-[#080D1A] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(255,255,255,0.15)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
             >
               <span>{loading ? 'Sending Verification Code...' : 'Sign In with OTP'}</span>
               <ArrowRight className="w-4 h-4" />
@@ -132,7 +93,33 @@ export default function LoginPage() {
             </div>
           </div>
         </div>
+
+        {/* Dedicated Separate Portal Switchers */}
+        <div className="grid grid-cols-2 gap-3 text-left">
+          <Link
+            href="/washer/login"
+            className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all group block"
+          >
+            <div className="text-xs font-bold text-emerald-400 flex items-center gap-1">
+              <span>🧼 Washer Login</span>
+              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5">Partner Route & Earnings</p>
+          </Link>
+
+          <Link
+            href="/admin/login"
+            className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all group block"
+          >
+            <div className="text-xs font-bold text-slate-300 flex items-center gap-1">
+              <span>⚙️ Admin Login</span>
+              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+            </div>
+            <p className="text-[10px] text-slate-400 mt-0.5">Operations & Treasury</p>
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
+
