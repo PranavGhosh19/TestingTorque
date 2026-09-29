@@ -868,14 +868,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     // Add route stops for the registered vehicles
     const newStops: RouteStop[] = createdVehicles.map((cv, idx) => ({
       stop_number: (routeStops.length || 0) + idx + 1,
+      wash_id: `w_stop_${cv.id}_${Date.now()}`,
       vehicle_id: cv.id,
       vehicle_name: `${cv.make} ${cv.model}`,
       registration_number: cv.registration_number,
       parking_location: cv.parking_location,
-      time_window: cv.preferred_wash_time || '07:30 AM',
+      scheduled_time: cv.preferred_wash_time || '07:30 AM',
       owner_name: cv.owner_name,
       owner_phone: newUser.phone,
-      wash_type: 'exterior',
+      payout_amount: 30,
       status: 'pending',
     }));
     setRouteStops((prev) => [...prev, ...newStops]);
@@ -921,13 +922,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       created_at: new Date().toISOString(),
     });
     setWasherEarnings({
-      today_count: 0,
-      today_estimated_earnings: 0,
-      weekly_total: 0,
-      sunday_priority_count: 0,
-      sunday_earnings: 0,
-      available_for_withdrawal: 0,
-      streak_days: 0,
+      total_earnings: 0,
+      this_week: 0,
+      available: 0,
+      pending: 0,
+      bank_account_last4: '4821',
+      recent_payouts: [],
     });
     setNotifications([
       {
