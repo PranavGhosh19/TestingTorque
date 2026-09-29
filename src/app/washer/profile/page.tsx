@@ -1,14 +1,62 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ShieldCheck, Star, Award, Landmark, Calendar, Phone, LogOut, ChevronRight } from 'lucide-react';
+import {
+  ShieldCheck,
+  Star,
+  Award,
+  Landmark,
+  Calendar,
+  Phone,
+  ChevronRight,
+  Smartphone,
+  Share,
+  PlusSquare,
+  X,
+  CheckCircle2,
+} from 'lucide-react';
 import { useStore } from '@/lib/store';
 import WasherBottomNav from '@/components/WasherBottomNav';
 
 export default function WasherProfilePage() {
   const { washerEarnings } = useStore();
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (window.navigator as any).standalone
+      ) {
+        setIsInstalled(true);
+      }
+
+      const handler = (e: Event) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
+      };
+
+      window.addEventListener('beforeinstallprompt', handler);
+      return () => window.removeEventListener('beforeinstallprompt', handler);
+    }
+  }, []);
+
+  const handleAddToHomeScreen = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choiceResult = await deferredPrompt.userChoice;
+      if (choiceResult.outcome === 'accepted') {
+        setIsInstalled(true);
+      }
+      setDeferredPrompt(null);
+    } else {
+      setShowInstallGuide(true);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">
@@ -108,7 +156,78 @@ export default function WasherProfilePage() {
             <ChevronRight className="w-4 h-4 text-slate-400" />
           </Link>
         </div>
+
+        {/* Add to Home Screen Button */}
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={handleAddToHomeScreen}
+            className="w-full py-4 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm flex items-center justify-center gap-2.5 shadow-sm transition-all active:scale-[0.98] cursor-pointer"
+          >
+            <Smartphone className="w-4 h-4" />
+            <span>{isInstalled ? 'App Installed on Home Screen ✓' : 'Add to Home Screen'}</span>
+          </button>
+        </div>
       </div>
+
+      {/* Install Guide Modal */}
+      {showInstallGuide && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-2xl space-y-5 text-slate-800 relative">
+            <button
+              onClick={() => setShowInstallGuide(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="relative w-12 h-12 rounded-2xl overflow-hidden shadow-sm shrink-0 border border-slate-200">
+                <Image
+                  src="/images/app_icon.jpg"
+                  alt="Torque Care Icon"
+                  fill
+                  className="object-cover"
+                />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-[#0B132B]">Install Torque Care</h3>
+                <p className="text-xs text-slate-500">Quick access from your home screen</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200/80">
+              <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                <span>📱 On iPhone / iPad (Safari):</span>
+              </div>
+              <ol className="list-decimal list-inside space-y-1.5 text-slate-600 pl-1">
+                <li>
+                  Tap the <strong className="text-slate-800">Share</strong> button <Share className="w-3.5 h-3.5 inline text-blue-600" /> in Safari
+                </li>
+                <li>
+                  Scroll down and tap <strong className="text-slate-800">Add to Home Screen</strong> <PlusSquare className="w-3.5 h-3.5 inline text-slate-700" />
+                </li>
+                <li>Tap <strong className="text-slate-800">Add</strong> in top right corner</li>
+              </ol>
+
+              <div className="pt-2 border-t border-slate-200 font-bold text-slate-900 flex items-center gap-1.5">
+                <span>🤖 On Android (Chrome):</span>
+              </div>
+              <ol className="list-decimal list-inside space-y-1.5 text-slate-600 pl-1">
+                <li>Tap the three dots menu (<strong>⋮</strong>) in Chrome</li>
+                <li>Tap <strong className="text-slate-800">Add to Home screen</strong> or <strong className="text-slate-800">Install app</strong></li>
+              </ol>
+            </div>
+
+            <button
+              onClick={() => setShowInstallGuide(false)}
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+            >
+              Got It
+            </button>
+          </div>
+        </div>
+      )}
 
       <WasherBottomNav />
     </div>
