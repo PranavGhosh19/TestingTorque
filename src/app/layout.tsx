@@ -4,6 +4,7 @@ import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import Navbar from "@/components/Navbar";
 import RoleSwitcher from "@/components/RoleSwitcher";
+import PWAInstallPrompt from "@/components/shared/PWAInstallPrompt";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -65,7 +66,21 @@ export default function RootLayout({
           <Navbar />
           <main className="flex-1">{children}</main>
           <RoleSwitcher />
+          <PWAInstallPrompt />
         </StoreProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').catch(function(err) {
+                    console.log('SW registration failed: ', err);
+                  });
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );
