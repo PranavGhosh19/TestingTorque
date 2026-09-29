@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import {
   Users,
@@ -19,6 +19,13 @@ import {
   Sparkles,
   Camera,
   ExternalLink,
+  Download,
+  Filter,
+  ArrowUpDown,
+  Check,
+  RotateCcw,
+  ChevronDown,
+  FileSpreadsheet,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
 
@@ -281,36 +288,159 @@ export default function AdminCustomersPage() {
   const [inspectedDay, setInspectedDay] = useState<CalendarDayRecord | null>(null);
   const [activePhotoTab, setActivePhotoTab] = useState<'after' | 'before'>('after');
 
-  // Search filter implementation
-  const filteredCustomers = useMemo(() => {
-    if (!searchQuery.trim()) return customerList;
-    const q = searchQuery.toLowerCase().trim();
-    const cleanQueryDigits = q.replace(/[^0-9]/g, '');
+  // Column filter & sort states
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc' | 'none'>('none');
+  const [societyFilter, setSocietyFilter] = useState<string>('all');
+  const [planFilter, setPlanFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [vehicleCountFilter, setVehicleCountFilter] = useState<string>('all');
+  const [openFilterDropdown, setOpenFilterDropdown] = useState<string | null>(null);
 
-    return customerList.filter((c) => {
-      // 1. Search by customer name
-      if (c.name.toLowerCase().includes(q)) return true;
-
-      // 2. Search by phone number
-      const cleanPhone = c.phone.replace(/[^0-9]/g, '');
-      if (
-        c.phone.toLowerCase().includes(q) ||
-        (cleanQueryDigits.length > 0 && cleanPhone.includes(cleanQueryDigits))
-      ) {
-        return true;
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.filter-dropdown-container')) {
+        setOpenFilterDropdown(null);
       }
+    };
+    window.addEventListener('click', handleOutsideClick);
+    return () => window.removeEventListener('click', handleOutsideClick);
+  }, []);
 
-      // 3. Search by car number plate (last 4 digits only)
-      const matchesPlateLast4 = c.vehicles.some((v) => {
-        const cleanPlate = v.plate.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        const last4 = cleanPlate.slice(-4);
-        const queryClean = q.replace(/[^a-zA-Z0-9]/g, '');
-        return last4 === queryClean || last4.includes(queryClean) || v.last4 === queryClean;
+  // Unique lists for column filters
+  const uniqueSocieties = useMemo(
+    () => Array.from(new Set(customerList.map((c) => c.society))),
+    []
+  );
+  const uniquePlans = useMemo(
+    () => Array.from(new Set(customerList.map((c) => c.plan))),
+    []
+  );
+
+  // Search and multi-column filtering
+  const filteredCustomers = useMemo(() => {
+    let result = customerList;
+
+    // 1. Search bar filtering
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const cleanQueryDigits = q.replace(/[^0-9]/g, '');
+
+      result = result.filter((c) => {
+        // Customer name
+        if (c.name.toLowerCase().includes(q)) return true;
+
+        // Phone number
+        const cleanPhone = c.phone.replace(/[^0-9]/g, '');
+        if (
+          c.phone.toLowerCase().includes(q) ||
+          (cleanQueryDigits.length > 0 && cleanPhone.includes(cleanQueryDigits))
+        ) {
+          return true;
+        }
+
+        // Car number plate (last 4 digits only)
+        const matchesPlateLast4 = c.vehicles.some((v) => {
+          const cleanPlate = v.plate.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          const last4 = cleanPlate.slice(-4);
+          const queryClean = q.replace(/[^a-zA-Z0-9]/g, '');
+          return last4 === queryClean || last4.includes(queryClean) || v.last4 === queryClean;
+        });
+
+        return matchesPlateLast4;
       });
+    }
 
-      return matchesPlateLast4;
+    // 2. Society column filter
+    if (societyFilter !== 'all') {
+      result = result.filter((c) => c.society === societyFilter);
+    }
+
+    // 3. Plan column filter
+    if (planFilter !== 'all') {
+      result = result.filter((c) => c.plan === planFilter);
+    }
+
+    // 4. Status column filter
+    if (statusFilter !== 'all') {
+      result = result.filter((c) => c.status === statusFilter);
+    }
+
+    // 5. Vehicle Count column filter
+    if (vehicleCountFilter === '1') {
+      result = result.filter((c) => c.vehicles.length === 1);
+    } else if (vehicleCountFilter === '2+') {
+      result = result.filter((c) => c.vehicles.length >= 2);
+    }
+
+    // 6. Name Sorting
+    if (sortOrder === 'asc') {
+      result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortOrder === 'desc') {
+      result = [...result].sort((a, b) => b.name.localeCompare(a.name));
+    }
+
+    return result;
+  }, [searchQuery, societyFilter, planFilter, statusFilter, vehicleCountFilter, sortOrder]);
+
+  const hasActiveFilters =
+    societyFilter !== 'all' ||
+    planFilter !== 'all' ||
+    statusFilter !== 'all' ||
+    vehicleCountFilter !== 'all' ||
+    sortOrder !== 'none';
+
+  const handleResetFilters = () => {
+    setSocietyFilter('all');
+    setPlanFilter('all');
+    setStatusFilter('all');
+    setVehicleCountFilter('all');
+    setSortOrder('none');
+    setSearchQuery('');
+  };
+
+  // CSV Export Handler
+  const handleExportCSV = () => {
+    const headers = [
+      'Owner Name',
+      'Phone Number',
+      'Society',
+      'Residence Flat',
+      'Vehicles',
+      'Number Plates (Last 4 Digits)',
+      'Subscription Plan',
+      'Account Status',
+    ];
+
+    const rows = filteredCustomers.map((c) => {
+      const vehicleNames = c.vehicles.map((v) => v.name).join('; ');
+      const platesAndLast4 = c.vehicles.map((v) => `${v.plate} (Last 4: #${v.last4})`).join('; ');
+
+      return [
+        `"${c.name.replace(/"/g, '""')}"`,
+        `"${c.phone.replace(/"/g, '""')}"`,
+        `"${c.society.replace(/"/g, '""')}"`,
+        `"${c.flat.replace(/"/g, '""')}"`,
+        `"${vehicleNames.replace(/"/g, '""')}"`,
+        `"${platesAndLast4.replace(/"/g, '""')}"`,
+        `"${c.plan.replace(/"/g, '""')}"`,
+        `"${c.status.replace(/"/g, '""')}"`,
+      ].join(',');
     });
-  }, [searchQuery]);
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const todayStr = new Date().toISOString().split('T')[0];
+    link.setAttribute('href', url);
+    link.setAttribute('download', `torque_care_customers_${todayStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   // Generate calendar days for the selected vehicle
   const calendarDays = useMemo<CalendarDayRecord[]>(() => {
@@ -319,7 +449,6 @@ export default function AdminCustomersPage() {
     const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
     if (selectedMonth === 'Sep') {
-      // September 2026 (30 days, starts Tuesday)
       for (let d = 1; d <= 30; d++) {
         const dayOfWeek = weekdays[(1 + d - 1) % 7];
         const isFuture = d > 28;
@@ -336,7 +465,6 @@ export default function AdminCustomersPage() {
             notes: 'Upcoming scheduled morning wash window',
           });
         } else if (d === 24) {
-          // Bay empty customer unavailable scenario
           days.push({
             date: d,
             dayName: dayOfWeek,
@@ -350,7 +478,6 @@ export default function AdminCustomersPage() {
             notes: 'Washer arrived on time. Bay empty. Cryptographic bay proof signed & washer payout protected.',
           });
         } else if (d === 14) {
-          // Washer absent / auto-credited scenario
           days.push({
             date: d,
             dayName: dayOfWeek,
@@ -362,7 +489,6 @@ export default function AdminCustomersPage() {
             notes: 'Washer absent on morning route. Auto-credited +₹35 penalty compensation to owner wallet.',
           });
         } else {
-          // Completed verified wash
           days.push({
             date: d,
             dayName: dayOfWeek,
@@ -378,7 +504,6 @@ export default function AdminCustomersPage() {
         }
       }
     } else {
-      // October 2026 (31 days, starts Thursday)
       for (let d = 1; d <= 31; d++) {
         const dayOfWeek = weekdays[(3 + d - 1) % 7];
         days.push({
@@ -423,14 +548,26 @@ export default function AdminCustomersPage() {
               Vehicle Owners
             </h1>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1.5 rounded-full border border-slate-200">
-              {customerList.length} Registered Accounts
+
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Export to CSV Action Button */}
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs flex items-center gap-2 shadow-xs transition-all active:scale-95 cursor-pointer"
+              title="Download customer registry as CSV file"
+            >
+              <Download className="w-4 h-4 stroke-[2.5]" />
+              <span>Export to CSV</span>
+            </button>
+
+            <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200">
+              {filteredCustomers.length} of {customerList.length} Accounts
             </span>
           </div>
         </div>
 
-        {/* Search Bar Component */}
+        {/* Search Bar & Quick Context */}
         <div className="premium-card p-4 sm:p-5 bg-white border-slate-200/90 shadow-xs space-y-3">
           <div className="relative flex items-center">
             <Search className="w-5 h-5 text-slate-400 absolute left-4 pointer-events-none" />
@@ -453,19 +590,89 @@ export default function AdminCustomersPage() {
             )}
           </div>
 
-          {/* Quick Filters / Search Context Feedback */}
+          {/* Active Filter Pills & Reset */}
           <div className="flex items-center justify-between text-xs text-slate-500 flex-wrap gap-2 px-1">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-semibold text-slate-700">Quick Filters:</span>
-              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono text-[11px]">
-                Name
+              <span className="font-semibold text-slate-700 flex items-center gap-1">
+                <Filter className="w-3.5 h-3.5 text-slate-400" />
+                <span>Column Filters:</span>
               </span>
-              <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md font-mono text-[11px]">
-                Phone
-              </span>
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-md font-mono text-[11px] font-bold">
-                Plate (Last 4 Digits)
-              </span>
+
+              {societyFilter !== 'all' && (
+                <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  Society: {societyFilter}
+                  <button
+                    type="button"
+                    onClick={() => setSocietyFilter('all')}
+                    className="hover:text-emerald-950 cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {planFilter !== 'all' && (
+                <span className="bg-blue-50 text-blue-800 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  Plan: {planFilter}
+                  <button
+                    type="button"
+                    onClick={() => setPlanFilter('all')}
+                    className="hover:text-blue-950 cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {statusFilter !== 'all' && (
+                <span className="bg-purple-50 text-purple-800 border border-purple-200 px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  Status: {statusFilter}
+                  <button
+                    type="button"
+                    onClick={() => setStatusFilter('all')}
+                    className="hover:text-purple-950 cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {vehicleCountFilter !== 'all' && (
+                <span className="bg-amber-50 text-amber-800 border border-amber-200 px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  Fleet: {vehicleCountFilter === '1' ? 'Single Vehicle' : 'Multiple Vehicles'}
+                  <button
+                    type="button"
+                    onClick={() => setVehicleCountFilter('all')}
+                    className="hover:text-amber-950 cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {sortOrder !== 'none' && (
+                <span className="bg-slate-100 text-slate-800 border border-slate-200 px-2.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                  Sort Name: {sortOrder.toUpperCase()}
+                  <button
+                    type="button"
+                    onClick={() => setSortOrder('none')}
+                    className="hover:text-slate-950 cursor-pointer"
+                  >
+                    ×
+                  </button>
+                </span>
+              )}
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1 underline cursor-pointer ml-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset Filters</span>
+                </button>
+              )}
             </div>
 
             <div className="text-slate-600 font-medium">
@@ -475,8 +682,8 @@ export default function AdminCustomersPage() {
           </div>
         </div>
 
-        {/* Customer Table */}
-        <div className="premium-card bg-white border-slate-200/90 shadow-xs overflow-hidden">
+        {/* Customer Table with Column Filter Controls */}
+        <div className="premium-card bg-white border-slate-200/90 shadow-xs overflow-visible">
           {filteredCustomers.length === 0 ? (
             <div className="p-12 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
@@ -484,32 +691,332 @@ export default function AdminCustomersPage() {
               </div>
               <h3 className="font-bold text-slate-800 text-base">No matching customers found</h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                No customer found matching &ldquo;{searchQuery}&rdquo;. Try searching by name, 10-digit phone, or car plate last 4 digits (e.g. 4291).
+                Try adjusting your search query or reset the column filter options.
               </p>
               <button
                 type="button"
-                onClick={() => setSearchQuery('')}
+                onClick={handleResetFilters}
                 className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
               >
-                Clear Search Filter
+                Reset All Filters
               </button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto overflow-y-visible">
               <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
+                {/* Column Headers with Interactive Filters */}
+                <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 uppercase tracking-wider font-bold">
                   <tr>
-                    <th className="p-4">Owner Name & Contact</th>
-                    <th className="p-4">Society & Residence</th>
-                    <th className="p-4">Vehicles (Click to View Calendar)</th>
-                    <th className="p-4">Plan</th>
-                    <th className="p-4 text-center">Status</th>
-                    <th className="p-4 text-right">Service Audit</th>
+                    {/* 1. Owner Name & Contact Header (Sortable) */}
+                    <th className="p-4 relative filter-dropdown-container">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Owner Name & Contact</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSortOrder((prev) =>
+                              prev === 'none' ? 'asc' : prev === 'asc' ? 'desc' : 'none'
+                            );
+                          }}
+                          className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+                            sortOrder !== 'none'
+                              ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                              : 'bg-white border-slate-200 text-slate-400 hover:text-slate-700'
+                          }`}
+                          title={`Sort by Name (${sortOrder === 'asc' ? 'A-Z' : sortOrder === 'desc' ? 'Z-A' : 'Default'})`}
+                        >
+                          <ArrowUpDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </th>
+
+                    {/* 2. Society & Residence Header (Filterable) */}
+                    <th className="p-4 relative filter-dropdown-container">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Society & Residence</span>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenFilterDropdown(
+                                openFilterDropdown === 'society' ? null : 'society'
+                              );
+                            }}
+                            className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                              societyFilter !== 'all'
+                                ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                                : 'bg-white border-slate-200 text-slate-400 hover:text-slate-700'
+                            }`}
+                            title="Filter by Society"
+                          >
+                            <Filter className="w-3.5 h-3.5" />
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+
+                          {/* Society Filter Dropdown */}
+                          {openFilterDropdown === 'society' && (
+                            <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-30 space-y-1 normal-case font-normal text-slate-700">
+                              <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                                Filter by Society
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSocietyFilter('all');
+                                  setOpenFilterDropdown(null);
+                                }}
+                                className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                  societyFilter === 'all' ? 'text-emerald-700 bg-emerald-50/60 font-bold' : ''
+                                }`}
+                              >
+                                <span>All Societies</span>
+                                {societyFilter === 'all' && <Check className="w-4 h-4 text-emerald-600" />}
+                              </button>
+                              {uniqueSocieties.map((soc) => (
+                                <button
+                                  key={soc}
+                                  type="button"
+                                  onClick={() => {
+                                    setSocietyFilter(soc);
+                                    setOpenFilterDropdown(null);
+                                  }}
+                                  className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                    societyFilter === soc ? 'text-emerald-700 bg-emerald-50/60 font-bold' : ''
+                                  }`}
+                                >
+                                  <span className="truncate">{soc}</span>
+                                  {societyFilter === soc && <Check className="w-4 h-4 text-emerald-600" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </th>
+
+                    {/* 3. Vehicles Header (Filter by fleet count, Click to View Calendar) */}
+                    <th className="p-4 relative filter-dropdown-container">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Vehicles (Click Plate for Calendar)</span>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenFilterDropdown(
+                                openFilterDropdown === 'vehicles' ? null : 'vehicles'
+                              );
+                            }}
+                            className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                              vehicleCountFilter !== 'all'
+                                ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                                : 'bg-white border-slate-200 text-slate-400 hover:text-slate-700'
+                            }`}
+                            title="Filter by Fleet Count"
+                          >
+                            <Filter className="w-3.5 h-3.5" />
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+
+                          {/* Fleet Filter Dropdown */}
+                          {openFilterDropdown === 'vehicles' && (
+                            <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-30 space-y-1 normal-case font-normal text-slate-700">
+                              <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                                Fleet Size
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setVehicleCountFilter('all');
+                                  setOpenFilterDropdown(null);
+                                }}
+                                className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                  vehicleCountFilter === 'all' ? 'text-emerald-700 bg-emerald-50/60 font-bold' : ''
+                                }`}
+                              >
+                                <span>All Vehicles</span>
+                                {vehicleCountFilter === 'all' && <Check className="w-4 h-4 text-emerald-600" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setVehicleCountFilter('1');
+                                  setOpenFilterDropdown(null);
+                                }}
+                                className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                  vehicleCountFilter === '1' ? 'text-emerald-700 bg-emerald-50/60 font-bold' : ''
+                                }`}
+                              >
+                                <span>Single Vehicle (1)</span>
+                                {vehicleCountFilter === '1' && <Check className="w-4 h-4 text-emerald-600" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setVehicleCountFilter('2+');
+                                  setOpenFilterDropdown(null);
+                                }}
+                                className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                  vehicleCountFilter === '2+' ? 'text-emerald-700 bg-emerald-50/60 font-bold' : ''
+                                }`}
+                              >
+                                <span>Multiple Vehicles (2+)</span>
+                                {vehicleCountFilter === '2+' && <Check className="w-4 h-4 text-emerald-600" />}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </th>
+
+                    {/* 4. Plan Header (Filterable) */}
+                    <th className="p-4 relative filter-dropdown-container">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Plan</span>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenFilterDropdown(
+                                openFilterDropdown === 'plan' ? null : 'plan'
+                              );
+                            }}
+                            className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                              planFilter !== 'all'
+                                ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                                : 'bg-white border-slate-200 text-slate-400 hover:text-slate-700'
+                            }`}
+                            title="Filter by Plan"
+                          >
+                            <Filter className="w-3.5 h-3.5" />
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+
+                          {/* Plan Filter Dropdown */}
+                          {openFilterDropdown === 'plan' && (
+                            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-30 space-y-1 normal-case font-normal text-slate-700">
+                              <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                                Subscription Plan
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPlanFilter('all');
+                                  setOpenFilterDropdown(null);
+                                }}
+                                className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                  planFilter === 'all' ? 'text-emerald-700 bg-emerald-50/60 font-bold' : ''
+                                }`}
+                              >
+                                <span>All Plans</span>
+                                {planFilter === 'all' && <Check className="w-4 h-4 text-emerald-600" />}
+                              </button>
+                              {uniquePlans.map((pl) => (
+                                <button
+                                  key={pl}
+                                  type="button"
+                                  onClick={() => {
+                                    setPlanFilter(pl);
+                                    setOpenFilterDropdown(null);
+                                  }}
+                                  className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                    planFilter === pl ? 'text-emerald-700 bg-emerald-50/60 font-bold' : ''
+                                  }`}
+                                >
+                                  <span>{pl}</span>
+                                  {planFilter === pl && <Check className="w-4 h-4 text-emerald-600" />}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </th>
+
+                    {/* 5. Status Header (Filterable) */}
+                    <th className="p-4 text-center relative filter-dropdown-container">
+                      <div className="flex items-center justify-center gap-2">
+                        <span>Status</span>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenFilterDropdown(
+                                openFilterDropdown === 'status' ? null : 'status'
+                              );
+                            }}
+                            className={`p-1.5 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+                              statusFilter !== 'all'
+                                ? 'bg-emerald-100 border-emerald-300 text-emerald-800'
+                                : 'bg-white border-slate-200 text-slate-400 hover:text-slate-700'
+                            }`}
+                            title="Filter by Status"
+                          >
+                            <Filter className="w-3.5 h-3.5" />
+                            <ChevronDown className="w-3 h-3" />
+                          </button>
+
+                          {/* Status Filter Dropdown */}
+                          {openFilterDropdown === 'status' && (
+                            <div className="absolute right-0 top-full mt-2 w-40 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-30 space-y-1 normal-case font-normal text-slate-700 text-left">
+                              <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                                Account Status
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setStatusFilter('all');
+                                  setOpenFilterDropdown(null);
+                                }}
+                                className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                  statusFilter === 'all' ? 'text-emerald-700 bg-emerald-50/60 font-bold' : ''
+                                }`}
+                              >
+                                <span>All</span>
+                                {statusFilter === 'all' && <Check className="w-4 h-4 text-emerald-600" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setStatusFilter('Active');
+                                  setOpenFilterDropdown(null);
+                                }}
+                                className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                  statusFilter === 'Active' ? 'text-emerald-700 bg-emerald-50/60 font-bold' : ''
+                                }`}
+                              >
+                                <span>Active</span>
+                                {statusFilter === 'Active' && <Check className="w-4 h-4 text-emerald-600" />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setStatusFilter('Paused');
+                                  setOpenFilterDropdown(null);
+                                }}
+                                className={`w-full px-2.5 py-2 rounded-xl text-left text-xs font-semibold flex items-center justify-between hover:bg-slate-50 cursor-pointer ${
+                                  statusFilter === 'Paused' ? 'text-emerald-700 bg-emerald-50/60 font-bold' : ''
+                                }`}
+                              >
+                                <span>Paused</span>
+                                {statusFilter === 'Paused' && <Check className="w-4 h-4 text-emerald-600" />}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </th>
                   </tr>
                 </thead>
+
+                {/* Table Rows - Note: Last column "Service Audit" has been removed */}
                 <tbody className="divide-y divide-slate-100">
                   {filteredCustomers.map((c) => (
                     <tr key={c.id} className="hover:bg-slate-50/80 transition-colors group">
+                      {/* Owner Name & Contact */}
                       <td className="p-4">
                         <div className="font-extrabold text-slate-900 text-sm group-hover:text-emerald-700 transition-colors">
                           {c.name}
@@ -520,6 +1027,7 @@ export default function AdminCustomersPage() {
                         </div>
                       </td>
 
+                      {/* Society & Flat */}
                       <td className="p-4">
                         <div className="font-semibold text-slate-800">{c.society}</div>
                         <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
@@ -528,6 +1036,7 @@ export default function AdminCustomersPage() {
                         </div>
                       </td>
 
+                      {/* Vehicles (Click Plate to Open Calendar) */}
                       <td className="p-4">
                         <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
                           {c.vehicles.map((v) => (
@@ -535,8 +1044,8 @@ export default function AdminCustomersPage() {
                               key={v.id}
                               type="button"
                               onClick={() => handleOpenCalendar(c, v)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-300 text-left transition-all cursor-pointer group/btn shadow-2xs hover:scale-[1.02]"
-                              title={`View ${v.name} service calendar`}
+                              className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-400 text-left transition-all cursor-pointer group/btn shadow-2xs hover:scale-[1.02]"
+                              title={`Click to open ${v.name} (${v.plate}) service calendar`}
                             >
                               <div className="flex items-center gap-1.5">
                                 <span className="font-mono font-black text-slate-800 group-hover/btn:text-emerald-800 text-xs">
@@ -548,34 +1057,26 @@ export default function AdminCustomersPage() {
                               </div>
                               <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
                                 <Car className="w-2.5 h-2.5" />
-                                {v.name}
+                                <span>{v.name}</span>
+                                <span className="text-emerald-600 font-bold ml-1">📅 Calendar</span>
                               </div>
                             </button>
                           ))}
                         </div>
                       </td>
 
+                      {/* Plan */}
                       <td className="p-4">
-                        <span className="font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md text-[11px]">
+                        <span className="font-semibold text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-md text-[11px]">
                           {c.plan}
                         </span>
                       </td>
 
+                      {/* Status */}
                       <td className="p-4 text-center">
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
                           {c.status}
                         </span>
-                      </td>
-
-                      <td className="p-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCalendar(c, c.vehicles[0])}
-                          className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white font-bold text-[11px] inline-flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
-                        >
-                          <Calendar className="w-3.5 h-3.5" />
-                          <span>View Calendar</span>
-                        </button>
                       </td>
                     </tr>
                   ))}
@@ -694,7 +1195,6 @@ export default function AdminCustomersPage() {
 
                 {/* Days Grid */}
                 <div className="grid grid-cols-7 gap-1.5">
-                  {/* Empty offset days for start of month */}
                   {Array.from({
                     length: selectedMonth === 'Sep' ? 1 : 3,
                   }).map((_, i) => (
@@ -704,7 +1204,6 @@ export default function AdminCustomersPage() {
                     />
                   ))}
 
-                  {/* Calendar Days */}
                   {calendarDays.map((day) => {
                     const isCompleted = day.status === 'completed';
                     const isUnavailable = day.status === 'unavailable';
