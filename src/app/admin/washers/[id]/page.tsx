@@ -25,13 +25,16 @@ import {
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
 import { washerPartners, getWasherById } from '@/lib/washerPartners';
+import { useStore } from '@/lib/store';
 
 export default function WasherProfileDetailPage() {
   const params = useParams();
   const id = (params?.id as string) || 'wsh_amit';
-  const washer = getWasherById(id) || washerPartners[0];
+  const { washers } = useStore();
+  const washer = washers.find((w) => w.id === id) || getWasherById(id) || washerPartners[0];
 
   const [selectedDisbursement, setSelectedDisbursement] = useState<string | null>(null);
+
 
   return (
     <div className="flex min-h-screen bg-[#F5F7FA]">
@@ -109,7 +112,40 @@ export default function WasherProfileDetailPage() {
               </a>
             </div>
           </div>
+
+          {/* Aadhaar Card Verification Strip */}
+          <div className="pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs bg-slate-50/80 -mx-6 -mb-6 p-4 px-6 rounded-b-3xl">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                  Aadhaar Card:
+                </span>
+                <span className="font-mono font-black text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                  {washer.aadhaarNumber ? `•••• •••• ${washer.aadhaarNumber.slice(-4)}` : '4821 9912 3410'}
+                </span>
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                  UIDAI Verified
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                  Phone OTP:
+                </span>
+                <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
+                  <ShieldCheck className="w-3 h-3" />
+                  {washer.phone} (Verified)
+                </span>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-slate-500 font-medium">
+              Bank Account: <span className="font-semibold text-slate-700">{washer.bankAccount || 'HDFC Bank •••• 4021'}</span>
+            </div>
+          </div>
         </div>
+
 
         {/* SECTION 1: PERFORMANCE & TRACK RECORD */}
         <section className="space-y-3">

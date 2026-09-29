@@ -20,6 +20,7 @@ import {
   syncVehicleToFirestore,
   syncWashRecordToFirestore,
 } from './firebaseService';
+import { WasherPartner, initialWasherPartners } from './washerPartners';
 
 interface StoreContextType {
   role: UserRole;
@@ -44,6 +45,23 @@ interface StoreContextType {
   washes: WashRecord[];
   todayWash: WashRecord | undefined;
   routeStops: RouteStop[];
+  washers: WasherPartner[];
+  onboardWasher: (washerData: {
+    name: string;
+    phone: string;
+    society: string;
+    assignedCarsPerDay?: number;
+    routeWindow?: string;
+    aadhaarNumber: string;
+    aadhaarPhotoUrl?: string;
+    bankAccount?: string;
+    ifscCode?: string;
+    address?: string;
+  }) => WasherPartner;
+  eraseAllData: () => void;
+  resetToDemoData: () => void;
+  isDataErased: boolean;
+  verifyPhoneNumber: (phone: string, otp: string) => Promise<boolean>;
   washerEarnings: WasherEarnings;
   societies: Society[];
   exceptions: ExceptionItem[];
@@ -72,6 +90,7 @@ interface StoreContextType {
   detailPackages: DetailPackage[];
   createDetailBooking: (packageId: string, vehicleId: string, date: string, time: string) => void;
 }
+
 
 const defaultUser: User = {
   id: 'usr_pranav_1',
@@ -664,6 +683,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [vehicles, setVehicles] = useState<Vehicle[]>(initialVehicles);
   const [washes, setWashes] = useState<WashRecord[]>(initialWashes);
   const [routeStops, setRouteStops] = useState<RouteStop[]>(initialRouteStops);
+  const [washers, setWashers] = useState<WasherPartner[]>(initialWasherPartners);
+  const [isDataErased, setIsDataErased] = useState<boolean>(false);
   const [washerEarnings, setWasherEarnings] = useState<WasherEarnings>(initialEarnings);
   const [societies, setSocieties] = useState<Society[]>(initialSocieties);
   const [exceptions, setExceptions] = useState<ExceptionItem[]>(initialExceptions);
@@ -677,9 +698,55 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     price?: number;
   }>({ status: 'idle' });
 
+  // Hydrate from localStorage on client-side mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const erased = localStorage.getItem('torque_data_erased') === 'true';
+      setIsDataErased(erased);
+
+      if (erased) {
+        setVehicles([]);
+        setWashers([]);
+        setWashes([]);
+        setRouteStops([]);
+        setUser({
+          id: 'usr_guest',
+          name: 'Unregistered User',
+          phone: '',
+          role: 'owner',
+          status: 'active',
+          created_at: new Date().toISOString(),
+        });
+      } else {
+        const savedWashers = localStorage.getItem('torque_washers');
+        if (savedWashers) {
+          const parsed = JSON.parse(savedWashers);
+          if (Array.isArray(parsed)) setWashers(parsed);
+        }
+        const savedVehicles = localStorage.getItem('torque_vehicles');
+        if (savedVehicles) {
+          const parsed = JSON.parse(savedVehicles);
+          if (Array.isArray(parsed)) setVehicles(parsed);
+        }
+        const savedUser = localStorage.getItem('torque_user');
+        if (savedUser) {
+          const parsed = JSON.parse(savedUser);
+          if (parsed?.id) setUser(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn('LocalStorage hydration notice:', e);
+    }
+  }, []);
+
   // Switch role helper with persona adjustment
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
+    if (isDataErased) {
+      // Keep blank user if erased
+      return;
+    }
     if (newRole === 'owner') {
       setUser({
         id: 'usr_pranav_1',
@@ -710,6 +777,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       });
     }
   };
+
 
   const addVehicle = (
     newVeh: Omit<Vehicle, 'id' | 'owner_id' | 'owner_name' | 'washes_this_month' | 'subscription_status'>
@@ -790,6 +858,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     setVehicles(createdVehicles);
 
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('torque_data_erased');
+      localStorage.setItem('torque_user', JSON.stringify(newUser));
+      localStorage.setItem('torque_vehicles', JSON.stringify(createdVehicles));
+    }
+    setIsDataErased(false);
+
+    // Add route stops for the registered vehicles
+    const newStops: RouteStop[] = createdVehicles.map((cv, idx) => ({
+      stop_number: (routeStops.length || 0) + idx + 1,
+      vehicle_id: cv.id,
+      vehicle_name: `${cv.make} ${cv.model}`,
+      registration_number: cv.registration_number,
+      parking_location: cv.parking_location,
+      time_window: cv.preferred_wash_time || '07:30 AM',
+      owner_name: cv.owner_name,
+      owner_phone: newUser.phone,
+      wash_type: 'exterior',
+      status: 'pending',
+    }));
+    setRouteStops((prev) => [...prev, ...newStops]);
+
     // Asynchronously sync new owner & vehicles to Firebase
     syncOwnerToFirestore(newUser, createdVehicles).catch((err) => {
       console.warn('Firebase syncOwner error:', err);
@@ -807,6 +897,148 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       ...prev,
     ]);
   };
+
+  const eraseAllData = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('torque_data_erased', 'true');
+      localStorage.removeItem('torque_vehicles');
+      localStorage.removeItem('torque_washers');
+      localStorage.removeItem('torque_user');
+      localStorage.removeItem('torque_washes');
+      localStorage.removeItem('torque_routestops');
+    }
+    setIsDataErased(true);
+    setVehicles([]);
+    setWashers([]);
+    setWashes([]);
+    setRouteStops([]);
+    setUser({
+      id: 'usr_guest',
+      name: 'Unregistered User',
+      phone: '',
+      role: 'owner',
+      status: 'active',
+      created_at: new Date().toISOString(),
+    });
+    setWasherEarnings({
+      today_count: 0,
+      today_estimated_earnings: 0,
+      weekly_total: 0,
+      sunday_priority_count: 0,
+      sunday_earnings: 0,
+      available_for_withdrawal: 0,
+      streak_days: 0,
+    });
+    setNotifications([
+      {
+        id: `notif_erase_${Date.now()}`,
+        title: 'All Data Erased',
+        body: 'System data has been completely erased. Ready for sign up and onboarding with real test data.',
+        timestamp: 'Just now',
+        read: false,
+        category: 'system',
+      },
+    ]);
+  };
+
+  const resetToDemoData = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('torque_data_erased');
+      localStorage.removeItem('torque_vehicles');
+      localStorage.removeItem('torque_washers');
+      localStorage.removeItem('torque_user');
+      localStorage.removeItem('torque_washes');
+    }
+    setIsDataErased(false);
+    setVehicles(initialVehicles);
+    setWashers(initialWasherPartners);
+    setWashes(initialWashes);
+    setRouteStops(initialRouteStops);
+    setUser(defaultUser);
+    setWasherEarnings(initialEarnings);
+    setNotifications(initialNotifications);
+  };
+
+  const onboardWasher = (washerData: {
+    name: string;
+    phone: string;
+    society: string;
+    assignedCarsPerDay?: number;
+    routeWindow?: string;
+    aadhaarNumber: string;
+    aadhaarPhotoUrl?: string;
+    bankAccount?: string;
+    ifscCode?: string;
+    address?: string;
+  }): WasherPartner => {
+    const newId = `wsh_${Date.now()}`;
+    const cleanPhone = washerData.phone.startsWith('+91')
+      ? washerData.phone
+      : `+91 ${washerData.phone.replace(/^\+91\s*/, '')}`;
+
+    const newPartner: WasherPartner = {
+      id: newId,
+      name: washerData.name,
+      phone: cleanPhone,
+      avatar: '/images/washer_amit.jpg',
+      rating: '5.0',
+      reviewsCount: 1,
+      society: washerData.society || 'Green Valley Residency',
+      assignedCarsPerDay: washerData.assignedCarsPerDay || 30,
+      routeWindow: washerData.routeWindow || '06:30 AM - 09:30 AM',
+      avgTimePerCar: '5.5 mins',
+      completionRate: '100%',
+      totalLifetimeWashes: 0,
+      status: 'Active on Route',
+      kyc: 'Verified (Aadhaar & Police Clear)',
+      aadhaarNumber: washerData.aadhaarNumber,
+      aadhaarPhotoUrl: washerData.aadhaarPhotoUrl,
+      aadhaarVerified: true,
+      phoneVerified: true,
+      bankAccount: washerData.bankAccount || 'State Bank of India •••• 9912',
+      ifscCode: washerData.ifscCode || 'SBIN0001234',
+      address: washerData.address || 'Assigned Society Quarter',
+      absentThisMonth: 0,
+      absentDates: [],
+      leaveReason: 'Zero absences • New partner active with verified Aadhaar',
+      backupWasherName: 'None Required',
+      monthlyPayoutsGone: 0,
+      pendingPayoutDue: 0,
+      sundayBonusEarned: 0,
+      disbursements: [],
+    };
+
+    setWashers((prev) => {
+      const updated = [newPartner, ...prev];
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('torque_washers', JSON.stringify(updated));
+        localStorage.removeItem('torque_data_erased');
+      }
+      return updated;
+    });
+
+    setIsDataErased(false);
+
+    setNotifications((prev) => [
+      {
+        id: `notif_wsh_${Date.now()}`,
+        title: 'Washer Partner Onboarded with Aadhaar ✓',
+        body: `${newPartner.name} verified via UIDAI Aadhaar (${newPartner.aadhaarNumber}). Route assigned at ${newPartner.society}.`,
+        timestamp: 'Just now',
+        read: false,
+        category: 'system',
+      },
+      ...prev,
+    ]);
+
+    return newPartner;
+  };
+
+  const verifyPhoneNumber = async (phone: string, otp: string): Promise<boolean> => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    return otp.trim().length === 4;
+  };
+
 
   const markNotificationRead = (id: string) => {
     setNotifications((prev) =>
@@ -1196,6 +1428,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         washes,
         todayWash,
         routeStops,
+        washers,
+        onboardWasher,
+        eraseAllData,
+        resetToDemoData,
+        isDataErased,
+        verifyPhoneNumber,
         washerEarnings,
         societies,
         exceptions,

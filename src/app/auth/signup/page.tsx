@@ -32,7 +32,7 @@ interface VehicleDraft {
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { registerOwner } = useStore();
+  const { registerOwner, verifyPhoneNumber } = useStore();
 
   // Multi-step state: 1 = Owner Details, 2 = Vehicles, 3 = Completed/Redirecting
   const [step, setStep] = useState<1 | 2>(1);
@@ -44,15 +44,21 @@ export default function SignUpPage() {
   const [altPhone, setAltPhone] = useState('');
   const [ownerErrors, setOwnerErrors] = useState<{ name?: string; phone?: string }>({});
 
+  // Phone Verification State
+  const [isPhoneVerifying, setIsPhoneVerifying] = useState(false);
+  const [phoneOtp, setPhoneOtp] = useState(['4', '2', '9', '1']);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+
   // Step 2: Vehicles List (can be 1, 2, or more)
   const [vehicles, setVehicles] = useState<VehicleDraft[]>([
     {
-      make: 'Honda',
-      model: 'City ZX',
+      make: '',
+      model: '',
       registration_number: '',
       type: 'car',
-      color: 'Lunar Silver',
-      parking_location: 'Bay D-14 (Basement 1)',
+      color: '',
+      parking_location: '',
       preferred_wash_time: '07:30 AM',
     },
   ]);
@@ -68,6 +74,31 @@ export default function SignUpPage() {
     { make: 'Mahindra', model: 'XUV700', type: 'suv' as const },
     { make: 'BMW', model: '3 Series', type: 'car' as const },
   ];
+
+  // Send OTP
+  const handleSendOtp = () => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (!cleanPhone || cleanPhone.length < 10) {
+      setOwnerErrors({ phone: 'Please enter a valid 10-digit mobile number' });
+      return;
+    }
+    setOwnerErrors({});
+    setOtpSent(true);
+    setIsPhoneVerifying(true);
+  };
+
+  // Confirm OTP
+  const handleConfirmOtp = async () => {
+    const code = phoneOtp.join('');
+    const isValid = await verifyPhoneNumber(phone, code);
+    if (isValid) {
+      setIsPhoneVerified(true);
+      setIsPhoneVerifying(false);
+      setOwnerErrors({});
+    } else {
+      setOwnerErrors({ phone: 'Invalid code. Use test verification code 4291' });
+    }
+  };
 
   // Validate Step 1
   const handleProceedToVehicles = (e: React.FormEvent) => {
@@ -87,10 +118,18 @@ export default function SignUpPage() {
       return;
     }
 
+    if (!isPhoneVerified) {
+      // Prompt OTP verification
+      setIsPhoneVerifying(true);
+      setOtpSent(true);
+      return;
+    }
+
     setOwnerErrors({});
     setStep(2);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
 
   // Add another vehicle
   const handleAddVehicle = () => {
@@ -254,28 +293,91 @@ export default function SignUpPage() {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
-                  <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                  Phone Number <span className="text-rose-400">*</span>
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono">
-                    +91
+                <label className="text-xs font-bold text-slate-300 uppercase tracking-wider block mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                    Phone Number <span className="text-rose-400">*</span>
                   </span>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => {
-                      setPhone(e.target.value);
-                      if (ownerErrors.phone) setOwnerErrors((prev) => ({ ...prev, phone: undefined }));
-                    }}
-                    placeholder="98765 43210"
-                    className="w-full pl-13 pr-4 py-3.5 bg-white/5 border border-white/15 rounded-2xl text-sm font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all font-mono"
-                  />
+                  {isPhoneVerified && (
+                    <span className="text-[10px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" /> Phone Verified
+                    </span>
+                  )}
+                </label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 font-mono">
+                      +91
+                    </span>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        setIsPhoneVerified(false);
+                        setOtpSent(false);
+                        if (ownerErrors.phone) setOwnerErrors((prev) => ({ ...prev, phone: undefined }));
+                      }}
+                      placeholder="98765 43210"
+                      className="w-full pl-13 pr-4 py-3.5 bg-white/5 border border-white/15 rounded-2xl text-sm font-semibold text-white placeholder-slate-500 focus:outline-hidden focus:border-blue-400 focus:bg-white/10 transition-all font-mono"
+                    />
+                  </div>
+                  {!isPhoneVerified ? (
+                    <button
+                      type="button"
+                      onClick={handleSendOtp}
+                      className="px-4 py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black text-xs uppercase tracking-wider rounded-2xl cursor-pointer transition-colors shrink-0"
+                    >
+                      {otpSent ? 'Resend' : 'Verify'}
+                    </button>
+                  ) : (
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                  )}
                 </div>
                 {ownerErrors.phone && (
                   <p className="text-[11px] text-rose-400 mt-1.5 font-medium">{ownerErrors.phone}</p>
+                )}
+
+                {/* Inline OTP Verification Box */}
+                {isPhoneVerifying && !isPhoneVerified && (
+                  <div className="mt-3 p-4 bg-blue-500/10 border border-blue-500/20 rounded-2xl space-y-3 animate-in fade-in">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-bold text-blue-200">
+                        Enter 4-digit code sent to {phone}:
+                      </span>
+                      <span className="font-mono text-blue-300 text-[11px]">
+                        Test code: <strong>4291</strong>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="flex gap-2">
+                        {phoneOtp.map((digit, i) => (
+                          <input
+                            key={i}
+                            type="text"
+                            maxLength={1}
+                            value={digit}
+                            onChange={(e) => {
+                              const copy = [...phoneOtp];
+                              copy[i] = e.target.value;
+                              setPhoneOtp(copy);
+                            }}
+                            className="w-10 h-10 text-center font-bold font-mono text-lg bg-white/10 border border-blue-400/40 text-white rounded-xl focus:outline-none focus:border-blue-400"
+                          />
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleConfirmOtp}
+                        className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl cursor-pointer"
+                      >
+                        Confirm OTP
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>

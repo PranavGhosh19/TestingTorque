@@ -12,9 +12,9 @@ export default function OnboardingPage() {
   const handleSelect = (selectedRole: 'owner' | 'washer') => {
     setRole(selectedRole);
     if (selectedRole === 'owner') {
-      router.push('/owner/dashboard');
+      router.push('/auth/signup');
     } else {
-      router.push('/washer/dashboard');
+      router.push('/auth/washer-onboarding');
     }
   };
 

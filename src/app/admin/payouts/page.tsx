@@ -18,7 +18,8 @@ import {
   Filter,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
-import { washerPartners, WasherPartner, PayoutDisbursement } from '@/lib/washerPartners';
+import { WasherPartner, PayoutDisbursement } from '@/lib/washerPartners';
+import { useStore } from '@/lib/store';
 
 interface FlatDisbursement extends PayoutDisbursement {
   washerId: string;
@@ -29,35 +30,38 @@ interface FlatDisbursement extends PayoutDisbursement {
 }
 
 export default function AdminPayoutsPage() {
+  const { washers, isDataErased } = useStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSocietyFilter, setSelectedSocietyFilter] = useState('All');
   const [isExporting, setIsExporting] = useState(false);
 
   // Compute stats dynamically from washer partners
   const totalMonthPayout = useMemo(() => {
-    return washerPartners.reduce((sum, w) => sum + (w.monthlyPayoutsGone || 0), 0);
-  }, []);
+    return washers.reduce((sum, w) => sum + (w.monthlyPayoutsGone || 0), 0);
+  }, [washers]);
 
   // Lifetime cumulative disbursements till now (prior batches + current month)
-  const totalLifetimePayout = 248600;
+  const totalLifetimePayout = isDataErased ? 0 : 248600;
 
   // Partner with highest payout this month
   const topEarner = useMemo(() => {
-    return washerPartners.reduce((max, w) => {
+    if (washers.length === 0) return null;
+    return washers.reduce((max, w) => {
       return (w.monthlyPayoutsGone || 0) > (max.monthlyPayoutsGone || 0) ? w : max;
-    }, washerPartners[0]);
-  }, []);
+    }, washers[0]);
+  }, [washers]);
 
   // Flatten all disbursements for the audit log
   const allDisbursements: FlatDisbursement[] = useMemo(() => {
     const list: FlatDisbursement[] = [];
-    washerPartners.forEach((w) => {
+    washers.forEach((w) => {
       w.disbursements.forEach((d) => {
         list.push({
           ...d,
           washerId: w.id,
           washerName: w.name,
           washerPhone: w.phone,
+
           society: w.society,
           rating: w.rating,
         });
@@ -116,7 +120,7 @@ export default function AdminPayoutsPage() {
     }
   };
 
-  const societiesList = ['All', ...Array.from(new Set(washerPartners.map((w) => w.society)))];
+  const societiesList = ['All', ...Array.from(new Set(washers.map((w) => w.society)))];
 
   return (
     <div className="flex min-h-screen bg-[#F5F7FA]">
@@ -213,7 +217,7 @@ export default function AdminPayoutsPage() {
               <div className="text-xs text-slate-500 flex items-center gap-1.5">
                 <span className="font-semibold text-slate-700">September 2026 Cycle</span>
                 <span>•</span>
-                <span>{washerPartners.length} Active routes paid</span>
+                <span>{washers.length} Active routes paid</span>
               </div>
             </div>
 
@@ -243,27 +247,38 @@ export default function AdminPayoutsPage() {
 
             <div className="space-y-1">
               <div className="text-3xl font-black text-[#0B132B] tracking-tight">
-                ₹{topEarner.monthlyPayoutsGone.toLocaleString('en-IN')}
+                {topEarner ? `₹${topEarner.monthlyPayoutsGone.toLocaleString('en-IN')}` : '₹0'}
               </div>
               <div className="text-xs text-slate-600 flex items-center gap-1.5">
-                <Link
-                  href={`/admin/washers/${topEarner.id}`}
-                  className="font-bold text-amber-900 hover:text-amber-700 flex items-center gap-1 group-hover:underline"
-                >
-                  <span>{topEarner.name}</span>
-                  <ExternalLink className="w-3 h-3 text-amber-600" />
-                </Link>
-                <span>•</span>
-                <span className="text-slate-500">{topEarner.society}</span>
+                {topEarner ? (
+                  <>
+                    <Link
+                      href={`/admin/washers/${topEarner.id}`}
+                      className="font-bold text-amber-900 hover:text-amber-700 flex items-center gap-1 group-hover:underline"
+                    >
+                      <span>{topEarner.name}</span>
+                      <ExternalLink className="w-3 h-3 text-amber-600" />
+                    </Link>
+                    <span>•</span>
+                    <span className="text-slate-500">{topEarner.society}</span>
+                  </>
+                ) : (
+                  <span className="text-slate-400">No partner payouts yet</span>
+                )}
               </div>
             </div>
 
             <div className="mt-4 pt-3 border-t border-amber-100/80 flex items-center justify-between text-[11px]">
-              <span className="text-slate-500">{topEarner.assignedCarsPerDay} cars/day • 0 absences</span>
-              <span className="font-extrabold text-amber-700">⭐ {topEarner.rating} Rating</span>
+              <span className="text-slate-500">
+                {topEarner ? `${topEarner.assignedCarsPerDay} cars/day • 0 absences` : 'Awaiting cycle'}
+              </span>
+              <span className="font-extrabold text-amber-700">
+                {topEarner ? `⭐ ${topEarner.rating} Rating` : 'Active'}
+              </span>
             </div>
           </div>
         </div>
+
 
         {/* Audit Log / Payouts Table Section */}
         <div className="space-y-4">

@@ -12,25 +12,44 @@ function VerifyForm() {
   const roleParam = searchParams.get('role') || 'owner';
   const [otp, setOtp] = useState(['4', '2', '9', '1']);
   const [loading, setLoading] = useState(false);
-  const { setRole } = useStore();
+  const { setRole, setUser, washers, user } = useStore();
 
   const handleVerify = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
+    const cleanPhone = phone.replace(/\D/g, '');
+
     if (roleParam === 'washer') {
       setRole('washer');
+      const matched = washers.find((w) => w.phone.replace(/\D/g, '').includes(cleanPhone) || cleanPhone.includes(w.phone.replace(/\D/g, '')));
+      if (matched) {
+        setUser({
+          id: matched.id,
+          name: matched.name,
+          phone: matched.phone,
+          role: 'washer',
+          avatar_url: matched.avatar,
+          status: 'active',
+          created_at: new Date().toISOString(),
+        });
+      }
       setTimeout(() => {
         router.push('/washer/dashboard');
       }, 350);
+    } else if (roleParam === 'admin') {
+      setRole('admin');
+      setTimeout(() => {
+        router.push('/admin/dashboard');
+      }, 350);
     } else {
-      // Always Owner by default from landing page
       setRole('owner');
       setTimeout(() => {
         router.push('/owner/dashboard');
       }, 350);
     }
   };
+
 
   return (
     <div className="w-full min-h-[calc(100vh-4rem)] flex-1 bg-[#080D1A] text-slate-100 flex items-center justify-center px-4 py-16 selection:bg-blue-500 selection:text-white relative">

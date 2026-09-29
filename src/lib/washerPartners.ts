@@ -25,6 +25,13 @@ export interface WasherPartner {
   totalLifetimeWashes: number;
   status: 'Active on Route' | 'Available Backup';
   kyc: string;
+  aadhaarNumber?: string;
+  aadhaarPhotoUrl?: string;
+  aadhaarVerified?: boolean;
+  phoneVerified?: boolean;
+  bankAccount?: string;
+  ifscCode?: string;
+  address?: string;
   absentThisMonth: number;
   absentDates: string[];
   leaveReason: string;
@@ -34,6 +41,7 @@ export interface WasherPartner {
   sundayBonusEarned: number;
   disbursements: PayoutDisbursement[];
 }
+
 
 export const washerPartners: WasherPartner[] = [
   {
@@ -51,6 +59,12 @@ export const washerPartners: WasherPartner[] = [
     totalLifetimeWashes: 1240,
     status: 'Active on Route',
     kyc: 'Verified (Aadhaar & Police Clear)',
+    aadhaarNumber: '4821 9912 3410',
+    aadhaarVerified: true,
+    phoneVerified: true,
+    bankAccount: 'HDFC Bank •••• 4021',
+    ifscCode: 'HDFC0001234',
+    address: 'B-12, Sector 4, Noida',
     absentThisMonth: 1,
     absentDates: ['14 Sep 2026'],
     leaveReason: 'Family emergency • Peer backup coverage assigned to Suresh Verma (0 missed customer washes)',
@@ -120,6 +134,12 @@ export const washerPartners: WasherPartner[] = [
     totalLifetimeWashes: 980,
     status: 'Active on Route',
     kyc: 'Verified (Aadhaar & Police Clear)',
+    aadhaarNumber: '9912 3410 8821',
+    aadhaarVerified: true,
+    phoneVerified: true,
+    bankAccount: 'State Bank of India •••• 1189',
+    ifscCode: 'SBIN0004567',
+    address: 'Flat 204, Sector 62, Noida',
     absentThisMonth: 0,
     absentDates: [],
     leaveReason: 'Zero absences this month (Qualified for Monthly Perfect Attendance Bonus)',
@@ -189,6 +209,12 @@ export const washerPartners: WasherPartner[] = [
     totalLifetimeWashes: 1120,
     status: 'Active on Route',
     kyc: 'Verified (Aadhaar & Police Clear)',
+    aadhaarNumber: '7721 8834 9910',
+    aadhaarVerified: true,
+    phoneVerified: true,
+    bankAccount: 'ICICI Bank •••• 8841',
+    ifscCode: 'ICIC0002345',
+    address: 'C-45, Sector 50, Noida',
     absentThisMonth: 1,
     absentDates: ['08 Sep 2026'],
     leaveReason: 'Approved scheduled leave • Covered by Amit Kumar as peer proxy with full completion',
@@ -258,6 +284,12 @@ export const washerPartners: WasherPartner[] = [
     totalLifetimeWashes: 670,
     status: 'Available Backup',
     kyc: 'Verified (Aadhaar & Police Clear)',
+    aadhaarNumber: '3341 5567 8890',
+    aadhaarVerified: true,
+    phoneVerified: true,
+    bankAccount: 'Axis Bank •••• 5590',
+    ifscCode: 'UTIB0003456',
+    address: 'D-8, Sector 18, Noida',
     absentThisMonth: 0,
     absentDates: [],
     leaveReason: 'Zero absences this month',
@@ -314,6 +346,9 @@ export const washerPartners: WasherPartner[] = [
   },
 ];
 
+export const initialWasherPartners: WasherPartner[] = [...washerPartners];
+
 export function getWasherById(id: string): WasherPartner | undefined {
   return washerPartners.find((w) => w.id === id);
 }
+

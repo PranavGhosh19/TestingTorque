@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, ArrowRight, Car, CheckCircle2, Sparkles } from 'lucide-react';
+import { Shield, ArrowRight, Car, CheckCircle2, Sparkles, User, ShieldCheck } from 'lucide-react';
 import { useStore } from '@/lib/store';
 
 export default function LoginPage() {
-  const [phone, setPhone] = useState('98765 43210');
+  const [roleSelection, setRoleSelection] = useState<'owner' | 'washer' | 'admin'>('owner');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { setRole } = useStore();
@@ -15,11 +16,12 @@ export default function LoginPage() {
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setRole('owner');
+    setRole(roleSelection);
     setTimeout(() => {
-      router.push(`/auth/verify?role=owner&phone=${encodeURIComponent('+91 ' + phone)}`);
+      router.push(`/auth/verify?role=${roleSelection}&phone=${encodeURIComponent(phone.startsWith('+91') ? phone : '+91 ' + phone)}`);
     }, 350);
   };
+
 
   return (
     <div className="w-full min-h-[calc(100vh-4rem)] flex-1 bg-[#080D1A] text-slate-100 flex items-center justify-center px-4 py-16 selection:bg-blue-500 selection:text-white relative">
@@ -47,11 +49,49 @@ export default function LoginPage() {
 
         {/* Mobile Input Card */}
         <div className="p-7 sm:p-8 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl text-left space-y-6 luxury-sheen">
+          {/* Role Selection Tabs */}
+          <div className="grid grid-cols-3 gap-1.5 p-1 bg-white/5 border border-white/10 rounded-2xl">
+            <button
+              type="button"
+              onClick={() => setRoleSelection('owner')}
+              className={`py-2 px-1 rounded-xl text-center font-bold text-[11px] transition-all cursor-pointer ${
+                roleSelection === 'owner'
+                  ? 'bg-blue-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🚗 Owner
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoleSelection('washer')}
+              className={`py-2 px-1 rounded-xl text-center font-bold text-[11px] transition-all cursor-pointer ${
+                roleSelection === 'washer'
+                  ? 'bg-emerald-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              🧼 Washer
+            </button>
+            <button
+              type="button"
+              onClick={() => setRoleSelection('admin')}
+              className={`py-2 px-1 rounded-xl text-center font-bold text-[11px] transition-all cursor-pointer ${
+                roleSelection === 'admin'
+                  ? 'bg-slate-700 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              ⚙️ Admin
+            </button>
+          </div>
+
           <form onSubmit={handleContinue} className="space-y-5">
             <div>
               <label className="text-[11px] font-black text-slate-300 uppercase tracking-wider block mb-2">
-                Mobile Number
+                {roleSelection === 'washer' ? 'Washer Partner Mobile' : roleSelection === 'admin' ? 'Admin Phone Number' : 'Vehicle Owner Mobile'}
               </label>
+
               <div className="flex items-center rounded-2xl border border-white/15 bg-white/5 p-2 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all shadow-inner">
                 <span className="text-xs font-mono font-bold text-slate-300 px-3 py-1.5 border-r border-white/10">
                   +91
