@@ -76,14 +76,7 @@ export default function Navbar() {
             >
               For Owners
             </Link>
-            <Link
-              href="/for-washers"
-              className={`hover:text-white transition-colors ${
-                pathname === '/for-washers' ? 'text-blue-400' : ''
-              }`}
-            >
-              For Washers
-            </Link>
+
             <Link
               href="/pricing"
               className={`hover:text-white transition-colors ${
@@ -254,13 +247,7 @@ export default function Navbar() {
             >
               For Owners
             </Link>
-            <Link
-              href="/for-washers"
-              onClick={() => setMobileMenuOpen(false)}
-              className="py-2 hover:text-white"
-            >
-              For Washers
-            </Link>
+
             <Link
               href="/pricing"
               onClick={() => setMobileMenuOpen(false)}
