@@ -22,8 +22,9 @@ import AdminSidebar from '@/components/AdminSidebar';
 import { useStore } from '@/lib/store';
 
 export default function AdminSettingsPage() {
-  const { vehicles, washers, washes, isDataErased, eraseAllData, resetToDemoData } = useStore();
+  const { vehicles, washers, washes, isDataErased, eraseAllData, resetOwnerData, resetToDemoData } = useStore();
   const [showConfirmErase, setShowConfirmErase] = useState(false);
+  const [showConfirmResetOwner, setShowConfirmResetOwner] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState('');
 
   const handleErase = () => {
@@ -36,6 +37,13 @@ export default function AdminSettingsPage() {
   const handleRestore = () => {
     resetToDemoData();
     setFeedbackMsg('Default demo dataset restored successfully.');
+    setTimeout(() => setFeedbackMsg(''), 4000);
+  };
+
+  const handleResetOwnerOnly = async () => {
+    await resetOwnerData();
+    setShowConfirmResetOwner(false);
+    setFeedbackMsg('Owner profile, vehicles, and wash records reset successfully!');
     setTimeout(() => setFeedbackMsg(''), 4000);
   };
 
@@ -145,6 +153,45 @@ export default function AdminSettingsPage() {
                   <button
                     type="button"
                     onClick={() => setShowConfirmErase(false)}
+                    className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h3 className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                  <Car className="w-3.5 h-3.5 text-blue-500" />
+                  <span>Reset Owner Data Only</span>
+                </h3>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Wipes owner vehicles and subscription history without affecting washer onboarding.
+                </p>
+              </div>
+
+              {!showConfirmResetOwner ? (
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmResetOwner(true)}
+                  className="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-colors shrink-0"
+                >
+                  Reset Owner Data
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleResetOwnerOnly}
+                    className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white font-black text-xs rounded-xl cursor-pointer"
+                  >
+                    Confirm Reset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmResetOwner(false)}
                     className="px-3 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
                   >
                     Cancel

@@ -1,13 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { User, Phone, MapPin, Building2, Shield, LogOut, ChevronRight, Car, Bell } from 'lucide-react';
+import { User, Phone, MapPin, Building2, Shield, LogOut, ChevronRight, Car, Bell, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 
 export default function OwnerProfilePage() {
-  const { user, vehicles, setRole } = useStore();
+  const { user, vehicles, setRole, resetOwnerData } = useStore();
+  const [showConfirmReset, setShowConfirmReset] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">
@@ -96,6 +98,27 @@ export default function OwnerProfilePage() {
           </Link>
         </div>
 
+        {/* Danger Zone: Reset Owner Data */}
+        <div className="premium-card p-5 bg-rose-50/50 border-rose-200/80 rounded-2xl space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xs font-extrabold text-rose-900 uppercase tracking-wider">
+                Reset Owner Data (Testing Sandbox)
+              </h3>
+              <p className="text-[11px] text-rose-700 mt-0.5">
+                Wipe all registered cars, subscriptions, and proof history to test fresh onboarding.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowConfirmReset(true)}
+              className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 shrink-0"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Reset Owner</span>
+            </button>
+          </div>
+        </div>
+
         {/* Switch Persona */}
         <div className="pt-2 text-center">
           <button
@@ -106,6 +129,59 @@ export default function OwnerProfilePage() {
           </button>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmReset && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+          <div className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
+            <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-black text-[#0B132B]">Reset All Owner Data?</h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                This will delete your registered vehicles, chosen plan, assigned washer partner, and wash logs from both local storage and Firebase Firestore. You will have a clean slate to sign up and test onboarding again.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowConfirmReset(false)}
+                disabled={isResetting}
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setIsResetting(true);
+                  try {
+                    await resetOwnerData();
+                    setShowConfirmReset(false);
+                  } finally {
+                    setIsResetting(false);
+                  }
+                }}
+                disabled={isResetting}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5"
+              >
+                {isResetting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Resetting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Yes, Reset Everything</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <OwnerBottomNav />
     </div>

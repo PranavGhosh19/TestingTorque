@@ -8,6 +8,7 @@ import {
   query, 
   where,
   addDoc,
+  deleteDoc,
   onSnapshot,
   serverTimestamp 
 } from 'firebase/firestore';
@@ -507,6 +508,96 @@ export async function fetchOwnerDashboardFromFirestore(
   } catch (error: any) {
     console.warn('Firebase fetchOwnerDashboardFromFirestore notice:', error?.message || error);
     return result;
+  }
+}
+
+/**
+ * Deletes an owner's record, their registered vehicles, and wash records from Firestore.
+ */
+export async function resetOwnerFirestoreData(
+  userId?: string,
+  userPhone?: string
+): Promise<{ success: boolean; deletedCount: number; error?: string }> {
+  try {
+    let deletedCount = 0;
+    const vehicleIds: string[] = [];
+
+    // 1. Delete Owner document from users collection
+    if (userId && userId !== 'usr_guest') {
+      try {
+        const userRef = doc(db, 'users', userId);
+        await deleteDoc(userRef);
+        deletedCount++;
+      } catch (err) {
+        console.warn('Delete user doc notice:', err);
+      }
+    }
+
+    if (userPhone) {
+      try {
+        const usersRef = collection(db, 'users');
+        const qUsers = query(usersRef, where('phone', '==', userPhone));
+        const snapUsers = await getDocs(qUsers);
+        for (const uDoc of snapUsers.docs) {
+          await deleteDoc(uDoc.ref);
+          deletedCount++;
+        }
+      } catch (err) {
+        console.warn('Delete user by phone notice:', err);
+      }
+    }
+
+    // 2. Query and delete Owner's vehicles
+    const vehiclesRef = collection(db, 'vehicles');
+    if (userId && userId !== 'usr_guest') {
+      try {
+        const qVehicles = query(vehiclesRef, where('owner_id', '==', userId));
+        const snapVehicles = await getDocs(qVehicles);
+        for (const vDoc of snapVehicles.docs) {
+          vehicleIds.push(vDoc.id);
+          await deleteDoc(vDoc.ref);
+          deletedCount++;
+        }
+      } catch (err) {
+        console.warn('Delete vehicles by owner_id notice:', err);
+      }
+    }
+
+    if (userPhone) {
+      try {
+        const qVehiclesPhone = query(vehiclesRef, where('owner_phone', '==', userPhone));
+        const snapVehiclesPhone = await getDocs(qVehiclesPhone);
+        for (const vDoc of snapVehiclesPhone.docs) {
+          if (!vehicleIds.includes(vDoc.id)) vehicleIds.push(vDoc.id);
+          await deleteDoc(vDoc.ref);
+          deletedCount++;
+        }
+      } catch (err) {
+        console.warn('Delete vehicles by phone notice:', err);
+      }
+    }
+
+    // 3. Delete any washes associated with these vehicles
+    if (vehicleIds.length > 0) {
+      try {
+        const washesRef = collection(db, 'washes');
+        for (const vId of vehicleIds) {
+          const qWashes = query(washesRef, where('vehicle_id', '==', vId));
+          const snapWashes = await getDocs(qWashes);
+          for (const wDoc of snapWashes.docs) {
+            await deleteDoc(wDoc.ref);
+            deletedCount++;
+          }
+        }
+      } catch (err) {
+        console.warn('Delete washes notice:', err);
+      }
+    }
+
+    return { success: true, deletedCount };
+  } catch (error: any) {
+    console.warn('Firebase resetOwnerFirestoreData notice:', error?.message || error);
+    return { success: false, deletedCount: 0, error: error?.message || 'Reset failed' };
   }
 }
 

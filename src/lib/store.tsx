@@ -21,6 +21,7 @@ import {
   syncWashRecordToFirestore,
   syncWasherToFirestore,
   recordUserLogin,
+  resetOwnerFirestoreData,
 } from './firebaseService';
 import { WasherPartner, initialWasherPartners } from './washerPartners';
 
@@ -70,6 +71,7 @@ interface StoreContextType {
     address?: string;
   }) => WasherPartner;
   eraseAllData: () => void;
+  resetOwnerData: () => Promise<void>;
   resetToDemoData: () => void;
   isDataErased: boolean;
   verifyPhoneNumber: (phone: string, otp: string) => Promise<boolean>;
@@ -104,6 +106,15 @@ interface StoreContextType {
 
 
 const defaultUser: User = {
+  id: 'usr_guest',
+  name: 'Unregistered Owner',
+  phone: '',
+  role: 'owner',
+  status: 'active',
+  created_at: '2026-01-15T00:00:00Z',
+};
+
+export const demoOwnerUser: User = {
   id: 'usr_pranav_1',
   name: 'Pranav Ghosh',
   phone: '+91 98765 43210',
@@ -113,7 +124,9 @@ const defaultUser: User = {
   created_at: '2026-01-15T00:00:00Z',
 };
 
-const initialVehicles: Vehicle[] = [
+const initialVehicles: Vehicle[] = [];
+
+export const demoVehicles: Vehicle[] = [
   {
     id: 'veh_honda_city',
     owner_id: 'usr_pranav_1',
@@ -714,6 +727,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (typeof window === 'undefined') return;
     try {
       const erased = localStorage.getItem('torque_data_erased') === 'true';
+      const ownerReset = localStorage.getItem('torque_owner_reset') === 'true';
       setIsDataErased(erased);
 
       if (erased) {
@@ -729,6 +743,22 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           status: 'active',
           created_at: new Date().toISOString(),
         });
+      } else if (ownerReset) {
+        setVehicles([]);
+        setUser({
+          id: 'usr_guest',
+          name: 'Unregistered Owner',
+          phone: '',
+          role: 'owner',
+          status: 'active',
+          created_at: new Date().toISOString(),
+        });
+        setWashes([]);
+        const savedWashers = localStorage.getItem('torque_washers');
+        if (savedWashers) {
+          const parsed = JSON.parse(savedWashers);
+          if (Array.isArray(parsed)) setWashers(parsed);
+        }
       } else {
         const savedWashers = localStorage.getItem('torque_washers');
         if (savedWashers) {
@@ -885,6 +915,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     if (typeof window !== 'undefined') {
       localStorage.removeItem('torque_data_erased');
+      localStorage.removeItem('torque_owner_reset');
       localStorage.setItem('torque_user', JSON.stringify(newUser));
       localStorage.setItem('torque_vehicles', JSON.stringify(createdVehicles));
     }
@@ -929,6 +960,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const eraseAllData = () => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('torque_data_erased', 'true');
+      localStorage.setItem('torque_owner_reset', 'true');
       localStorage.removeItem('torque_vehicles');
       localStorage.removeItem('torque_washers');
       localStorage.removeItem('torque_user');
@@ -968,20 +1000,63 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ]);
   };
 
+  const resetOwnerData = async () => {
+    const currentOwnerId = user.id;
+    const currentOwnerPhone = user.phone;
+
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('torque_vehicles');
+      localStorage.removeItem('torque_user');
+      localStorage.removeItem('torque_washes');
+      localStorage.setItem('torque_owner_reset', 'true');
+    }
+
+    setVehicles([]);
+    setUser({
+      id: 'usr_guest',
+      name: 'Unregistered Owner',
+      phone: '',
+      role: 'owner',
+      status: 'active',
+      created_at: new Date().toISOString(),
+    });
+    setWashes([]);
+    setTravelBookings([]);
+    setSundayRequestState({ status: 'idle' });
+    setNotifications((prev) => [
+      {
+        id: `notif_owner_reset_${Date.now()}`,
+        title: 'Owner Data Reset',
+        body: 'Owner profile, garage vehicles, subscription plans, and wash history have been reset.',
+        timestamp: 'Just now',
+        read: false,
+        category: 'system',
+      },
+      ...prev,
+    ]);
+
+    try {
+      await resetOwnerFirestoreData(currentOwnerId, currentOwnerPhone);
+    } catch (e) {
+      console.warn('Firestore resetOwnerData notice:', e);
+    }
+  };
+
   const resetToDemoData = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('torque_data_erased');
+      localStorage.removeItem('torque_owner_reset');
       localStorage.removeItem('torque_vehicles');
       localStorage.removeItem('torque_washers');
       localStorage.removeItem('torque_user');
       localStorage.removeItem('torque_washes');
     }
     setIsDataErased(false);
-    setVehicles(initialVehicles);
+    setVehicles(demoVehicles);
     setWashers(initialWasherPartners);
     setWashes(initialWashes);
     setRouteStops(initialRouteStops);
-    setUser(defaultUser);
+    setUser(demoOwnerUser);
     setWasherEarnings(initialEarnings);
     setNotifications(initialNotifications);
   };
@@ -1464,6 +1539,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         washers,
         onboardWasher,
         eraseAllData,
+        resetOwnerData,
         resetToDemoData,
         isDataErased,
         verifyPhoneNumber,

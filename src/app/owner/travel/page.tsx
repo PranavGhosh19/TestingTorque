@@ -95,7 +95,20 @@ export default function AwayModePage() {
     ],
   };
 
-  const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0];
+  const selectedVehicle = vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0] || {
+    id: 'veh_default',
+    make: 'Car',
+    model: 'Vehicle',
+    registration_number: 'Not Registered',
+    type: 'car' as const,
+    color: 'Silver',
+    parking_location: 'Bay 1',
+    society_name: 'Society',
+    owner_id: 'usr_guest',
+    owner_name: 'Vehicle Owner',
+    washes_this_month: 0,
+    subscription_status: 'inactive' as const,
+  };
   const activeBooking = travelBookings.find((b) => b.is_active);
   const partnerList = partnersByLocation[currentLocation] || partnersByLocation.default;
   const primaryPartner = partnerList[0];

@@ -20,6 +20,8 @@ import {
   RefreshCw,
   Wifi,
   Layers,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import SignatureProofCard from '@/components/SignatureProofCard';
 import OwnerProofCalendar from '@/components/OwnerProofCalendar';
@@ -31,9 +33,11 @@ import { fetchOwnerDashboardFromFirestore } from '@/lib/firebaseService';
 import { Vehicle, WasherPartner, WashRecord } from '@/lib/types';
 
 export default function OwnerDashboardPage() {
-  const { user, setUser, vehicles, setVehicles, todayWash, washes, washers } = useStore();
+  const { user, setUser, vehicles, setVehicles, todayWash, washes, washers, resetOwnerData } = useStore();
   const [showSundayModal, setShowSundayModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
 
   // Firebase Live Sync State
   const [isFirebaseSyncing, setIsFirebaseSyncing] = useState(false);
@@ -68,39 +72,20 @@ export default function OwnerDashboardPage() {
     loadFirebaseDashboard();
   }, [user.id, user.phone]);
 
-  const activeVehicles = vehicles && vehicles.length > 0 ? vehicles : [
-    {
-      id: 'veh_default',
-      owner_id: user.id,
-      owner_name: user.name,
-      make: 'Hyundai',
-      model: 'Creta',
-      registration_number: 'DL 01 AB 4291',
-      type: 'suv' as const,
-      color: 'Phantom Black',
-      parking_location: 'Block B • Bay D-14',
-      parking_floor: 'Basement 1',
-      preferred_wash_time: '07:30 AM',
-      society_id: 'soc_green_valley',
-      society_name: 'Green Valley Residency',
-      subscription_status: 'active' as const,
-      washes_this_month: 22,
-      selected_plan: 'HOME COMPLETE',
-      assigned_washer_id: 'wsh_amit',
-      assigned_washer_name: 'Amit Kumar',
-    },
-  ];
-
-  const primaryVehicle = activeVehicles[selectedVehicleIndex] || activeVehicles[0];
+  const activeVehicles = vehicles || [];
+  const hasVehicles = activeVehicles.length > 0;
+  const primaryVehicle = hasVehicles ? activeVehicles[selectedVehicleIndex] || activeVehicles[0] : null;
 
   const assignedWasher: WasherPartner =
-    washers.find(
-      (w) =>
-        w.id === primaryVehicle.assigned_washer_id ||
-        w.name === primaryVehicle.assigned_washer_name ||
-        w.id === user.assigned_washer_id ||
-        w.name === user.assigned_washer_name
-    ) ||
+    (primaryVehicle &&
+      washers.find(
+        (w) =>
+          w.id === primaryVehicle.assigned_washer_id ||
+          w.name === primaryVehicle.assigned_washer_name ||
+          w.id === user.assigned_washer_id ||
+          w.name === user.assigned_washer_name
+      )) ||
+    washers.find((w) => w.id === user.assigned_washer_id || w.name === user.assigned_washer_name) ||
     washers[0] || {
       id: 'wsh_amit',
       name: 'Amit Kumar',
@@ -129,7 +114,7 @@ export default function OwnerDashboardPage() {
     };
 
   const activePlanName =
-    primaryVehicle.selected_plan ||
+    primaryVehicle?.selected_plan ||
     user.selected_plan ||
     'HOME COMPLETE';
 
@@ -183,6 +168,14 @@ export default function OwnerDashboardPage() {
               <Plus className="w-3.5 h-3.5" />
               <span>Add Vehicle</span>
             </button>
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              title="Reset Owner Data & Garage"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-bold transition-all border border-rose-500/30 active:scale-95"
+            >
+              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+              <span className="hidden md:inline">Reset Owner</span>
+            </button>
           </div>
         </div>
 
@@ -212,8 +205,55 @@ export default function OwnerDashboardPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-        {/* HERO SIGNATURE PROOF CARD */}
-        <SignatureProofCard wash={todayWash} />
+        {!hasVehicles ? (
+          /* CLEAN RESET / EMPTY GARAGE ONBOARDING HERO BANNER */
+          <div className="p-8 sm:p-10 rounded-3xl bg-linear-to-b from-[#0F172A] to-[#0B132B] border border-white/10 shadow-2xl text-center space-y-6 max-w-2xl mx-auto my-4">
+            <div className="w-16 h-16 rounded-2xl bg-blue-500/10 border border-blue-400/20 text-blue-400 flex items-center justify-center mx-auto text-2xl shadow-inner">
+              <Car className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 text-xs font-bold font-mono">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                <span>Owner Data Clean Slate</span>
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                Ready for Sign-Up & Car Onboarding
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto leading-relaxed">
+                All previous vehicles and owner test data have been wiped clean. Register your car, select your daily doorstep wash subscription, and choose your verified society partner.
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Link
+                href="/auth/onboarding"
+                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-black transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Register Vehicle & Pick Plan</span>
+              </Link>
+              <button
+                onClick={() => setShowAddVehicleModal(true)}
+                className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-white/10 hover:bg-white/15 text-slate-200 text-xs font-bold transition-all border border-white/10 flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4 text-slate-400" />
+                <span>Quick Add Vehicle</span>
+              </button>
+              <button
+                onClick={loadFirebaseDashboard}
+                disabled={isFirebaseSyncing}
+                className="w-full sm:w-auto px-4 py-3.5 rounded-2xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-bold transition-all border border-white/10 flex items-center justify-center gap-1.5"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isFirebaseSyncing ? 'animate-spin' : ''}`} />
+                <span>Sync Firestore</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* HERO SIGNATURE PROOF CARD */
+          <SignatureProofCard wash={todayWash} />
+        )}
 
         {/* TRAVEL & AWAY MODE PROPOSITION BANNER - Hidden on small screens */}
         <div className="hidden md:flex p-7 rounded-3xl bg-linear-to-r from-amber-500/20 via-[#0B132B] to-[#080D1A] text-white flex-col sm:flex-row items-start sm:items-center justify-between gap-5 shadow-2xl border border-amber-500/30 specular-border luxury-sheen relative">
@@ -253,7 +293,7 @@ export default function OwnerDashboardPage() {
             </div>
             <div className="text-xl font-black text-white">{activePlanName}</div>
             <p className="text-xs text-slate-400">
-              Recurring society bay care by {assignedWasher.name} at {primaryVehicle.society_name || 'Green Valley Residency'}.
+              Recurring society bay care by {assignedWasher.name} at {primaryVehicle?.society_name || 'Green Valley Residency'}.
             </p>
             {lastSyncTime && (
               <div className="text-[10px] text-slate-500 font-mono pt-1">
@@ -291,11 +331,11 @@ export default function OwnerDashboardPage() {
                 Next Wash Schedule
               </span>
               <div className="text-lg font-black text-white mt-1">
-                Tomorrow • {primaryVehicle.preferred_wash_time || '07:30 AM'}
+                Tomorrow • {primaryVehicle?.preferred_wash_time || '07:30 AM'}
               </div>
               <p className="text-xs text-slate-400 mt-1 flex items-center gap-1.5 font-mono">
                 <MapPin className="w-3.5 h-3.5 text-emerald-400" />
-                {primaryVehicle.parking_location}
+                {primaryVehicle?.parking_location || 'Assigned Parking Bay'}
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-blue-500/20 border border-blue-400/30 text-blue-400 flex items-center justify-center shrink-0">
@@ -347,7 +387,7 @@ export default function OwnerDashboardPage() {
           <div className="grid grid-cols-3 gap-3.5">
             <div className="p-5 rounded-3xl bg-white/5 border border-white/10 text-center backdrop-blur-xl shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white">
-                {primaryVehicle.washes_this_month || 22}
+                {primaryVehicle?.washes_this_month ?? 0}
               </div>
               <div className="text-xs font-bold text-slate-300 mt-1">
                 Washes
@@ -467,6 +507,59 @@ export default function OwnerDashboardPage() {
           </div>
         </section>
       </main>
+
+      {/* RESET OWNER DATA CONFIRMATION MODAL */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-[#0D1527] border border-rose-500/30 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
+            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-black text-white">Reset Owner Data?</h3>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                This will delete your registered vehicles, chosen plan, assigned washer partner, and wash logs from both local storage and Firebase Firestore. You will have a clean slate to sign up and test onboarding again.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowResetConfirm(false)}
+                disabled={isResetting}
+                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-bold transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  setIsResetting(true);
+                  try {
+                    await resetOwnerData();
+                    setShowResetConfirm(false);
+                  } finally {
+                    setIsResetting(false);
+                  }
+                }}
+                disabled={isResetting}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5"
+              >
+                {isResetting ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Resetting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Yes, Reset Everything</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <SundayPriorityModal
