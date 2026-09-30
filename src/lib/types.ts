@@ -6,6 +6,7 @@ export interface User {
   id: string;
   phone: string;
   name: string;
+  owner_name?: string;
   email?: string;
   address?: string;
   alt_phone?: string;

@@ -121,6 +121,7 @@ const defaultUser: User = {
 export const demoOwnerUser: User = {
   id: 'usr_pranav_1',
   name: 'Pranav Ghosh',
+  owner_name: 'Pranav Ghosh',
   phone: '+91 98765 43210',
   email: 'pranav@example.com',
   role: 'owner',
@@ -753,11 +754,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
       } else {
         const savedUser = localStorage.getItem('torque_user');
+        const savedOwnerName = localStorage.getItem('torque_owner_name');
         let userLoaded = false;
         if (savedUser) {
           try {
             const parsed = JSON.parse(savedUser);
             if (parsed?.id && parsed.id !== 'usr_guest' && parsed.phone) {
+              if (savedOwnerName && (!parsed.owner_name || parsed.name === 'Vehicle Owner')) {
+                parsed.name = savedOwnerName;
+                parsed.owner_name = savedOwnerName;
+              } else if (!parsed.owner_name && parsed.name) {
+                parsed.owner_name = parsed.name;
+              }
               setUser(parsed);
               setIsLoggedIn(true);
               userLoaded = true;
@@ -879,6 +887,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const newUser: User = {
       id: newUserId,
       name: ownerData.name,
+      owner_name: ownerData.name,
       phone: ownerData.phone,
       address: ownerData.address,
       alt_phone: ownerData.alt_phone,
@@ -920,6 +929,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('torque_data_erased');
       localStorage.removeItem('torque_owner_reset');
       localStorage.setItem('torque_logged_in', 'true');
+      localStorage.setItem('torque_owner_name', ownerData.name);
       localStorage.setItem('torque_user', JSON.stringify(newUser));
       localStorage.setItem('torque_vehicles', JSON.stringify(createdVehicles));
     }

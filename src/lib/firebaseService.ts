@@ -29,6 +29,8 @@ export async function syncOwnerToFirestore(
       userRef,
       {
         ...owner,
+        name: owner.name,
+        owner_name: owner.owner_name || owner.name,
         role: 'owner',
         created_at: owner.created_at || new Date().toISOString(),
         last_login_at: serverTimestamp(),
@@ -433,9 +435,12 @@ export async function fetchOwnerDashboardFromFirestore(
     }
 
     if (userDocData) {
+      const resolvedOwnerName =
+        userDocData.owner_name || userDocData.name || 'Vehicle Owner';
       result.user = {
         id: userDocData.id,
-        name: userDocData.name || 'Vehicle Owner',
+        name: resolvedOwnerName,
+        owner_name: resolvedOwnerName,
         phone: userDocData.phone || userPhone || '',
         role: 'owner',
         status: userDocData.status || 'active',
@@ -463,6 +468,11 @@ export async function fetchOwnerDashboardFromFirestore(
       if (fetchedVehicles.length > 0) {
         result.vehicles = fetchedVehicles;
         result.source = 'firebase_live';
+        // If owner name was not set or generic, resolve owner_name from vehicle
+        if (result.user && (!result.user.name || result.user.name === 'Vehicle Owner') && fetchedVehicles[0].owner_name) {
+          result.user.name = fetchedVehicles[0].owner_name;
+          result.user.owner_name = fetchedVehicles[0].owner_name;
+        }
       }
     }
 

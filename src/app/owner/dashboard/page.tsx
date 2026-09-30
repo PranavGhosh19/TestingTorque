@@ -78,9 +78,16 @@ export default function OwnerDashboardPage() {
       
       if (fbData.user) {
         setUser(fbData.user);
+        if (typeof window !== 'undefined') {
+          const resolvedName = fbData.user.owner_name || fbData.user.name;
+          if (resolvedName) localStorage.setItem('torque_owner_name', resolvedName);
+        }
       }
       if (fbData.vehicles && fbData.vehicles.length > 0) {
         setVehicles(fbData.vehicles);
+        if (typeof window !== 'undefined' && fbData.vehicles[0]?.owner_name) {
+          localStorage.setItem('torque_owner_name', fbData.vehicles[0].owner_name);
+        }
       }
       setFirebaseSource(fbData.source);
       setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
@@ -141,6 +148,14 @@ export default function OwnerDashboardPage() {
     user.selected_plan ||
     'HOME COMPLETE';
 
+  // Dynamically resolve owner_name from Firebase user, primary vehicle, or localStorage
+  const ownerName =
+    user?.owner_name ||
+    user?.name ||
+    primaryVehicle?.owner_name ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_owner_name') : null) ||
+    'Vehicle Owner';
+
   // WHILE CHECKING AUTH OR IF NOT LOGGED IN, RENDER DARK AMBIENT LOADER (REDIRECTING TO LANDING)
   if (!isHydrated || !isLoggedIn) {
     return (
@@ -189,7 +204,7 @@ export default function OwnerDashboardPage() {
               </button>
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Good morning, {user.name.split(' ')[0]} 👋
+              Good Morning, {ownerName} 👋
             </h1>
           </div>
 
@@ -323,7 +338,7 @@ export default function OwnerDashboardPage() {
 
                     <div>
                       <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
-                        <span>{user.name}</span>
+                        <span>{ownerName}</span>
                         <span className="text-xs font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-md flex items-center gap-1 font-mono">
                           <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                           Logged In

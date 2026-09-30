@@ -106,6 +106,7 @@ function VerifyForm() {
       const ownerUser = {
         id: existingFirestoreUser?.id || user.id || `usr_${Date.now()}`,
         name: ownerName,
+        owner_name: ownerName,
         phone: phone,
         role: 'owner' as const,
         status: 'active' as const,
@@ -116,6 +117,7 @@ function VerifyForm() {
       setIsLoggedIn(true);
       if (typeof window !== 'undefined') {
         localStorage.setItem('torque_logged_in', 'true');
+        localStorage.setItem('torque_owner_name', ownerName);
         localStorage.setItem('torque_user', JSON.stringify(ownerUser));
       }
 
