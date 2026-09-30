@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -48,7 +48,26 @@ interface PlanOption {
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { registerOwner, verifyPhoneNumber, washers } = useStore();
+  const { registerOwner, verifyPhoneNumber, washers, isLoggedIn, isHydrated, role } = useStore();
+
+  useEffect(() => {
+    const storedLoggedIn =
+      typeof window !== 'undefined' && localStorage.getItem('torque_logged_in') === 'true';
+    if ((isHydrated && isLoggedIn) || storedLoggedIn) {
+      let targetRole = role || 'owner';
+      try {
+        const savedUserStr =
+          typeof window !== 'undefined' ? localStorage.getItem('torque_user') : null;
+        if (savedUserStr) {
+          const parsed = JSON.parse(savedUserStr);
+          if (parsed?.role) targetRole = parsed.role;
+        }
+      } catch (e) {
+        // ignore
+      }
+      router.replace(`/${targetRole}/dashboard`);
+    }
+  }, [isHydrated, isLoggedIn, role, router]);
 
   // Multi-step state: 1 = Owner Details, 2 = Vehicles, 3 = Choose Plan, 4 = Choose Washer
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);

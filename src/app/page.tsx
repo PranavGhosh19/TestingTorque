@@ -1,8 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   ShieldCheck,
@@ -22,12 +23,47 @@ import {
   History,
   Home,
   Check,
+  RefreshCw,
 } from 'lucide-react';
 import SignatureProofCard from '@/components/SignatureProofCard';
 import { useStore } from '@/lib/store';
 
 export default function HomePage() {
-  const { todayWash } = useStore();
+  const router = useRouter();
+  const { todayWash, isLoggedIn, isHydrated, role } = useStore();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  useEffect(() => {
+    const storedLoggedIn =
+      typeof window !== 'undefined' && localStorage.getItem('torque_logged_in') === 'true';
+    if ((isHydrated && isLoggedIn) || storedLoggedIn) {
+      setIsRedirecting(true);
+      let targetRole = role || 'owner';
+      try {
+        const savedUserStr =
+          typeof window !== 'undefined' ? localStorage.getItem('torque_user') : null;
+        if (savedUserStr) {
+          const parsed = JSON.parse(savedUserStr);
+          if (parsed?.role) targetRole = parsed.role;
+        }
+      } catch (e) {
+        // ignore
+      }
+      router.replace(`/${targetRole}/dashboard`);
+    }
+  }, [isHydrated, isLoggedIn, role, router]);
+
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen bg-[#080D1A] flex flex-col items-center justify-center gap-3 text-white">
+        <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shadow-lg">
+          <RefreshCw className="w-6 h-6 text-blue-400 animate-spin" />
+        </div>
+        <p className="text-xs font-mono font-bold text-slate-300">Resuming active session...</p>
+        <p className="text-[10px] text-slate-500">Redirecting to your dashboard</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#080D1A] text-slate-100 overflow-hidden selection:bg-blue-500 selection:text-white">

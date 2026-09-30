@@ -1,16 +1,35 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, ArrowRight, Car, CheckCircle2, Sparkles, UserCheck } from 'lucide-react';
+import { Shield, ArrowRight, Car, CheckCircle2, Sparkles, UserCheck, RefreshCw } from 'lucide-react';
 import { useStore } from '@/lib/store';
 
 export default function OwnerLoginPage() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
-  const { setRole } = useStore();
+  const { setRole, isLoggedIn, isHydrated, role } = useStore();
+
+  useEffect(() => {
+    const storedLoggedIn =
+      typeof window !== 'undefined' && localStorage.getItem('torque_logged_in') === 'true';
+    if ((isHydrated && isLoggedIn) || storedLoggedIn) {
+      let targetRole = role || 'owner';
+      try {
+        const savedUserStr =
+          typeof window !== 'undefined' ? localStorage.getItem('torque_user') : null;
+        if (savedUserStr) {
+          const parsed = JSON.parse(savedUserStr);
+          if (parsed?.role) targetRole = parsed.role;
+        }
+      } catch (e) {
+        // ignore
+      }
+      router.replace(`/${targetRole}/dashboard`);
+    }
+  }, [isHydrated, isLoggedIn, role, router]);
 
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
