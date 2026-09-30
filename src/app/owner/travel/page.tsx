@@ -201,7 +201,7 @@ export default function AwayModePage() {
       <div className="fixed bottom-10 left-10 w-[450px] h-[450px] bg-blue-500/10 rounded-full blur-[150px] pointer-events-none -z-10" />
 
       {/* HEADER */}
-      <header className="bg-[#0B132B]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-30 shadow-2xl">
+      <header className="bg-[#0B132B]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-30 shadow-2xl pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link

@@ -30,7 +30,7 @@ export default function SundayPriorityPage() {
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">
-      <div className="bg-white border-b border-slate-200/80">
+      <header className="bg-white border-b border-slate-200/80 pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-3">
           <Link
             href="/owner/dashboard"
@@ -47,7 +47,7 @@ export default function SundayPriorityPage() {
             </span>
           </div>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-xl mx-auto px-4 sm:px-6 py-8 space-y-6">
         {sundayRequestState.status === 'idle' && (

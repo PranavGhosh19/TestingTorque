@@ -33,7 +33,7 @@ export default function OwnerVehiclesPage() {
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200/80">
+      <header className="bg-white border-b border-slate-200/80 pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -51,7 +51,7 @@ export default function OwnerVehiclesPage() {
             <span>Add Vehicle</span>
           </button>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {vehicles.length === 0 ? (

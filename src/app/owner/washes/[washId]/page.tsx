@@ -78,7 +78,7 @@ export default function WashDetailsPage() {
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">
       {/* Top Header */}
-      <div className="bg-white border-b border-slate-200/80 sticky top-0 z-20">
+      <header className="bg-white border-b border-slate-200/80 sticky top-0 z-20 pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <Link
@@ -109,7 +109,7 @@ export default function WashDetailsPage() {
             </span>
           )}
         </div>
-      </div>
+      </header>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* ============================================================ */}

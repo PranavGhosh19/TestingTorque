@@ -51,7 +51,7 @@ export default function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 z-40 w-full bg-[#080D1A]/95 backdrop-blur-xl border-b border-white/10 transition-colors pt-[env(safe-area-inset-top)] ${
+      className={`sticky top-0 z-40 w-full bg-[#080D1A]/95 backdrop-blur-xl border-b border-white/10 transition-colors pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)] ${
         hideOnMobile ? 'hidden md:block' : ''
       }`}
     >

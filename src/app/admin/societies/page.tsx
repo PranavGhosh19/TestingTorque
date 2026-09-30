@@ -22,7 +22,7 @@ export default function AdminSocietiesPage() {
     <div className="flex min-h-screen bg-[#F5F7FA]">
       <AdminSidebar />
 
-      <main className="flex-1 p-6 lg:p-10 space-y-8 overflow-y-auto">
+      <main className="flex-1 pt-9 px-4 pb-6 sm:p-6 lg:p-10 space-y-8 overflow-y-auto pt-[max(env(safe-area-inset-top),2.25rem)]">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">

@@ -30,7 +30,7 @@ export default function WasherEarningsPage() {
       <div className="absolute top-1/3 right-10 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px] pointer-events-none" />
 
       {/* Header */}
-      <div className="bg-[#0B132B]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-30">
+      <header className="bg-[#0B132B]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-30 pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-5 flex items-center justify-between">
           <div>
             <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-emerald-400">
@@ -45,7 +45,7 @@ export default function WasherEarningsPage() {
             HDFC •••• {washerEarnings.bank_account_last4}
           </span>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6 relative z-10">
         {/* TOTAL & WEEKLY EARNINGS CARD */}

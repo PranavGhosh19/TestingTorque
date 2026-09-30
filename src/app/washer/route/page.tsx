@@ -41,7 +41,7 @@ export default function WasherRoutePage() {
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200/80">
+      <header className="bg-white border-b border-slate-200/80 pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Link
@@ -63,7 +63,7 @@ export default function WasherRoutePage() {
             Max Washes / Hour Mode
           </span>
         </div>
-      </div>
+      </header>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* INTERACTIVE BASEMENT MAP SIMULATOR (Section 14) */}

@@ -101,7 +101,7 @@ export default function WasherDashboardPage() {
       {/* ============================================================ */}
       {/* 1. TOP OPERATIONAL HEADER: GREETING & RIGHT-ALIGNED DATE     */}
       {/* ============================================================ */}
-      <header className="bg-[#0B132B]/90 backdrop-blur-2xl border-b border-white/10 sticky top-0 z-30 shadow-2xl">
+      <header className="bg-[#0B132B]/90 backdrop-blur-2xl border-b border-white/10 sticky top-0 z-30 shadow-2xl pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           {/* Left: Washer Avatar & Good Morning Name */}
           <div className="flex items-center gap-3.5">

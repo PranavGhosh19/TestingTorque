@@ -193,3 +193,11 @@ body {
 .luxury-sheen:hover::after {
   transform: rotate(30deg) translate(20%, 20%);
 }
+
+/* Pull down headers on smaller screens for proper breathing room and notch clearance */
+@media (max-width: 768px) {
+  header {
+    padding-top: max(env(safe-area-inset-top, 0px), 1rem);
+  }
+}
+

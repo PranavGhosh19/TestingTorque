@@ -175,29 +175,12 @@ export default function OwnerDashboardPage() {
       <div className="fixed bottom-10 right-10 w-[450px] h-[450px] bg-emerald-600/10 rounded-full blur-[150px] pointer-events-none -z-10" />
 
       {/* Top Welcome Header */}
-      <header className="bg-[#0B132B]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-30 shadow-2xl">
+      <header className="bg-[#0B132B]/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-30 shadow-2xl pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between">
           <div>
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className="hidden sm:inline-block text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Torque Care Private Dashboard
-              </span>
-              {/* Live Firebase Sync Badge */}
-              <button
-                onClick={loadFirebaseDashboard}
-                disabled={isFirebaseSyncing}
-                title="Click to re-sync with Firebase Live Firestore"
-                className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold transition-all border ${
-                  firebaseSource === 'firebase_live'
-                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25'
-                    : 'bg-blue-500/15 border-blue-500/30 text-blue-400 hover:bg-blue-500/25'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${isFirebaseSyncing ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 animate-pulse'}`} />
-                <span>{isFirebaseSyncing ? 'Syncing...' : 'Firebase Live DB'}</span>
-                <RefreshCw className={`w-2.5 h-2.5 ml-0.5 ${isFirebaseSyncing ? 'animate-spin' : ''}`} />
-              </button>
-            </div>
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-0.5">
+              Torque Care Private Dashboard
+            </span>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               Good Morning, {ownerName} 👋
             </h1>
