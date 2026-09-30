@@ -20,8 +20,6 @@ import {
   RefreshCw,
   Wifi,
   Layers,
-  Trash2,
-  AlertTriangle,
   LogOut,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -44,7 +42,6 @@ export default function OwnerDashboardPage() {
     todayWash,
     washes,
     washers,
-    resetOwnerData,
     isLoggedIn,
     isHydrated,
     logout,
@@ -52,8 +49,6 @@ export default function OwnerDashboardPage() {
 
   const [showSundayModal, setShowSundayModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
 
   // REDIRECT TO LANDING PAGE IF NOT LOGGED IN
   useEffect(() => {
@@ -222,14 +217,6 @@ export default function OwnerDashboardPage() {
             >
               <Plus className="w-3.5 h-3.5" />
               <span>Add Vehicle</span>
-            </button>
-            <button
-              onClick={() => setShowResetConfirm(true)}
-              title="Reset Owner Data & Garage"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 text-xs font-bold transition-all border border-rose-500/30 active:scale-95"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-              <span className="hidden md:inline">Reset Data</span>
             </button>
             <button
               onClick={() => {
@@ -656,59 +643,6 @@ export default function OwnerDashboardPage() {
           </div>
         </section>
       </main>
-
-      {/* RESET OWNER DATA CONFIRMATION MODAL */}
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
-          <div className="w-full max-w-md bg-[#0D1527] border border-rose-500/30 rounded-3xl p-6 sm:p-7 shadow-2xl space-y-5">
-            <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-400 border border-rose-500/20 flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-
-            <div>
-              <h3 className="text-lg font-black text-white">Reset Owner Data?</h3>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                This will delete your registered vehicles, chosen plan, assigned washer partner, and wash logs from both local storage and Firebase Firestore. You will have a clean slate to sign up and test onboarding again.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                disabled={isResetting}
-                className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 text-xs font-bold transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  setIsResetting(true);
-                  try {
-                    await resetOwnerData();
-                    setShowResetConfirm(false);
-                  } finally {
-                    setIsResetting(false);
-                  }
-                }}
-                disabled={isResetting}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5"
-              >
-                {isResetting ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Resetting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Yes, Reset Everything</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Modals */}
       <SundayPriorityModal
