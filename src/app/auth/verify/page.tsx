@@ -19,7 +19,7 @@ function VerifyForm() {
   const roleParam = searchParams.get('role') || 'owner';
   const [otp, setOtp] = useState(['4', '2', '9', '1']);
   const [loading, setLoading] = useState(false);
-  const { setRole, setUser, washers, user } = useStore();
+  const { setRole, setUser, washers, user, setIsLoggedIn } = useStore();
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +51,11 @@ function VerifyForm() {
       };
 
       setUser(washerUser);
+      setIsLoggedIn(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('torque_logged_in', 'true');
+        localStorage.setItem('torque_user', JSON.stringify(washerUser));
+      }
 
       // Record washer login in Firebase Firestore
       recordUserLogin(washerUser, 'otp').catch((err) => {
@@ -72,6 +77,11 @@ function VerifyForm() {
       };
 
       setUser(adminUser);
+      setIsLoggedIn(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('torque_logged_in', 'true');
+        localStorage.setItem('torque_user', JSON.stringify(adminUser));
+      }
 
       // Record admin login in Firebase Firestore
       recordAdminLoginToFirestore(adminUser, phone).catch((err) => {
@@ -103,6 +113,11 @@ function VerifyForm() {
       };
 
       setUser(ownerUser);
+      setIsLoggedIn(true);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('torque_logged_in', 'true');
+        localStorage.setItem('torque_user', JSON.stringify(ownerUser));
+      }
 
       // Save/Sync login in Firebase Firestore
       recordUserLogin(ownerUser, 'otp').catch((err) => {

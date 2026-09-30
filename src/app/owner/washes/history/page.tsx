@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -17,6 +18,7 @@ import {
   ArrowLeft,
   ArrowRight,
   UserCheck,
+  Loader2,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
@@ -24,13 +26,29 @@ import OwnerProofCalendar from '@/components/OwnerProofCalendar';
 import ChangeWasherModal from '@/components/modals/ChangeWasherModal';
 
 export default function WashHistoryPage() {
-  const { washes } = useStore();
+  const router = useRouter();
+  const { washes, isLoggedIn, isHydrated } = useStore();
   const [viewMode, setViewMode] = useState<'calendar' | 'timeline'>('calendar');
   const [assignedWasher, setAssignedWasher] = useState('Amit Kumar');
   const [showChangeWasherModal, setShowChangeWasherModal] = useState(false);
   const [activeFilter, setActiveFilter] = useState<
     'all' | 'home' | 'away' | 'detail' | 'sunday'
   >('all');
+
+  useEffect(() => {
+    if (isHydrated && !isLoggedIn) {
+      router.replace('/');
+    }
+  }, [isHydrated, isLoggedIn, router]);
+
+  if (!isHydrated || !isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center gap-3 text-white">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+        <p className="text-xs tracking-wider text-slate-400 font-mono uppercase">Authenticating...</p>
+      </div>
+    );
+  }
 
   const filteredWashes = washes.filter((w) => {
     if (activeFilter === 'all') return true;

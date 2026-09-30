@@ -1,9 +1,9 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   ShieldCheck,
@@ -15,6 +15,7 @@ import {
   Camera,
   Check,
   Info,
+  Loader2,
 } from 'lucide-react';
 import SignatureProofCard from '@/components/SignatureProofCard';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
@@ -22,8 +23,24 @@ import { useStore } from '@/lib/store';
 
 export default function WashDetailsPage() {
   const params = useParams();
+  const router = useRouter();
   const washId = (params?.washId as string) || '';
-  const { todayWash, washes } = useStore();
+  const { todayWash, washes, isLoggedIn, isHydrated } = useStore();
+
+  useEffect(() => {
+    if (isHydrated && !isLoggedIn) {
+      router.replace('/');
+    }
+  }, [isHydrated, isLoggedIn, router]);
+
+  if (!isHydrated || !isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center gap-3 text-white">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+        <p className="text-xs tracking-wider text-slate-400 font-mono uppercase">Authenticating...</p>
+      </div>
+    );
+  }
 
   // Find targeted wash or fallback to todayWash or fallbackWash
   const fallbackWash = {

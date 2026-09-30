@@ -102,6 +102,10 @@ interface StoreContextType {
   endTravelBooking: (id: string) => void;
   detailPackages: DetailPackage[];
   createDetailBooking: (packageId: string, vehicleId: string, date: string, time: string) => void;
+  isLoggedIn: boolean;
+  setIsLoggedIn: (loggedIn: boolean) => void;
+  isHydrated: boolean;
+  logout: () => void;
 }
 
 
@@ -715,6 +719,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<NotificationItem[]>(initialNotifications);
   const [isOffline, setIsOffline] = useState<boolean>(false);
   const [offlineQueueCount, setOfflineQueueCount] = useState<number>(0);
+  const [isHydrated, setIsHydrated] = useState<boolean>(false);
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [sundayRequestState, setSundayRequestState] = useState<{
     status: 'idle' | 'searching' | 'confirmed';
     washerName?: string;
@@ -728,23 +734,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       const erased = localStorage.getItem('torque_data_erased') === 'true';
       const ownerReset = localStorage.getItem('torque_owner_reset') === 'true';
+      const storedLoggedIn = localStorage.getItem('torque_logged_in') === 'true';
       setIsDataErased(erased);
 
-      if (erased) {
+      if (erased || ownerReset) {
+        setIsLoggedIn(false);
         setVehicles([]);
-        setWashers([]);
+        setWashers(erased ? [] : initialWasherPartners);
         setWashes([]);
         setRouteStops([]);
-        setUser({
-          id: 'usr_guest',
-          name: 'Unregistered User',
-          phone: '',
-          role: 'owner',
-          status: 'active',
-          created_at: new Date().toISOString(),
-        });
-      } else if (ownerReset) {
-        setVehicles([]);
         setUser({
           id: 'usr_guest',
           name: 'Unregistered Owner',
@@ -753,13 +751,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           status: 'active',
           created_at: new Date().toISOString(),
         });
-        setWashes([]);
-        const savedWashers = localStorage.getItem('torque_washers');
-        if (savedWashers) {
-          const parsed = JSON.parse(savedWashers);
-          if (Array.isArray(parsed)) setWashers(parsed);
-        }
       } else {
+        const savedUser = localStorage.getItem('torque_user');
+        let userLoaded = false;
+        if (savedUser) {
+          try {
+            const parsed = JSON.parse(savedUser);
+            if (parsed?.id && parsed.id !== 'usr_guest' && parsed.phone) {
+              setUser(parsed);
+              setIsLoggedIn(true);
+              userLoaded = true;
+            }
+          } catch (e) {
+            console.warn('Error parsing torque_user:', e);
+          }
+        }
+        if (!userLoaded && storedLoggedIn) {
+          setIsLoggedIn(true);
+        }
+
         const savedWashers = localStorage.getItem('torque_washers');
         if (savedWashers) {
           const parsed = JSON.parse(savedWashers);
@@ -770,33 +780,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(savedVehicles);
           if (Array.isArray(parsed)) setVehicles(parsed);
         }
-        const savedUser = localStorage.getItem('torque_user');
-        if (savedUser) {
-          const parsed = JSON.parse(savedUser);
-          if (parsed?.id) setUser(parsed);
-        }
       }
     } catch (e) {
       console.warn('LocalStorage hydration notice:', e);
+    } finally {
+      setIsHydrated(true);
     }
   }, []);
 
   // Switch role helper with persona adjustment
   const setRole = (newRole: UserRole) => {
     setRoleState(newRole);
-    if (isDataErased) {
-      // Keep blank user if erased
+    if (isDataErased || !isLoggedIn) {
+      // Keep blank user if erased or not logged in
       return;
     }
     if (newRole === 'owner') {
-      setUser({
-        id: 'usr_pranav_1',
-        name: 'Pranav Ghosh',
-        phone: '+91 98765 43210',
-        role: 'owner',
-        status: 'active',
-        created_at: '2026-01-15T00:00:00Z',
-      });
+      // Keep current owner if already set
+      if (user.role !== 'owner' || user.id === 'usr_guest') {
+        setUser(demoOwnerUser);
+      }
     } else if (newRole === 'washer') {
       setUser({
         id: 'wsh_amit_1',
@@ -916,9 +919,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('torque_data_erased');
       localStorage.removeItem('torque_owner_reset');
+      localStorage.setItem('torque_logged_in', 'true');
       localStorage.setItem('torque_user', JSON.stringify(newUser));
       localStorage.setItem('torque_vehicles', JSON.stringify(createdVehicles));
     }
+    setIsLoggedIn(true);
     setIsDataErased(false);
 
     // Add route stops for the registered vehicles
@@ -961,12 +966,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       localStorage.setItem('torque_data_erased', 'true');
       localStorage.setItem('torque_owner_reset', 'true');
+      localStorage.removeItem('torque_logged_in');
       localStorage.removeItem('torque_vehicles');
       localStorage.removeItem('torque_washers');
       localStorage.removeItem('torque_user');
       localStorage.removeItem('torque_washes');
       localStorage.removeItem('torque_routestops');
     }
+    setIsLoggedIn(false);
     setIsDataErased(true);
     setVehicles([]);
     setWashers([]);
@@ -1005,12 +1012,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const currentOwnerPhone = user.phone;
 
     if (typeof window !== 'undefined') {
+      localStorage.removeItem('torque_logged_in');
       localStorage.removeItem('torque_vehicles');
       localStorage.removeItem('torque_user');
       localStorage.removeItem('torque_washes');
       localStorage.setItem('torque_owner_reset', 'true');
     }
 
+    setIsLoggedIn(false);
     setVehicles([]);
     setUser({
       id: 'usr_guest',
@@ -1042,15 +1051,35 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const logout = () => {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('torque_logged_in');
+      localStorage.removeItem('torque_user');
+      localStorage.removeItem('torque_vehicles');
+    }
+    setIsLoggedIn(false);
+    setUser({
+      id: 'usr_guest',
+      name: 'Unregistered Owner',
+      phone: '',
+      role: 'owner',
+      status: 'active',
+      created_at: new Date().toISOString(),
+    });
+    setVehicles([]);
+  };
+
   const resetToDemoData = () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('torque_data_erased');
       localStorage.removeItem('torque_owner_reset');
-      localStorage.removeItem('torque_vehicles');
+      localStorage.setItem('torque_logged_in', 'true');
+      localStorage.setItem('torque_user', JSON.stringify(demoOwnerUser));
+      localStorage.setItem('torque_vehicles', JSON.stringify(demoVehicles));
       localStorage.removeItem('torque_washers');
-      localStorage.removeItem('torque_user');
       localStorage.removeItem('torque_washes');
     }
+    setIsLoggedIn(true);
     setIsDataErased(false);
     setVehicles(demoVehicles);
     setWashers(initialWasherPartners);
@@ -1565,6 +1594,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         endTravelBooking,
         detailPackages,
         createDetailBooking,
+        isLoggedIn,
+        setIsLoggedIn,
+        isHydrated,
+        logout,
       }}
     >
       {children}

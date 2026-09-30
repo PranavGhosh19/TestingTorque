@@ -1,15 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { User, Phone, MapPin, Building2, Shield, LogOut, ChevronRight, Car, Bell, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 
 export default function OwnerProfilePage() {
-  const { user, vehicles, setRole, resetOwnerData } = useStore();
+  const router = useRouter();
+  const { user, vehicles, setRole, resetOwnerData, isLoggedIn, isHydrated, logout } = useStore();
   const [showConfirmReset, setShowConfirmReset] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+
+  useEffect(() => {
+    if (isHydrated && !isLoggedIn) {
+      router.replace('/');
+    }
+  }, [isHydrated, isLoggedIn, router]);
+
+  if (!isHydrated || !isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="w-6 h-6 text-blue-600 animate-spin" />
+          <p className="text-xs font-bold text-slate-500 font-mono">Verifying owner session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">
@@ -119,8 +138,19 @@ export default function OwnerProfilePage() {
           </div>
         </div>
 
-        {/* Switch Persona */}
-        <div className="pt-2 text-center">
+        {/* Sign Out Button */}
+        <div className="pt-2 flex flex-col items-center gap-3">
+          <button
+            onClick={() => {
+              logout();
+              router.replace('/');
+            }}
+            className="w-full py-3.5 px-4 rounded-2xl bg-white hover:bg-slate-100 text-rose-600 border border-slate-200 text-xs font-extrabold transition-all shadow-xs flex items-center justify-center gap-2"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out from Torque Care</span>
+          </button>
+
           <button
             onClick={() => setRole('washer')}
             className="text-xs font-bold text-blue-600 hover:underline"

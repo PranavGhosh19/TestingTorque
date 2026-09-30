@@ -1,13 +1,30 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Bell, CheckCircle2, AlertTriangle, Sparkles, Shield, ChevronRight } from 'lucide-react';
+import { Bell, CheckCircle2, AlertTriangle, Sparkles, Shield, ChevronRight, Loader2 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 
 export default function OwnerNotificationsPage() {
-  const { notifications, markNotificationRead } = useStore();
+  const router = useRouter();
+  const { notifications, markNotificationRead, isLoggedIn, isHydrated } = useStore();
+
+  useEffect(() => {
+    if (isHydrated && !isLoggedIn) {
+      router.replace('/');
+    }
+  }, [isHydrated, isLoggedIn, router]);
+
+  if (!isHydrated || !isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center gap-3 text-white">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+        <p className="text-xs tracking-wider text-slate-400 font-mono uppercase">Authenticating...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">

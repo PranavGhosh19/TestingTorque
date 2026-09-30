@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -18,13 +18,22 @@ import {
   History,
   Home,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 import { useStore } from '@/lib/store';
 import { AwayFrequency } from '@/lib/types';
 
 export default function AwayModePage() {
-  const { vehicles, travelBookings, createTravelBooking, endTravelBooking, washes } = useStore();
+  const router = useRouter();
+  const { vehicles, travelBookings, createTravelBooking, endTravelBooking, washes, isLoggedIn, isHydrated } = useStore();
+
+  useEffect(() => {
+    if (isHydrated && !isLoggedIn) {
+      router.replace('/');
+    }
+  }, [isHydrated, isLoggedIn, router]);
 
   // Location & Vehicle selection
   const [currentLocation, setCurrentLocation] = useState('Jaipur, Rajasthan');
@@ -112,6 +121,17 @@ export default function AwayModePage() {
   const activeBooking = travelBookings.find((b) => b.is_active);
   const partnerList = partnersByLocation[currentLocation] || partnersByLocation.default;
   const primaryPartner = partnerList[0];
+
+  if (!isHydrated || !isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#080D1A] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="w-6 h-6 text-blue-400 animate-spin" />
+          <p className="text-xs font-bold text-slate-400 font-mono">Verifying owner session...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Dynamic wash calculation for "Book Until I Return"
   const getWashCalculations = () => {

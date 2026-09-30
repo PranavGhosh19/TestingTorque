@@ -1,15 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Sparkles, Clock, MapPin, CheckCircle2, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Sparkles, Clock, MapPin, CheckCircle2, ArrowRight, ArrowLeft, Loader2 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 
 export default function SundayPriorityPage() {
-  const { sundayRequestState, requestSundayWash } = useStore();
+  const router = useRouter();
+  const { sundayRequestState, requestSundayWash, isLoggedIn, isHydrated } = useStore();
   const [slot, setSlot] = useState('7:30 – 8:00 AM');
+
+  useEffect(() => {
+    if (isHydrated && !isLoggedIn) {
+      router.replace('/');
+    }
+  }, [isHydrated, isLoggedIn, router]);
+
+  if (!isHydrated || !isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center gap-3 text-white">
+        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
+        <p className="text-xs tracking-wider text-slate-400 font-mono uppercase">Authenticating...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">

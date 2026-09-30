@@ -1,15 +1,34 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Car, Plus, MapPin, Clock, ShieldCheck, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Car, Plus, MapPin, Clock, ShieldCheck, ChevronRight, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import AddVehicleModal from '@/components/modals/AddVehicleModal';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 
 export default function OwnerVehiclesPage() {
-  const { vehicles } = useStore();
+  const router = useRouter();
+  const { vehicles, isLoggedIn, isHydrated } = useStore();
   const [showAddModal, setShowAddModal] = useState(false);
+
+  useEffect(() => {
+    if (isHydrated && !isLoggedIn) {
+      router.replace('/');
+    }
+  }, [isHydrated, isLoggedIn, router]);
+
+  if (!isHydrated || !isLoggedIn) {
+    return (
+      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <RefreshCw className="w-6 h-6 text-blue-600 animate-spin" />
+          <p className="text-xs font-bold text-slate-500 font-mono">Verifying owner session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">
