@@ -16,25 +16,45 @@ import {
   Layers,
   Check,
 } from 'lucide-react';
-import { WashRecord } from '@/lib/types';
+import { Vehicle, WashRecord } from '@/lib/types';
+import { useStore } from '@/lib/store';
 
 interface Props {
   wash?: WashRecord;
+  vehicle?: Vehicle;
   className?: string;
   showFullProofBtn?: boolean;
 }
 
 export default function SignatureProofCard({
   wash,
+  vehicle,
   className = '',
   showFullProofBtn = true,
 }: Props) {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
+  const { vehicles } = useStore();
+
+  const currentVehicle = vehicle || (vehicles && vehicles.length > 0 ? vehicles[0] : null);
+
+  const vehicleName =
+    (currentVehicle ? `${currentVehicle.make} ${currentVehicle.model}`.trim() : '') ||
+    (wash?.vehicle_name && wash.vehicle_name !== 'Honda City' ? wash.vehicle_name : '') ||
+    (currentVehicle ? `${currentVehicle.make} ${currentVehicle.model}` : (wash?.vehicle_name || 'Your Vehicle'));
+
+  const regNumber =
+    currentVehicle?.registration_number ||
+    (wash?.registration_number && wash.registration_number !== 'DL 01 AB 4291' ? wash.registration_number : '') ||
+    wash?.registration_number ||
+    '';
+
+  const parkingLocation =
+    currentVehicle?.parking_location ||
+    wash?.parking_location ||
+    'Assigned Bay';
 
   const afterPhoto = wash?.after_photo || '/images/honda_city_after.jpg';
-  const vehicleName = wash?.vehicle_name || 'Honda City';
-  const regNumber = wash?.registration_number || 'DL 01 AB 4291';
   const time = wash?.completed_at || '7:42 AM';
   const washerName = wash?.washer_name || 'Amit Kumar';
   const washerAvatar = wash?.washer_avatar || '/images/washer_amit.jpg';
@@ -77,7 +97,7 @@ export default function SignatureProofCard({
           {/* Top Left: Single Clean Information Pill */}
           <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-xs text-white shadow-lg">
             <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="font-semibold text-slate-100">Bay D-14</span>
+            <span className="font-semibold text-slate-100">{parkingLocation}</span>
             <span className="text-white/40">•</span>
             <span className="text-slate-300 font-mono text-[11px]">{time} IST</span>
           </div>
@@ -197,7 +217,7 @@ export default function SignatureProofCard({
                     <span className="flex items-center gap-1.5 text-slate-300">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Parking Bay Log
                     </span>
-                    <span className="font-bold text-white">Green Valley · Bay D-14 (B1)</span>
+                    <span className="font-bold text-white">{currentVehicle?.society_name || 'Green Valley'} · {parkingLocation}</span>
                   </div>
                   <div className="flex items-center justify-between text-slate-400">
                     <span className="flex items-center gap-1.5 text-slate-300">

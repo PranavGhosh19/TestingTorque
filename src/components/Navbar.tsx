@@ -11,7 +11,18 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginMenuOpen, setLoginMenuOpen] = useState(false);
   const loginMenuRef = useRef<HTMLDivElement>(null);
-  const { role, user, notifications } = useStore();
+  const { role, user, notifications, isLoggedIn, isHydrated } = useStore();
+
+  const isUserLoggedIn =
+    isLoggedIn ||
+    (typeof window !== 'undefined' && localStorage.getItem('torque_logged_in') === 'true');
+
+  const isAppRoute =
+    pathname.startsWith('/owner') ||
+    pathname.startsWith('/washer') ||
+    pathname.startsWith('/admin');
+
+  const hideOnMobile = isUserLoggedIn || isAppRoute;
 
   const isPublicPage =
     pathname === '/' ||
@@ -39,7 +50,11 @@ export default function Navbar() {
   }, []);
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-[#080D1A]/95 backdrop-blur-xl border-b border-white/10 transition-colors pt-[env(safe-area-inset-top)]">
+    <header
+      className={`sticky top-0 z-40 w-full bg-[#080D1A]/95 backdrop-blur-xl border-b border-white/10 transition-colors pt-[env(safe-area-inset-top)] ${
+        hideOnMobile ? 'hidden md:block' : ''
+      }`}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <Link href="/" className="flex items-center gap-2.5 group">
