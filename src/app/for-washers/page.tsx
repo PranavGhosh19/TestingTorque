@@ -25,7 +25,7 @@ export default function ForWashersPage() {
       icon: IndianRupee,
       color: 'text-teal-600 bg-teal-50',
       description:
-        'Earn ₹20 to ₹35 per wash. Withdraw your earnings anytime directly to your bank account with instant IMPS settlement.',
+        'Earn ₹12 to ₹21 per completed wash (Hatchback/Sedan ₹12, Compact/Mid SUV ₹16, Luxury/7-Seater+ ₹21). Withdraw your earnings anytime directly to your bank account with instant IMPS settlement.',
     },
     {
       title: 'Flexible Leave Protection',
@@ -219,6 +219,36 @@ export default function ForWashersPage() {
           <p className="text-xs text-slate-500 mt-1">
             Based on a single 3-hour morning route in a typical 500-apartment society + 100% Sunday payments bonus.
           </p>
+        </div>
+
+        {/* Transparent Rates Table */}
+        <div className="overflow-x-auto rounded-2xl border border-slate-200">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500 font-mono border-b border-slate-200">
+              <tr>
+                <th className="py-3 px-4 font-semibold">Vehicle</th>
+                <th className="py-3 px-4 font-semibold">Customer (Monthly)</th>
+                <th className="py-3 px-4 font-semibold text-right">Washer earns per completed wash</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium">
+              <tr className="hover:bg-slate-50/60 transition-colors">
+                <td className="py-3 px-4 text-[#0B132B] font-semibold">Hatchback / Sedan</td>
+                <td className="py-3 px-4 text-slate-600">₹599</td>
+                <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700">₹12</td>
+              </tr>
+              <tr className="hover:bg-slate-50/60 transition-colors">
+                <td className="py-3 px-4 text-[#0B132B] font-semibold">Compact / Mid SUV</td>
+                <td className="py-3 px-4 text-slate-600">₹649</td>
+                <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700">₹16</td>
+              </tr>
+              <tr className="hover:bg-slate-50/60 transition-colors">
+                <td className="py-3 px-4 text-[#0B132B] font-semibold">Luxury / 7-Seater+</td>
+                <td className="py-3 px-4 text-slate-600">₹799</td>
+                <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700">₹21</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">

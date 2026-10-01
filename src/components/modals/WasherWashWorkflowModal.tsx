@@ -14,6 +14,7 @@ import {
   X,
   AlertTriangle,
   ShieldCheck,
+  RefreshCw,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { RouteStop } from '@/lib/types';
@@ -33,44 +34,41 @@ export default function WasherWashWorkflowModal({
 }: Props) {
   const { washerCompleteWash, washerReportUnavailable, isOffline } = useStore();
   const [step, setStep] = useState<
-    'before' | 'washing' | 'after' | 'verified' | 'unavailable_camera' | 'unavailable_confirmed'
-  >('before');
-  const [beforeCaptured, setBeforeCaptured] = useState(false);
+    'after' | 'verified' | 'unavailable_camera' | 'unavailable_confirmed'
+  >('after');
   const [afterCaptured, setAfterCaptured] = useState(false);
   const [emptyBayCaptured, setEmptyBayCaptured] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
-      setStep('before');
-      setBeforeCaptured(false);
+      setStep('after');
       setAfterCaptured(false);
       setEmptyBayCaptured(false);
+      setIsSaving(false);
     }
   }, [isOpen, stop]);
 
   if (!isOpen || !stop) return null;
 
-  const handleCaptureBefore = () => {
-    setBeforeCaptured(true);
-    setTimeout(() => {
-      setStep('washing');
-    }, 400);
-  };
-
-  const handleFinishWash = () => {
-    setStep('after');
-  };
-
-  const handleCaptureAfter = () => {
+  const handleCaptureAfter = async () => {
+    if (isSaving) return;
     setAfterCaptured(true);
-    setTimeout(() => {
-      washerCompleteWash(
+    setIsSaving(true);
+    try {
+      await washerCompleteWash(
         stop.stop_number,
-        '/images/honda_city_before.jpg',
         '/images/honda_city_after.jpg'
       );
+      setTimeout(() => {
+        setStep('verified');
+        setIsSaving(false);
+      }, 500);
+    } catch (err) {
+      console.warn('Firebase wash sync error:', err);
       setStep('verified');
-    }, 500);
+      setIsSaving(false);
+    }
   };
 
   // Rule: Vehicle Not Available -> Open Live Camera -> Capture Bay Photo -> Protect Payout
@@ -124,133 +122,18 @@ export default function WasherWashWorkflowModal({
 
         {/* Modal Dynamic Steps */}
         <div className="p-5">
-          {/* STEP 1: BEFORE PHOTO */}
-          {step === 'before' && (
-            <div className="space-y-4 text-center">
-              <div className="text-left">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Step 1 of 2
-                </span>
-                <h4 className="text-base font-bold text-slate-900 mt-0.5">
-                  Capture Clean Inspection Photo
-                </h4>
-                <p className="text-xs text-slate-500">
-                  Vehicle at assigned bay ({stop.parking_location}).
-                </p>
-              </div>
-
-              {/* Camera Simulator Frame */}
-              <div className="relative aspect-4/3 rounded-2xl overflow-hidden bg-slate-900 border-2 border-dashed border-slate-300 flex items-center justify-center group shadow-inner">
-                {beforeCaptured ? (
-                  <Image
-                    src="/images/honda_city_before.jpg"
-                    alt="Captured Before"
-                    fill
-                    className="object-cover"
-                  />
-                ) : (
-                  <div className="relative w-full h-full flex flex-col items-center justify-center p-4">
-                    <Image
-                      src="/images/honda_city_before.jpg"
-                      alt="Camera Preview"
-                      fill
-                      className="object-cover opacity-60 filter blur-[0.5px]"
-                    />
-                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center">
-                      <div className="w-14 h-14 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center text-white mb-2 border border-white/30">
-                        <Camera className="w-7 h-7" />
-                      </div>
-                      <span className="text-xs font-semibold text-white">
-                        Point camera at {stop.parking_location}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-                {/* Auto telemetry tags */}
-                <div className="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-sm text-[10px] text-white/90 p-1.5 rounded-lg flex items-center justify-between font-mono">
-                  <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-emerald-400" /> {stop.parking_location}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3 text-blue-400" /> Auto-timestamped
-                  </span>
-                </div>
-              </div>
-
-              {/* Action 1: Vehicle Present */}
-              <button
-                onClick={handleCaptureBefore}
-                className="w-full py-3.5 px-4 rounded-xl bg-[#0B132B] hover:bg-slate-800 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
-              >
-                <Camera className="w-4 h-4 text-emerald-400" />
-                <span>[ Take Photo & Start Wash ]</span>
-              </button>
-
-              {/* Action 2: Rule - VEHICLE NOT AVAILABLE */}
-              <div className="pt-3 border-t border-slate-100 space-y-1.5">
-                <button
-                  type="button"
-                  onClick={() => setStep('unavailable_camera')}
-                  className="w-full py-3 px-4 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-xs"
-                >
-                  <AlertTriangle className="w-4 h-4 text-amber-600" />
-                  <span>VEHICLE NOT AVAILABLE</span>
-                </button>
-                <p className="text-[11px] text-slate-500 leading-tight">
-                  Vehicle not at {stop.parking_location}? Tap to verify empty bay & protect your payout.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: IN PROGRESS WASHING */}
-          {step === 'washing' && (
-            <div className="space-y-4 text-center py-2">
-              <div className="w-16 h-16 rounded-full bg-blue-50 text-blue-600 mx-auto flex items-center justify-center animate-pulse border border-blue-200">
-                <Sparkles className="w-8 h-8" />
-              </div>
-
-              <div>
-                <h4 className="text-lg font-bold text-slate-900">
-                  Washing Vehicle...
-                </h4>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto mt-1">
-                  Gentle scratch-safe microfiber care. Wipe wheels, mirrors, and glass dry.
-                </p>
-              </div>
-
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-600 text-left space-y-1">
-                <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-                  <Check className="w-4 h-4" /> Arrival verified (7:40 AM)
-                </div>
-                <div className="flex items-center gap-2 text-emerald-700 font-semibold">
-                  <Check className="w-4 h-4" /> Parking location confirmed ({stop.parking_location})
-                </div>
-              </div>
-
-              <button
-                onClick={handleFinishWash}
-                className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
-              >
-                <Check className="w-4 h-4" />
-                <span>Wash Completed → Take Clean Photo</span>
-              </button>
-            </div>
-          )}
-
-          {/* STEP 3: AFTER PHOTO */}
+          {/* STEP: CLEAN PHOTO & COMPLETION */}
           {step === 'after' && (
             <div className="space-y-4 text-center">
               <div className="text-left">
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  Step 2 of 2
+                <span className="text-xs font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Clean Wash Verification
                 </span>
-                <h4 className="text-base font-bold text-slate-900 mt-0.5">
-                  Capture Clean Photo
+                <h4 className="text-base font-bold text-slate-900 mt-1">
+                  Capture Clean Photo & Complete
                 </h4>
                 <p className="text-xs text-slate-500">
-                  Verify gleaming clean finish and spotless glass.
+                  Verify gleaming clean finish at <span className="font-semibold text-slate-700">{stop.parking_location}</span>.
                 </p>
               </div>
 
@@ -292,13 +175,39 @@ export default function WasherWashWorkflowModal({
                 </div>
               </div>
 
+              {/* Action 1: Capture & Complete Wash */}
               <button
                 onClick={handleCaptureAfter}
-                className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
+                disabled={isSaving}
+                className="w-full py-3.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-75 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-sm transition-all active:scale-[0.98]"
               >
-                <Camera className="w-4 h-4" />
-                <span>[ Take Clean Photo & Complete ]</span>
+                {isSaving ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Saving to Firestore & Certifying...</span>
+                  </>
+                ) : (
+                  <>
+                    <Camera className="w-4 h-4" />
+                    <span>[ Take Clean Photo & Complete Wash ]</span>
+                  </>
+                )}
               </button>
+
+              {/* Action 2: Rule - VEHICLE NOT AVAILABLE */}
+              <div className="pt-3 border-t border-slate-100 space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => setStep('unavailable_camera')}
+                  className="w-full py-2.5 px-4 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-900 font-extrabold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-xs"
+                >
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <span>VEHICLE NOT AVAILABLE</span>
+                </button>
+                <p className="text-[11px] text-slate-500 leading-tight">
+                  Vehicle not at {stop.parking_location}? Tap to verify empty bay & protect your payout.
+                </p>
+              </div>
             </div>
           )}
 
@@ -412,7 +321,7 @@ export default function WasherWashWorkflowModal({
 
                 <button
                   type="button"
-                  onClick={() => setStep('before')}
+                  onClick={() => setStep('after')}
                   className="text-xs text-slate-500 hover:text-slate-800 font-semibold"
                 >
                   Cancel • Vehicle is present

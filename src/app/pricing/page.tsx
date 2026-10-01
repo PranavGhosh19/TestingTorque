@@ -12,65 +12,38 @@ interface PricingPlan {
   monthlyPrice: number;
   popular?: boolean;
   washesPerWeek: string;
-  interiorFrequency: string;
   features: string[];
 }
 
 export default function PricingPage() {
   const [vehicleType, setVehicleType] = useState<'hatch_sedan' | 'suv' | 'luxury'>('hatch_sedan');
 
-  // Multiplier for vehicle size
-  const multiplier = vehicleType === 'hatch_sedan' ? 1 : vehicleType === 'suv' ? 1.25 : 1.5;
+  // Vehicle category customer pricing
+  const vehicleTiers: Record<
+    'hatch_sedan' | 'suv' | 'luxury',
+    { label: string; customerPrice: number }
+  > = {
+    hatch_sedan: { label: 'Hatchback / Sedan', customerPrice: 599 },
+    suv: { label: 'Compact / Mid SUV', customerPrice: 649 },
+    luxury: { label: 'Luxury / 7-Seater+', customerPrice: 799 },
+  };
+
+  const selectedTier = vehicleTiers[vehicleType];
 
   const plans: PricingPlan[] = [
     {
       id: 'basic',
       name: 'HOME BASIC',
+      badge: 'RECOMMENDED PLAN',
+      popular: true,
       tagline: 'Essential weekday care for daily office commuters',
-      monthlyPrice: Math.round(599 * multiplier),
-      washesPerWeek: '5 Days / week (Mon – Fri)',
-      interiorFrequency: '1x Monthly Interior Vacuum',
+      monthlyPrice: selectedTier.customerPrice,
+      washesPerWeek: '6 Days / week (Mon – Sat)',
       features: [
         'Exterior microfiber gentle wash',
         'Windshield & side mirror clarity buff',
-        'Tire dressing & dust wipe',
         'Verified photo proof every wash',
         'Washer-appointed backup coverage',
-      ],
-    },
-    {
-      id: 'standard',
-      name: 'HOME COMPLETE',
-      badge: 'MOST POPULAR',
-      popular: true,
-      tagline: 'Complete care with 6-day wash and interior detailing',
-      monthlyPrice: Math.round(799 * multiplier),
-      washesPerWeek: '6 Days / week (Mon – Sat)',
-      interiorFrequency: '2x Monthly Deep Interior Vacuum',
-      features: [
-        'All Basic plan features',
-        '6 Days comprehensive morning care',
-        '2x Deep interior cockpit vacuum & dashboard wipe',
-        'Rims & alloy detailing spray',
-        'Sunday Priority Wash eligibility',
-        'Touchup guarantee within 2 hours',
-      ],
-    },
-    {
-      id: 'premium',
-      name: 'HOME CONNOISSEUR',
-      badge: 'PRESTIGE',
-      tagline: 'Showroom finish for luxury and ceramic coated vehicles',
-      monthlyPrice: Math.round(1199 * multiplier),
-      washesPerWeek: '6 Days + 1 Sunday Priority Included',
-      interiorFrequency: 'Weekly Interior Cleaning & Disinfection',
-      features: [
-        'All Standard plan features',
-        'Ceramic-safe pH-neutral care products',
-        'Weekly full interior vacuum & steam mat sanitize',
-        '1 Free Sunday Priority slot every month',
-        'Top-rated senior partner assignment (★ 4.9+)',
-        'Quarterly water-beading protective coat',
       ],
     },
   ];
@@ -135,7 +108,7 @@ export default function PricingPage() {
                     : 'text-slate-400 hover:text-white'
                 }`}
               >
-                Full Luxury / Large 7-Seater
+                Luxury / 7-Seater+
               </button>
             </div>
           </div>
@@ -175,8 +148,8 @@ export default function PricingPage() {
           </Link>
         </div>
 
-        {/* PRICING CARDS GRID — GENEROUS SPACING & LUXURY PROPORTIONS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch pt-6">
+        {/* PRICING CARDS CONTAINER — CENTERED & LUXURY PROPORTIONS */}
+        <div className="max-w-xl mx-auto w-full pt-6">
           {plans.map((p) => (
             <div
               key={p.id}
@@ -216,9 +189,8 @@ export default function PricingPage() {
                   <span className="text-xs font-semibold text-slate-400 font-mono">/ month</span>
                 </div>
 
-                <div className="mt-5 p-4 bg-white/5 rounded-2xl text-xs space-y-1 border border-white/10 font-mono">
+                <div className="mt-5 p-4 bg-white/5 rounded-2xl text-xs border border-white/10 font-mono text-center sm:text-left">
                   <div className="font-bold text-white">{p.washesPerWeek}</div>
-                  <div className="text-slate-400">{p.interiorFrequency}</div>
                 </div>
 
                 {/* Feature Checklist */}
@@ -241,7 +213,7 @@ export default function PricingPage() {
                       : 'bg-white hover:bg-slate-100 text-[#080D1A] active:scale-95'
                   }`}
                 >
-                  <span>Select {p.name}</span>
+                  <span>Select {p.name} ({selectedTier.label})</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>

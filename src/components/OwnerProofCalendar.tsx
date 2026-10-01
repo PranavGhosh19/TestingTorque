@@ -1,7 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
-import Image from 'next/image';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -16,183 +15,316 @@ import {
   Car,
   MapPin,
   User,
-  Download,
-  Share2,
-  ExternalLink,
-  ShieldAlert,
+  Info,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { WashRecord } from '@/lib/types';
 
 interface DayStatus {
-  date: number; // 1-31
-  dateString: string; // '2026-09-28' or '28 Sep'
+  date: number; // Day of month: 1-31
+  fullDate: Date;
+  dateString: string; // e.g. '01 Oct'
   dayOfWeek: string; // 'Mon', 'Tue', etc.
-  hasSubscription: boolean; // Light green ring (full month covered)
-  hasProofUploaded: boolean; // Bright neon green
-  isMissingProof: boolean; // Orange yellow (absent washer or unverified)
-  isVehicleUnavailable: boolean; // Orange yellow (bay empty)
+  isBeforeSubscription: boolean; // Before owner subscribed
+  hasSubscription: boolean; // Covered by subscription
+  hasProofUploaded: boolean; // Real wash completed with photo
+  isMissingProof: boolean; // Wash flagged/missed
+  isVehicleUnavailable: boolean; // Car was not in bay
   isToday: boolean;
+  isPast: boolean;
   isFuture: boolean;
+  isSunday: boolean; // Rest day for 6-day Mon-Sat plan
   wash?: WashRecord;
 }
 
-export default function OwnerProofCalendar() {
-  const { washes, todayWash, vehicles, user } = useStore();
+interface OwnerProofCalendarProps {
+  assignedWasherName?: string;
+  assignedWasherAvatar?: string;
+  parkingLocation?: string;
+  washes?: WashRecord[];
+  todayWash?: WashRecord | null;
+  selectedVehicleId?: string;
+}
+
+export default function OwnerProofCalendar({
+  assignedWasherName: propWasherName,
+  assignedWasherAvatar: propWasherAvatar,
+  parkingLocation: propParkingLocation,
+  washes: propWashes,
+  todayWash: propTodayWash,
+  selectedVehicleId: propSelectedVehicleId,
+}: OwnerProofCalendarProps = {}) {
+  const { washes: storeWashes, todayWash: storeTodayWash, vehicles, user } = useStore();
+
+  const allWashes = useMemo(() => {
+    if (propWashes && propWashes.length > 0) return propWashes;
+    return storeWashes;
+  }, [propWashes, storeWashes]);
+
+  const activeTodayWash = propTodayWash !== undefined ? propTodayWash : storeTodayWash;
 
   // Selected vehicle for calendar view
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>(
-    vehicles[0]?.id || 'veh_honda_city'
+    propSelectedVehicleId || vehicles[0]?.id || ''
   );
 
-  // Month navigation: 0 = September 2026, 1 = October 2026
+  useEffect(() => {
+    if (propSelectedVehicleId) {
+      setSelectedVehicleId(propSelectedVehicleId);
+    } else if (vehicles[0]?.id && !selectedVehicleId) {
+      setSelectedVehicleId(vehicles[0].id);
+    }
+  }, [propSelectedVehicleId, vehicles]);
+
+  const currentVehicle = useMemo(() => {
+    if (selectedVehicleId) {
+      const found = vehicles.find((v) => v.id === selectedVehicleId);
+      if (found) return found;
+    }
+    return vehicles[0] || null;
+  }, [vehicles, selectedVehicleId]);
+
+  // Determine owner's subscription start date
+  const subscriptionStartDate = useMemo(() => {
+    // 1. Check user registration / creation date
+    if (user?.created_at) {
+      const d = new Date(user.created_at);
+      if (!isNaN(d.getTime())) return d;
+    }
+    // 2. Check current vehicle subscription start date
+    if ((currentVehicle as any)?.subscription?.startDate) {
+      const d = new Date((currentVehicle as any).subscription.startDate);
+      if (!isNaN(d.getTime())) return d;
+    }
+    // 3. Check localStorage fallback
+    if (typeof window !== 'undefined') {
+      try {
+        const storedUser = localStorage.getItem('torque_user');
+        if (storedUser) {
+          const u = JSON.parse(storedUser);
+          if (u.created_at) {
+            const d = new Date(u.created_at);
+            if (!isNaN(d.getTime())) return d;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+    // Default to real current date (e.g. today)
+    return new Date();
+  }, [user, currentVehicle]);
+
+  // Current real date (start of day)
+  const realNow = useMemo(() => new Date(), []);
+
+  // Month navigation offset: 0 = current active month, -1 = previous, +1 = next
   const [monthOffset, setMonthOffset] = useState<number>(0);
 
   // Modal inspection state
   const [selectedDay, setSelectedDay] = useState<DayStatus | null>(null);
   const [activePhotoTab, setActivePhotoTab] = useState<'after' | 'before'>('after');
 
-  const currentVehicle =
-    vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0];
+  const assignedWasherName =
+    propWasherName ||
+    currentVehicle?.assigned_washer_name ||
+    user?.assigned_washer_name ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null) ||
+    'Assigned Route Partner';
 
-  // Month metadata
-  const monthData = monthOffset === 0
-    ? {
-        name: 'September 2026',
-        year: 2026,
-        monthIndex: 8, // 0-indexed: 8 = Sep
-        daysCount: 30,
-        startDayOffset: 1, // Tuesday (0=Mon, 1=Tue, 2=Wed, etc.)
-        currentDate: 28, // Today is 28 Sep 2026
+  const assignedWasherAvatar =
+    propWasherAvatar ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(assignedWasherName)}&background=0B132B&color=10B981&bold=true`;
+
+  const parkingLocation =
+    propParkingLocation ||
+    currentVehicle?.parking_location ||
+    'Assigned Bay';
+
+  // Compute month view metadata dynamically from real date + offset
+  const monthData = useMemo(() => {
+    // Start from current month of realNow
+    const targetDate = new Date(realNow.getFullYear(), realNow.getMonth() + monthOffset, 1);
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth();
+    const name = targetDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    const daysCount = new Date(year, month + 1, 0).getDate();
+    // Monday = 0, Tuesday = 1, ..., Sunday = 6
+    const startDayOffset = (targetDate.getDay() + 6) % 7;
+
+    return {
+      year,
+      month,
+      name,
+      daysCount,
+      startDayOffset,
+    };
+  }, [realNow, monthOffset]);
+
+  // Helper to compare dates at calendar-day granularity
+  const isSameDay = (d1: Date, d2: Date) =>
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate();
+
+  // Normalized midnight dates for comparisons
+  const subStartMidnight = useMemo(() => {
+    return new Date(
+      subscriptionStartDate.getFullYear(),
+      subscriptionStartDate.getMonth(),
+      subscriptionStartDate.getDate()
+    );
+  }, [subscriptionStartDate]);
+
+  const todayMidnight = useMemo(() => {
+    return new Date(realNow.getFullYear(), realNow.getMonth(), realNow.getDate());
+  }, [realNow]);
+
+  // Build the days list for the active month view
+  const days: DayStatus[] = useMemo(() => {
+    const list: DayStatus[] = [];
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+    for (let d = 1; d <= monthData.daysCount; d++) {
+      const fullDate = new Date(monthData.year, monthData.month, d);
+      const dayOfWeekIndex = (monthData.startDayOffset + d - 1) % 7;
+      const dayOfWeek = weekdays[dayOfWeekIndex];
+      const isSunday = dayOfWeek === 'Sun';
+      const monthShort = fullDate.toLocaleDateString('en-US', { month: 'short' });
+      const dateString = `${d < 10 ? '0' : ''}${d} ${monthShort}`;
+
+      const isToday = isSameDay(fullDate, todayMidnight);
+      const isPast = fullDate < todayMidnight;
+      const isFuture = fullDate > todayMidnight;
+
+      // Match REAL wash record from store/Firestore for this vehicle
+      let matchingWash: WashRecord | undefined;
+
+      // 1. If today and activeTodayWash is present
+      if (isToday && activeTodayWash) {
+        if (!activeTodayWash.vehicle_id || !currentVehicle || activeTodayWash.vehicle_id === currentVehicle.id) {
+          matchingWash = activeTodayWash;
+        }
       }
-    : {
-        name: 'October 2026',
-        year: 2026,
-        monthIndex: 9, // Oct
-        daysCount: 31,
-        startDayOffset: 3, // Thursday
-        currentDate: 0, // In the future
-      };
 
-  // Build the 30/31 days with statuses
-  const days: DayStatus[] = [];
-  const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      // 2. Search in allWashes
+      if (!matchingWash && allWashes && allWashes.length > 0) {
+        const dPadded = d < 10 ? `0${d}` : `${d}`;
+        const isoDate = `${monthData.year}-${String(monthData.month + 1).padStart(2, '0')}-${dPadded}`;
 
-  for (let d = 1; d <= monthData.daysCount; d++) {
-    const dayOfWeekIndex = (monthData.startDayOffset + d - 1) % 7;
-    const dayOfWeek = weekdays[dayOfWeekIndex];
-    const dateFormatted = `${d < 10 ? '0' : ''}${d} ${monthOffset === 0 ? 'Sep' : 'Oct'}`;
-    const isToday = monthOffset === 0 && d === monthData.currentDate;
-    const isFuture = monthOffset > 0 || (monthOffset === 0 && d > monthData.currentDate);
+        matchingWash = allWashes.find((w) => {
+          // Check vehicle match if vehicle_id exists
+          if (currentVehicle?.id && w.vehicle_id && w.vehicle_id !== currentVehicle.id) {
+            return false;
+          }
 
-    // Find if there is a wash record for this date
-    let matchingWash: WashRecord | undefined;
+          // Check if today matches
+          const sDate = (w.scheduled_date || '').toLowerCase().trim();
+          if (isToday && (sDate === 'today' || sDate === 'current')) return true;
 
-    if (monthOffset === 0) {
-      if (d === 28) {
-        matchingWash = todayWash;
-      } else {
-        matchingWash = washes.find(
-          (w) =>
-            w.scheduled_date.startsWith(`${d} Sep`) ||
-            w.scheduled_date.startsWith(`${d < 10 ? '0' : ''}${d} Sep`) ||
-            w.id.includes(`sep_${d}`)
-        );
+          // Check scheduled date strings
+          if (sDate.startsWith(isoDate)) return true;
+          if (sDate.includes(`${dPadded} ${monthShort.toLowerCase()}`)) return true;
+          if (sDate.includes(`${d} ${monthShort.toLowerCase()}`)) return true;
+
+          // Check captured_at timestamp
+          if ((w as any).captured_at) {
+            const capDate = new Date((w as any).captured_at);
+            if (!isNaN(capDate.getTime()) && isSameDay(capDate, fullDate)) {
+              return true;
+            }
+          }
+
+          // Check created_at timestamp
+          if ((w as any).created_at) {
+            const crDate = new Date((w as any).created_at);
+            if (!isNaN(crDate.getTime()) && isSameDay(crDate, fullDate)) {
+              return true;
+            }
+          }
+
+          // Check completed_at timestamp
+          if (w.completed_at) {
+            const compDate = new Date(w.completed_at);
+            if (!isNaN(compDate.getTime()) && isSameDay(compDate, fullDate)) {
+              return true;
+            }
+          }
+
+          return false;
+        });
       }
+
+      let hasProofUploaded = false;
+      let isMissingProof = false;
+      let isVehicleUnavailable = false;
+
+      if (matchingWash) {
+        if (matchingWash.status === 'completed' && (matchingWash.after_photo || (matchingWash as any).proof_photo)) {
+          hasProofUploaded = true;
+        } else if (matchingWash.status === 'vehicle_unavailable') {
+          isVehicleUnavailable = true;
+        } else if (matchingWash.status === 'missed' || matchingWash.status === 'attempted') {
+          isMissingProof = true;
+        }
+      }
+
+      // If a real verified wash exists, it is NEVER before subscription!
+      const isBeforeSubscription = matchingWash ? false : fullDate < subStartMidnight;
+      const hasSubscription = !isBeforeSubscription;
+
+      list.push({
+        date: d,
+        fullDate,
+        dateString,
+        dayOfWeek,
+        isBeforeSubscription,
+        hasSubscription,
+        hasProofUploaded,
+        isMissingProof,
+        isVehicleUnavailable,
+        isToday,
+        isPast,
+        isFuture,
+        isSunday,
+        wash: matchingWash,
+      });
     }
 
-    // Determine status according to user specification:
-    // 1. Monthly sub is active -> highlights light green / invisible light circle green on each date for full month
-    // 2. When proof is uploaded -> turns BRIGHT NEON GREEN
-    // 3. If proof doesn't upload (missed, absent washer, or vehicle unavailable) -> turns ORANGE YELLOW
+    return list;
+  }, [
+    monthData,
+    todayMidnight,
+    subStartMidnight,
+    activeTodayWash,
+    allWashes,
+    currentVehicle,
+  ]);
 
-    const hasSubscription = true; // Owner pays monthly sub
-    let hasProofUploaded = false;
-    let isMissingProof = false;
-    let isVehicleUnavailable = false;
-
-    if (matchingWash) {
-      if (matchingWash.status === 'completed' && matchingWash.after_photo) {
-        hasProofUploaded = true;
-      } else if (matchingWash.status === 'vehicle_unavailable') {
-        isVehicleUnavailable = true;
-      } else if (matchingWash.status === 'missed' || matchingWash.status === 'attempted') {
-        isMissingProof = true;
-      }
-    } else if (!isFuture && d !== 28) {
-      // Past day without a completed wash:
-      if (d === 14) {
-        // Specific user scenario: absent washer, proof not uploaded, auto-credited
-        isMissingProof = true;
-        matchingWash = {
-          id: 'wash_sep_14_missed',
-          vehicle_id: currentVehicle?.id || 'veh_honda_city',
-          vehicle_name: `${currentVehicle?.make} ${currentVehicle?.model}`,
-          registration_number: currentVehicle?.registration_number || 'DL 01 AB 4291',
-          parking_location: currentVehicle?.parking_location || 'Bay D-14',
-          washer_id: 'wsh_amit_1',
-          washer_name: 'Amit Kumar',
-          washer_avatar: '/images/washer_amit.jpg',
-          washer_rating: 4.9,
-          status: 'missed',
-          scheduled_date: '14 Sep',
-          scheduled_time: '7:30 AM',
-          location_verified: false,
-          notes: 'Washer absent on morning route. Proof not uploaded. Missed-wash protection activated: ₹25 auto-credit added to billing cycle.',
-          service_type: 'home',
-          city: 'Delhi',
-          is_sunday_priority: false,
-          is_backup_covered: false,
-        };
-      } else {
-        // Normal verified day with proof uploaded
-        hasProofUploaded = true;
-        matchingWash = {
-          id: `wash_sep_${d}`,
-          vehicle_id: currentVehicle?.id || 'veh_honda_city',
-          vehicle_name: `${currentVehicle?.make} ${currentVehicle?.model}`,
-          registration_number: currentVehicle?.registration_number || 'DL 01 AB 4291',
-          parking_location: currentVehicle?.parking_location || 'Bay D-14',
-          washer_id: 'wsh_amit_1',
-          washer_name: 'Amit Kumar',
-          washer_avatar: '/images/washer_amit.jpg',
-          washer_rating: 4.9,
-          status: 'completed',
-          scheduled_date: dateFormatted,
-          scheduled_time: '7:30 AM',
-          completed_at: '7:41 AM',
-          location_verified: true,
-          after_photo: '/images/honda_city_after.jpg',
-          before_photo: '/images/honda_city_before.jpg',
-          service_type: 'home',
-          city: 'Delhi',
-          is_sunday_priority: false,
-          is_backup_covered: false,
-          notes: 'Daily verified society wash completed. Microfiber wiped, spotless windshield.',
-        };
-      }
-    }
-
-    days.push({
-      date: d,
-      dateString: dateFormatted,
-      dayOfWeek,
-      hasSubscription,
-      hasProofUploaded,
-      isMissingProof,
-      isVehicleUnavailable,
-      isToday,
-      isFuture,
-      wash: matchingWash,
-    });
-  }
-
-  // Summary counts for the month
+  // Summary counts for current month view
   const verifiedCount = days.filter((d) => d.hasProofUploaded).length;
   const missingOrAlertCount = days.filter(
     (d) => d.isMissingProof || d.isVehicleUnavailable
   ).length;
-  const scheduledCount = days.filter((d) => d.isFuture).length;
+  const scheduledCount = days.filter(
+    (d) => d.hasSubscription && (d.isFuture || d.isToday) && !d.isSunday
+  ).length;
+
+  // Formatted subscription start label
+  const formattedSubStart = useMemo(() => {
+    return subscriptionStartDate.toLocaleDateString('en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  }, [subscriptionStartDate]);
+
+  // Days active into subscription
+  const daysActive = useMemo(() => {
+    const diffMs = todayMidnight.getTime() - subStartMidnight.getTime();
+    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+    return Math.max(1, Math.min(30, days));
+  }, [todayMidnight, subStartMidnight]);
 
   return (
     <div className="w-full rounded-3xl bg-[#0B132B]/90 border border-white/15 backdrop-blur-2xl shadow-2xl p-6 sm:p-8 space-y-7 relative overflow-hidden luxury-sheen">
@@ -203,10 +335,13 @@ export default function OwnerProofCalendar() {
       {/* TOP CALENDAR HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-emerald-400">
               Subscription Proof Log
+            </span>
+            <span className="text-[10px] font-mono font-bold text-slate-400 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
+              Subscribed: {formattedSubStart} (Day {daysActive} of 30)
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
@@ -232,13 +367,8 @@ export default function OwnerProofCalendar() {
 
           <div className="flex items-center gap-1 bg-white/5 border border-white/10 rounded-xl p-1">
             <button
-              onClick={() => setMonthOffset(0)}
-              disabled={monthOffset === 0}
-              className={`p-1.5 rounded-lg transition-all ${
-                monthOffset === 0
-                  ? 'text-slate-600 cursor-not-allowed'
-                  : 'text-slate-300 hover:text-white hover:bg-white/10'
-              }`}
+              onClick={() => setMonthOffset((prev) => prev - 1)}
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
               title="Previous Month"
             >
               <ChevronLeft className="w-4 h-4" />
@@ -249,18 +379,22 @@ export default function OwnerProofCalendar() {
             </span>
 
             <button
-              onClick={() => setMonthOffset(1)}
-              disabled={monthOffset === 1}
-              className={`p-1.5 rounded-lg transition-all ${
-                monthOffset === 1
-                  ? 'text-slate-600 cursor-not-allowed'
-                  : 'text-slate-300 hover:text-white hover:bg-white/10'
-              }`}
+              onClick={() => setMonthOffset((prev) => prev + 1)}
+              className="p-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
               title="Next Month"
             >
               <ChevronRight className="w-4 h-4" />
             </button>
           </div>
+
+          {monthOffset !== 0 && (
+            <button
+              onClick={() => setMonthOffset(0)}
+              className="px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-[11px] font-bold text-slate-200 border border-white/15 transition-all cursor-pointer"
+            >
+              Today
+            </button>
+          )}
         </div>
       </div>
 
@@ -268,20 +402,24 @@ export default function OwnerProofCalendar() {
       <div className="flex items-center gap-2 sm:gap-4 flex-wrap">
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-400/25 text-xs">
           <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          <span className="text-slate-300 text-[11px] font-medium">Proof Uploaded:</span>
+          <span className="text-slate-300 text-[11px] font-medium">Verified Proofs:</span>
           <span className="text-emerald-300 font-bold font-mono">{verifiedCount}</span>
         </div>
 
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-500/10 border border-amber-400/25 text-xs">
           <span className="w-2 h-2 rounded-full bg-amber-400" />
-          <span className="text-slate-300 text-[11px] font-medium">Attention / Away:</span>
+          <span className="text-slate-300 text-[11px] font-medium">Flagged / Away:</span>
           <span className="text-amber-300 font-bold font-mono">{missingOrAlertCount}</span>
         </div>
 
         <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs">
           <span className="w-2 h-2 rounded-full bg-emerald-400/40 border border-emerald-400" />
-          <span className="text-slate-300 text-[11px] font-medium">Paid Sub Covered:</span>
+          <span className="text-slate-300 text-[11px] font-medium">Scheduled Route Washes:</span>
           <span className="text-white font-bold font-mono">{scheduledCount}</span>
+        </div>
+
+        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-400/25 text-xs">
+          <span className="text-[11px] text-blue-300 font-semibold">Plan: Mon–Sat Care (Sundays Off)</span>
         </div>
       </div>
 
@@ -292,7 +430,9 @@ export default function OwnerProofCalendar() {
           {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
             <div
               key={day}
-              className="text-[11px] font-bold text-slate-400 uppercase tracking-wider py-1"
+              className={`text-[11px] font-bold uppercase tracking-wider py-1 ${
+                day === 'Sun' ? 'text-slate-500 font-mono' : 'text-slate-400'
+              }`}
             >
               {day}
             </div>
@@ -311,23 +451,54 @@ export default function OwnerProofCalendar() {
 
           {/* Actual Month Days */}
           {days.map((day) => {
-            // Elegant styling based on status
-            let cellClasses = 'bg-white/[0.03] text-slate-300 border border-white/10 hover:border-emerald-400/40 hover:bg-white/[0.06]';
+            // Elegant styling based on subscription and wash status
+            let cellClasses =
+              'bg-white/[0.03] text-slate-300 border border-white/10 hover:border-emerald-400/40 hover:bg-white/[0.06]';
             let dotColor = 'bg-emerald-400/30';
+            let titleText = `Day ${day.date}: Scheduled care`;
 
-            if (day.hasProofUploaded) {
+            if (day.isBeforeSubscription) {
+              // Prior to subscription start
+              cellClasses =
+                'bg-white/[0.01] text-slate-600 border border-white/5 hover:border-white/10 hover:bg-white/[0.03] opacity-60';
+              dotColor = 'bg-transparent';
+              titleText = `Day ${day.date}: Prior to subscription (${formattedSubStart})`;
+            } else if (day.hasProofUploaded) {
               // Verified wash proof: Soft elegant emerald
-              cellClasses = 'bg-emerald-500/15 text-emerald-300 border border-emerald-400/35 hover:bg-emerald-500/25';
-              dotColor = 'bg-emerald-400';
+              cellClasses =
+                'bg-emerald-500/15 text-emerald-300 border border-emerald-400/35 hover:bg-emerald-500/25';
+              dotColor = 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]';
+              titleText = `Day ${day.date}: Verified proof uploaded ✓`;
             } else if (day.isMissingProof || day.isVehicleUnavailable) {
               // Issue / Away: Soft elegant amber
-              cellClasses = 'bg-amber-500/15 text-amber-300 border border-amber-400/35 hover:bg-amber-500/25';
-              dotColor = 'bg-amber-400';
+              cellClasses =
+                'bg-amber-500/15 text-amber-300 border border-amber-400/35 hover:bg-amber-500/25';
+              dotColor = 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]';
+              titleText = `Day ${day.date}: ${
+                day.isVehicleUnavailable ? 'Vehicle unavailable' : 'Proof flagged'
+              }`;
+            } else if (day.isSunday) {
+              // Sunday rest day under 6-day plan
+              cellClasses =
+                'bg-white/[0.02] text-slate-500 border border-white/5 hover:border-white/15';
+              dotColor = 'bg-slate-600/40';
+              titleText = `Day ${day.date}: Sunday rest day (Mon-Sat care plan)`;
+            } else if (day.isFuture) {
+              // Upcoming covered wash
+              cellClasses =
+                'bg-white/[0.03] text-slate-300 border border-emerald-500/20 hover:border-emerald-400/40 hover:bg-white/[0.06]';
+              dotColor = 'bg-emerald-400/40';
+              titleText = `Day ${day.date}: Covered care (07:30 AM window)`;
             }
 
+            // Highlighting TODAY
             if (day.isToday) {
-              cellClasses = 'bg-emerald-400 text-slate-950 font-black shadow-[0_0_15px_rgba(52,211,153,0.5)] border-emerald-300 scale-[1.03]';
+              cellClasses =
+                'bg-emerald-400 text-slate-950 font-black shadow-[0_0_15px_rgba(52,211,153,0.5)] border-emerald-300 scale-[1.03]';
               dotColor = 'bg-slate-950';
+              titleText = `Day ${day.date}: Today • ${
+                day.hasProofUploaded ? 'Wash completed ✓' : 'Scheduled morning route'
+              }`;
             }
 
             return (
@@ -338,15 +509,40 @@ export default function OwnerProofCalendar() {
                   setSelectedDay(day);
                   setActivePhotoTab('after');
                 }}
-                className={`aspect-square w-full rounded-xl sm:rounded-2xl p-1 flex flex-col items-center justify-center relative transition-all active:scale-95 cursor-pointer ${cellClasses}`}
-                title={`Day ${day.date}: Click to view wash details`}
+                className={`aspect-square w-full rounded-xl sm:rounded-2xl p-1 flex flex-col items-center justify-center relative transition-all active:scale-95 cursor-pointer overflow-hidden ${cellClasses}`}
+                title={titleText}
               >
-                <span className={`text-xs sm:text-sm font-bold ${day.isToday ? 'text-slate-950 font-black' : ''}`}>
-                  {day.date}
-                </span>
+                {day.hasProofUploaded && day.wash?.after_photo ? (
+                  <div className="absolute inset-0 w-full h-full overflow-hidden rounded-xl sm:rounded-2xl group">
+                    <img
+                      src={day.wash.after_photo}
+                      alt={`Wash Proof ${day.date}`}
+                      className="w-full h-full object-cover opacity-65 group-hover:opacity-85 transition-opacity"
+                    />
+                    <div className="absolute inset-0 bg-black/30 backdrop-blur-[0.5px]" />
+                    <span className="absolute top-1 left-1.5 text-xs sm:text-sm font-black text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+                      {day.date}
+                    </span>
+                    <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-emerald-500 text-slate-950 flex items-center justify-center shadow-md">
+                      <CheckCircle2 className="w-3 h-3 text-white" />
+                    </span>
+                  </div>
+                ) : (
+                  <>
+                    <span
+                      className={`text-xs sm:text-sm font-bold ${
+                        day.isToday ? 'text-slate-950 font-black' : ''
+                      }`}
+                    >
+                      {day.date}
+                    </span>
 
-                {/* Cute minimal indicator dot */}
-                <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotColor}`} />
+                    {/* Cute minimal indicator dot */}
+                    {dotColor !== 'bg-transparent' && (
+                      <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotColor}`} />
+                    )}
+                  </>
+                )}
               </button>
             );
           })}
@@ -356,16 +552,28 @@ export default function OwnerProofCalendar() {
       {/* CUTE COLOR GUIDE LEGEND */}
       <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap text-xs pt-1">
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          <span className="text-[11px] font-medium text-slate-300">Proof Uploaded ({verifiedCount})</span>
+          <span className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
+          <span className="text-[11px] font-medium text-slate-300">
+            Proof Uploaded ({verifiedCount})
+          </span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-amber-400" />
-          <span className="text-[11px] font-medium text-slate-300">Flagged / Away ({missingOrAlertCount})</span>
+          <span className="text-[11px] font-medium text-slate-300">
+            Flagged / Away ({missingOrAlertCount})
+          </span>
         </div>
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-emerald-400/40 border border-emerald-400/60" />
-          <span className="text-[11px] font-medium text-slate-300">Upcoming ({scheduledCount})</span>
+          <span className="text-[11px] font-medium text-slate-300">
+            Upcoming Covered ({scheduledCount})
+          </span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-slate-600/50" />
+          <span className="text-[11px] font-medium text-slate-400">
+            Sunday Rest (Mon–Sat)
+          </span>
         </div>
       </div>
 
@@ -374,11 +582,12 @@ export default function OwnerProofCalendar() {
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
           <span>
-            Every verified date is cryptographically signed with bay stamp & time verification.
+            Every completed wash is verified with live bay stamp & time verification.
           </span>
         </div>
         <div className="text-[11px] text-slate-400 font-mono">
-          Assigned Washer: <span className="text-white font-bold">Amit Kumar</span> • Bay D-14
+          Assigned Partner: <span className="text-white font-bold">{assignedWasherName}</span> •{' '}
+          {parkingLocation}
         </div>
       </div>
 
@@ -393,20 +602,29 @@ export default function OwnerProofCalendar() {
               <div className="flex items-center gap-3">
                 <div
                   className={`w-10 h-10 rounded-2xl flex items-center justify-center font-black text-sm shadow-md ${
-                    selectedDay.hasProofUploaded
+                    selectedDay.isToday
+                      ? 'bg-emerald-400 text-slate-950 font-black shadow-[0_0_15px_rgba(52,211,153,0.6)]'
+                      : selectedDay.hasProofUploaded
                       ? 'bg-emerald-400 text-slate-950 shadow-[0_0_15px_rgba(52,211,153,0.6)]'
                       : selectedDay.isMissingProof || selectedDay.isVehicleUnavailable
                       ? 'bg-amber-400 text-slate-950 shadow-[0_0_15px_rgba(251,191,36,0.6)]'
+                      : selectedDay.isBeforeSubscription
+                      ? 'border border-white/20 bg-white/5 text-slate-500'
                       : 'border-2 border-emerald-400/40 bg-emerald-500/10 text-emerald-400'
                   }`}
                 >
                   {selectedDay.date}
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <h3 className="text-lg font-black text-white">
-                      {selectedDay.dateString} 2026
+                      {selectedDay.dateString} {selectedDay.fullDate.getFullYear()}
                     </h3>
+                    {selectedDay.isToday && (
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950">
+                        Today
+                      </span>
+                    )}
                     {selectedDay.hasProofUploaded && (
                       <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950">
                         Verified Proof ✓
@@ -419,14 +637,20 @@ export default function OwnerProofCalendar() {
                           : 'Proof Missing • Credited'}
                       </span>
                     )}
-                    {selectedDay.isFuture && (
+                    {selectedDay.isBeforeSubscription && (
+                      <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-white/10 text-slate-400 border border-white/10">
+                        Prior to Subscription
+                      </span>
+                    )}
+                    {!selectedDay.isBeforeSubscription && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
                       <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                        Scheduled Care
+                        {selectedDay.isSunday ? 'Sunday Rest' : 'Covered Care'}
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-400 font-mono">
-                    {currentVehicle?.make} {currentVehicle?.model} • {currentVehicle?.registration_number}
+                  <p className="text-xs text-slate-400 font-mono mt-0.5">
+                    {currentVehicle?.make} {currentVehicle?.model} •{' '}
+                    {currentVehicle?.registration_number || 'Registered Vehicle'}
                   </p>
                 </div>
               </div>
@@ -441,8 +665,8 @@ export default function OwnerProofCalendar() {
 
             {/* Modal Body with Scroll */}
             <div className="p-6 overflow-y-auto space-y-6">
-              {/* CASE 1: PROOF UPLOADED (BRIGHT NEON GREEN) */}
-              {selectedDay.hasProofUploaded && (
+              {/* CASE 1: PROOF UPLOADED */}
+              {selectedDay.hasProofUploaded && selectedDay.wash && (
                 <div className="space-y-6">
                   {/* Photo Switcher / Preview */}
                   <div className="space-y-3">
@@ -451,60 +675,64 @@ export default function OwnerProofCalendar() {
                         <Camera className="w-3.5 h-3.5" /> High-Resolution Proof
                       </span>
 
-                      {/* Before / After Switcher */}
-                      <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 text-xs">
-                        <button
-                          onClick={() => setActivePhotoTab('after')}
-                          className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                            activePhotoTab === 'after'
-                              ? 'bg-emerald-400 text-slate-950 font-black shadow-xs'
-                              : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          After Wash
-                        </button>
-                        <button
-                          onClick={() => setActivePhotoTab('before')}
-                          className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
-                            activePhotoTab === 'before'
-                              ? 'bg-emerald-400 text-slate-950 font-black shadow-xs'
-                              : 'text-slate-400 hover:text-white'
-                          }`}
-                        >
-                          Before Wash
-                        </button>
-                      </div>
+                      {selectedDay.wash.before_photo && (
+                        <div className="flex items-center gap-1 bg-white/5 p-1 rounded-xl border border-white/10 text-xs">
+                          <button
+                            onClick={() => setActivePhotoTab('after')}
+                            className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                              activePhotoTab === 'after'
+                                ? 'bg-emerald-400 text-slate-950 font-black shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            After Wash
+                          </button>
+                          <button
+                            onClick={() => setActivePhotoTab('before')}
+                            className={`px-3 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                              activePhotoTab === 'before'
+                                ? 'bg-emerald-400 text-slate-950 font-black shadow-xs'
+                                : 'text-slate-400 hover:text-white'
+                            }`}
+                          >
+                            Before Wash
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Image Container with Watermark */}
-                    <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl">
-                      <Image
-                        src={
-                          activePhotoTab === 'after'
-                            ? selectedDay.wash?.after_photo || '/images/honda_city_after.jpg'
-                            : selectedDay.wash?.before_photo || '/images/honda_city_before.jpg'
-                        }
-                        alt="Wash Proof"
-                        fill
-                        className="object-cover"
-                        priority
-                      />
+                    {selectedDay.wash.after_photo && (
+                      <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-white/15 bg-black shadow-2xl">
+                        <img
+                          src={
+                            activePhotoTab === 'after'
+                              ? selectedDay.wash.after_photo
+                              : selectedDay.wash.before_photo || selectedDay.wash.after_photo
+                          }
+                          alt="Wash Proof"
+                          className="w-full h-full object-cover"
+                        />
 
-                      {/* Official Proof Timestamp Watermark */}
-                      <div className="absolute bottom-3 left-3 right-3 p-3 rounded-xl bg-black/75 backdrop-blur-md border border-white/15 text-[11px] font-mono text-slate-200 flex items-center justify-between flex-wrap gap-2">
-                        <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                          <span className="text-white font-bold">
-                            {selectedDay.dateString} 2026 • 07:42 AM
+                        {/* Official Proof Timestamp Watermark */}
+                        <div className="absolute bottom-3 left-3 right-3 p-3 rounded-xl bg-black/75 backdrop-blur-md border border-white/15 text-[11px] font-mono text-slate-200 flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                            <span className="text-white font-bold">
+                              {selectedDay.dateString} •{' '}
+                              {selectedDay.wash.completed_at || 'Morning Completed'}
+                            </span>
+                            <span className="text-slate-400">|</span>
+                            <span className="text-emerald-300">
+                              {selectedDay.wash.parking_location || parkingLocation}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-emerald-400 uppercase tracking-wider font-bold">
+                            Verified ✓
                           </span>
-                          <span className="text-slate-400">|</span>
-                          <span className="text-emerald-300">Bay D-14 Verified</span>
                         </div>
-                        <span className="text-[10px] text-slate-400 uppercase tracking-wider">
-                          Cryptographic SHA-256 Logged
-                        </span>
                       </div>
-                    </div>
+                    )}
                   </div>
 
                   {/* Washer & Quality Breakdown */}
@@ -514,16 +742,21 @@ export default function OwnerProofCalendar() {
                         Technician Info
                       </span>
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl relative overflow-hidden border border-white/15">
-                          <Image
-                            src="/images/washer_amit.jpg"
-                            alt="Amit Kumar"
-                            fill
-                            className="object-cover"
+                        <div className="w-10 h-10 rounded-xl relative overflow-hidden border border-white/15 bg-slate-800">
+                          <img
+                            src={assignedWasherAvatar}
+                            alt={assignedWasherName}
+                            className="w-full h-full object-cover"
                           />
                         </div>
                         <div>
-                          <div className="text-sm font-black text-white">Amit Kumar</div>
+                          <div className="text-sm font-black text-white">
+                            {selectedDay.wash.washer_name &&
+                            selectedDay.wash.washer_name !== 'Unregistered Owner' &&
+                            selectedDay.wash.washer_name !== 'Washer Partner'
+                              ? selectedDay.wash.washer_name
+                              : assignedWasherName}
+                          </div>
                           <div className="text-xs text-emerald-400 font-medium">
                             ★ 4.9 • Society Verified Specialist
                           </div>
@@ -546,7 +779,7 @@ export default function OwnerProofCalendar() {
                         </li>
                         <li className="flex items-center gap-1.5">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                          <span>Satin matte tire dressing applied</span>
+                          <span>Verified photo proof uploaded</span>
                         </li>
                       </ul>
                     </div>
@@ -554,102 +787,79 @@ export default function OwnerProofCalendar() {
                 </div>
               )}
 
-              {/* CASE 2: ORANGE YELLOW (PROOF NOT UPLOADED / MISSING / UNAVAILABLE) */}
-              {(selectedDay.isMissingProof || selectedDay.isVehicleUnavailable) && (
+              {/* CASE 2: BEFORE SUBSCRIPTION */}
+              {selectedDay.isBeforeSubscription && (
+                <div className="p-6 rounded-2xl bg-white/5 border border-white/10 space-y-3 text-center">
+                  <div className="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto text-slate-400">
+                    <Info className="w-6 h-6" />
+                  </div>
+                  <h4 className="text-base font-bold text-white">Prior to Membership</h4>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                    Your Torque Care membership commenced on <span className="text-white font-bold">{formattedSubStart}</span>. Wash logs and morning route records are tracked starting from this date.
+                  </p>
+                </div>
+              )}
+
+              {/* CASE 3: SCHEDULED / TODAY / FUTURE CARE */}
+              {!selectedDay.isBeforeSubscription && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
                 <div className="space-y-6">
-                  {/* Alert Banner */}
-                  <div className="p-5 rounded-2xl bg-amber-500/15 border border-amber-400/30 text-amber-200 space-y-2">
-                    <div className="flex items-center gap-2 font-black text-sm text-amber-300">
-                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                  <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 space-y-2">
+                    <div className="flex items-center gap-2 font-black text-sm text-emerald-300">
+                      <Sparkles className="w-5 h-5 text-emerald-400 shrink-0" />
                       <span>
-                        {selectedDay.isVehicleUnavailable
-                          ? 'Customer / Vehicle Unavailable Protocol'
-                          : 'Proof Not Uploaded • Absent Washer Protected'}
+                        {selectedDay.isToday
+                          ? "Today's Scheduled Care Window"
+                          : selectedDay.isSunday
+                          ? 'Sunday Rest Day (6-Day Mon–Sat Plan)'
+                          : 'Upcoming Scheduled Care'}
                       </span>
                     </div>
-                    <p className="text-xs text-amber-100/90 leading-relaxed">
-                      {selectedDay.isVehicleUnavailable
-                        ? 'The washer arrived at assigned Bay D-14 at 07:31 AM, but your vehicle was not parked there. Live camera proof of the empty bay was captured.'
-                        : 'The service partner did not upload proof during the morning service window. Under our Missed-Wash Protection, a ₹25 credit was automatically refunded to your next billing cycle.'}
+                    <p className="text-xs text-emerald-100/90 leading-relaxed">
+                      {selectedDay.isToday
+                        ? `Technician ${assignedWasherName} is assigned to wash your vehicle at ${parkingLocation} during the 06:30 AM – 09:30 AM route window. Photo proof will appear here once completed.`
+                        : selectedDay.isSunday
+                        ? 'Sunday is a rest day under the HOME BASIC 6-day (Mon–Sat) plan. Your service resumes on Monday morning.'
+                        : `This date is covered under your active membership. Service partner ${assignedWasherName} will attend to ${currentVehicle?.registration_number || 'your vehicle'} during the morning route.`}
                     </p>
                   </div>
 
-                  {/* Empty Bay Photo if Vehicle was Unavailable */}
-                  {selectedDay.isVehicleUnavailable && (
-                    <div className="space-y-2">
-                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-slate-400">
-                        Live Parking Bay Evidence (Camera Verified)
-                      </span>
-                      <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-amber-400/30 bg-black">
-                        <Image
-                          src="/images/empty_parking_bay.jpg"
-                          alt="Empty Bay Evidence"
-                          fill
-                          className="object-cover"
-                        />
-                        <div className="absolute bottom-3 left-3 p-2.5 rounded-xl bg-black/80 backdrop-blur-md text-xs font-mono text-amber-300 border border-amber-400/30">
-                          Bay D-14 Empty at 07:34 AM • Washer: Present ✓
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Protection Breakdown */}
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-2 text-xs">
+                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 text-xs">
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
-                      Audit Trail Guarantee
+                      Route Details
                     </span>
-                    <div className="grid grid-cols-3 gap-2 text-center pt-1 font-mono">
-                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-                        <div className="text-[10px] text-slate-400">Washer Presence</div>
-                        <div className="text-xs font-bold text-emerald-400 mt-0.5">
-                          {selectedDay.isVehicleUnavailable ? 'Present ✓' : 'Absent'}
-                        </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">Time Window:</span>
+                        <span className="text-white font-bold">
+                          {currentVehicle?.preferred_wash_time || '07:30 AM'} (Morning Route)
+                        </span>
                       </div>
-                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-                        <div className="text-[10px] text-slate-400">Owner Charged</div>
-                        <div className="text-xs font-bold text-white mt-0.5">
-                          {selectedDay.isVehicleUnavailable ? 'Standard Bay' : 'Auto-Credited (₹25)'}
-                        </div>
-                      </div>
-                      <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
-                        <div className="text-[10px] text-slate-400">Zero Dispute</div>
-                        <div className="text-xs font-bold text-blue-400 mt-0.5">
-                          Protected ✓
-                        </div>
+                      <div>
+                        <span className="text-slate-400 block text-[11px]">Assigned Bay:</span>
+                        <span className="text-white font-bold">{parkingLocation}</span>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* CASE 3: LIGHT GREEN CIRCLE (UPCOMING SCHEDULED COVERAGE) */}
-              {selectedDay.isFuture && (
+              {/* CASE 4: FLAGGED / AWAY / MISSED */}
+              {(selectedDay.isMissingProof || selectedDay.isVehicleUnavailable) && (
                 <div className="space-y-6">
-                  <div className="p-5 rounded-2xl bg-emerald-500/10 border border-emerald-400/30 text-emerald-200 space-y-2">
-                    <div className="flex items-center gap-2 font-black text-sm text-emerald-300">
-                      <Sparkles className="w-5 h-5 text-emerald-400 shrink-0" />
-                      <span>Scheduled Care • Full Month Active Subscription</span>
+                  <div className="p-5 rounded-2xl bg-amber-500/15 border border-amber-400/30 text-amber-200 space-y-2">
+                    <div className="flex items-center gap-2 font-black text-sm text-amber-300">
+                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+                      <span>
+                        {selectedDay.isVehicleUnavailable
+                          ? 'Vehicle Unavailable Protocol'
+                          : 'Wash Flagged • Missed-Wash Protection'}
+                      </span>
                     </div>
-                    <p className="text-xs text-emerald-100/90 leading-relaxed">
-                      This date is reserved and covered under your ₹599 monthly subscription. Technician Amit Kumar will reach Bay D-14 during the 07:30 AM window.
+                    <p className="text-xs text-amber-100/90 leading-relaxed">
+                      {selectedDay.isVehicleUnavailable
+                        ? `The service partner arrived at ${parkingLocation}, but the vehicle was not parked in its assigned bay.`
+                        : 'The service was not completed during the designated window. Under Torque Care protection, a credit will be adjusted towards your renewal.'}
                     </p>
-                  </div>
-
-                  <div className="p-4 rounded-2xl bg-white/5 border border-white/10 space-y-3 text-xs">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400">
-                      Planned Schedule
-                    </span>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <span className="text-slate-400 block text-[11px]">Time Window:</span>
-                        <span className="text-white font-bold">07:30 AM – 08:00 AM</span>
-                      </div>
-                      <div>
-                        <span className="text-slate-400 block text-[11px]">Location:</span>
-                        <span className="text-white font-bold">Basement 1 • Bay D-14</span>
-                      </div>
-                    </div>
                   </div>
                 </div>
               )}
@@ -658,7 +868,7 @@ export default function OwnerProofCalendar() {
             {/* Modal Bottom Actions */}
             <div className="p-5 border-t border-white/10 bg-white/5 flex items-center justify-between gap-3">
               <span className="text-xs text-slate-400 font-mono">
-                Torque Care Proof ID #{selectedDay.wash?.id || `TC-${selectedDay.date}`}
+                Torque Care • {selectedDay.dateString}
               </span>
 
               <button

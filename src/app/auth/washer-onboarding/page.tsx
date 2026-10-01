@@ -20,6 +20,7 @@ import {
   Camera,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { syncWasherToFirestore } from '@/lib/firebaseService';
 
 export default function WasherOnboardingPage() {
   const router = useRouter();
@@ -76,14 +77,50 @@ export default function WasherOnboardingPage() {
     }, 700);
   };
 
-  // Upload Photo
+  // Upload Photo with client-side canvas compression to avoid large base64 quota issues
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setAadhaarPhotoUrl(reader.result as string);
-        setIsAadhaarVerified(true);
+        const rawResult = reader.result as string;
+        // Compress image using canvas
+        const img = new (window as any).Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            const maxDim = 600;
+            let width = img.width;
+            let height = img.height;
+            if (width > maxDim || height > maxDim) {
+              if (width > height) {
+                height = Math.round((height * maxDim) / width);
+                width = maxDim;
+              } else {
+                width = Math.round((width * maxDim) / height);
+                height = maxDim;
+              }
+            }
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              const compressed = canvas.toDataURL('image/jpeg', 0.65);
+              setAadhaarPhotoUrl(compressed);
+            } else {
+              setAadhaarPhotoUrl(rawResult);
+            }
+          } catch (cErr) {
+            setAadhaarPhotoUrl(rawResult);
+          }
+          setIsAadhaarVerified(true);
+        };
+        img.onerror = () => {
+          setAadhaarPhotoUrl(rawResult);
+          setIsAadhaarVerified(true);
+        };
+        img.src = rawResult;
       };
       reader.readAsDataURL(file);
     }
@@ -114,8 +151,8 @@ export default function WasherOnboardingPage() {
     }
   };
 
-  // Submit Washer Onboarding
-  const handleSubmit = (e: React.FormEvent) => {
+  // Submit Washer Onboarding & Save All Data to Firebase
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setErrorMessage('Full name as per Aadhaar is required');
@@ -134,9 +171,10 @@ export default function WasherOnboardingPage() {
     setIsSubmitting(true);
     setErrorMessage('');
 
-    setTimeout(() => {
+    try {
+      // 1. Create partner in store
       const createdPartner = onboardWasher({
-        name,
+        name: name.trim(),
         phone: cleanPhone,
         society,
         assignedCarsPerDay: assignedCars,
@@ -148,21 +186,44 @@ export default function WasherOnboardingPage() {
         address,
       });
 
-      // Switch persona to this newly onboarded washer
+      // 2. Persist ALL onboarding data directly to Firebase Firestore
+      await syncWasherToFirestore(createdPartner);
+
+      // 3. Switch active session to this newly onboarded washer partner
       setRole('washer');
-      setUser({
+      const activeUser = {
         id: createdPartner.id,
         name: createdPartner.name,
         phone: createdPartner.phone,
-        role: 'washer',
+        role: 'washer' as const,
         avatar_url: createdPartner.avatar,
-        status: 'active',
+        status: 'active' as const,
         created_at: new Date().toISOString(),
-      });
+      };
+      setUser(activeUser);
+
+      // 4. Save session to localStorage safely
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem('torque_logged_in', 'true');
+          localStorage.setItem('torque_role', 'washer');
+          localStorage.setItem('torque_washer_id', createdPartner.id);
+          localStorage.setItem('torque_washer_name', createdPartner.name);
+          localStorage.setItem('torque_washer_phone', createdPartner.phone);
+          localStorage.setItem('torque_user', JSON.stringify(activeUser));
+        } catch (storageErr) {
+          console.warn('LocalStorage save session notice:', storageErr);
+        }
+      }
 
       setIsSubmitting(false);
       router.push('/washer/dashboard');
-    }, 600);
+    } catch (err: any) {
+      console.error('Error syncing washer to Firebase:', err);
+      // Fallback navigation in case of unexpected network timeout
+      setIsSubmitting(false);
+      router.push('/washer/dashboard');
+    }
   };
 
   return (

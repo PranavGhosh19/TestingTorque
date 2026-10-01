@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -22,19 +22,86 @@ import {
   Check,
   Phone,
   User,
+  RefreshCw,
+  Star,
+  Landmark,
+  CreditCard,
+  Award,
+  Search,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import WasherBottomNav from '@/components/WasherBottomNav';
 import WasherWashWorkflowModal from '@/components/modals/WasherWashWorkflowModal';
 import CustomerUnavailableModal from '@/components/modals/CustomerUnavailableModal';
-import { RouteStop } from '@/lib/types';
+import { RouteStop, WasherPartner } from '@/lib/types';
+import { fetchWasherDashboardDataFromFirestore } from '@/lib/firebaseService';
 
 export default function WasherDashboardPage() {
   const {
+    user,
+    setUser,
     routeStops,
+    setRouteStops,
     washerEarnings,
+    setWasherEarnings,
     isOffline,
   } = useStore();
+
+  // Firebase Washer Partner live state
+  const [firebaseWasher, setFirebaseWasher] = useState<WasherPartner | null>(null);
+  const [liveRouteStops, setLiveRouteStops] = useState<RouteStop[]>([]);
+  const [liveEarnings, setLiveEarnings] = useState<{
+    available: number;
+    this_week: number;
+    total_earnings: number;
+    pending: number;
+    bank_account: string;
+    ifsc_code: string;
+  } | null>(null);
+  const [isLoadingWasher, setIsLoadingWasher] = useState(true);
+
+  // Fetch real washer partner details and assigned vehicles directly from Firebase Firestore
+  const loadWasherDashboard = React.useCallback(async () => {
+    try {
+      const storedId = typeof window !== 'undefined' ? localStorage.getItem('torque_washer_id') : null;
+      const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('torque_washer_phone') : null;
+      const queryId = (user?.role === 'washer' && user?.id && user.id !== 'usr_guest') ? user.id : (storedId || undefined);
+      const queryPhone = user?.phone || storedPhone || undefined;
+
+      const data = await fetchWasherDashboardDataFromFirestore(queryId, queryPhone);
+      if (data.washer) {
+        setFirebaseWasher(data.washer);
+        if (user?.role === 'washer' && (!user.name || user.name === 'Amit Kumar' || user.name !== data.washer.name)) {
+          setUser({
+            ...user,
+            id: data.washer.id || user.id,
+            name: data.washer.name,
+            phone: data.washer.phone || user.phone,
+            role: 'washer',
+          });
+        }
+      }
+      setLiveRouteStops(data.routeStops);
+      setLiveEarnings(data.earnings);
+      setRouteStops(data.routeStops);
+      setWasherEarnings({
+        available: data.earnings.available,
+        this_week: data.earnings.this_week,
+        total_earnings: data.earnings.total_earnings,
+        pending: data.earnings.pending,
+        bank_account_last4: (data.earnings.bank_account || '').slice(-4),
+        recent_payouts: [],
+      });
+    } catch (err) {
+      console.warn('Could not fetch washer dashboard from Firebase:', err);
+    } finally {
+      setIsLoadingWasher(false);
+    }
+  }, [user, setUser, setRouteStops, setWasherEarnings]);
+
+  useEffect(() => {
+    loadWasherDashboard();
+  }, [loadWasherDashboard]);
 
   // Modals state
   const [activeStop, setActiveStop] = useState<RouteStop | null>(null);
@@ -42,8 +109,16 @@ export default function WasherDashboardPage() {
   const [showUnavailableModal, setShowUnavailableModal] = useState(false);
   const [viewingProofStop, setViewingProofStop] = useState<RouteStop | null>(null);
 
+  // Client hydration safe mount flag
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Society-wise dropdown state
   const [selectedSociety, setSelectedSociety] = useState<string>('all');
+  // Car number plate search state
+  const [searchPlate, setSearchPlate] = useState<string>('');
 
   // Present Date (Current Local Date)
   const today = new Date();
@@ -55,32 +130,75 @@ export default function WasherDashboardPage() {
   };
   const formattedPresentDate = today.toLocaleDateString('en-US', options); // e.g. "Mon, Sep 28, 2026"
 
-  // Unique societies from route stops
+  // Dynamic washer partner fields (resolved safely to prevent SSR hydration mismatch)
+  const storedWasherName = mounted && typeof window !== 'undefined' ? localStorage.getItem('torque_washer_name') : null;
+  const storedWasherPhone = mounted && typeof window !== 'undefined' ? localStorage.getItem('torque_washer_phone') : null;
+
+  const washerDisplayName =
+    firebaseWasher?.name ||
+    (mounted && storedWasherName ? storedWasherName : null) ||
+    (user?.role === 'washer' && user?.name && user.name !== 'Vehicle Owner' ? user.name : null) ||
+    'Washer Partner';
+
+  const washerFirstName = washerDisplayName.split(' ')[0] || washerDisplayName;
+  const washerPhone = firebaseWasher?.phone || user?.phone || storedWasherPhone || '';
+  const washerSociety = firebaseWasher?.society || (user as any)?.society || 'Green Valley Residency';
+  const washerAssignedTarget = Number(firebaseWasher?.assignedCarsPerDay ?? (user as any)?.assignedCarsPerDay ?? 30);
+  const washerRouteWindow = firebaseWasher?.routeWindow || (user as any)?.routeWindow || '06:30 AM - 09:30 AM';
+  const washerAadhaar = firebaseWasher?.aadhaarNumber || '4821 9912 3410';
+  const washerKyc = firebaseWasher?.kyc || 'Verified (Aadhaar & Police Clear)';
+  const washerRating = firebaseWasher?.rating || '5.0';
+  const washerReviewsCount = firebaseWasher?.reviewsCount || 1;
+  const washerAvgTimePerCar = firebaseWasher?.avgTimePerCar || '5.5 mins';
+  const washerCompletionRate = firebaseWasher?.completionRate || '100%';
+  const washerBankAccount = firebaseWasher?.bankAccount || liveEarnings?.bank_account || '1111';
+  const washerIfsc = firebaseWasher?.ifscCode || liveEarnings?.ifsc_code || 'HDFC0001234';
+
+  // Real route stops fetched from Firestore (no dummy generated data)
+  const displayRouteStops = liveRouteStops;
+
+  // Unique societies from route stops including the washer's assigned society
   const societies = Array.from(
-    new Set(routeStops.map((s) => s.society_name || 'Green Valley Residency'))
+    new Set([washerSociety, ...displayRouteStops.map((s) => s.society_name || washerSociety)].filter(Boolean))
   );
 
-  // Filter cars based on selected society
-  const filteredStops = routeStops.filter((stop) => {
+  // Stops filtered by selected society
+  const societyStops = displayRouteStops.filter((stop) => {
     if (selectedSociety === 'all') return true;
-    return (stop.society_name || 'Green Valley Residency') === selectedSociety;
+    return (stop.society_name || washerSociety) === selectedSociety;
   });
 
-  // Target metrics calculation
-  const totalTargetCount = routeStops.length;
-  const completedStops = routeStops.filter((s) => s.status === 'completed');
-  const completedCount = completedStops.length;
-  const pendingCount = routeStops.filter(
-    (s) => s.status === 'current' || s.status === 'pending'
-  ).length;
-  const unavailableCount = routeStops.filter(
-    (s) => s.status === 'vehicle_unavailable'
-  ).length;
-  const progressPercent = Math.round((completedCount / totalTargetCount) * 100);
+  // Filter cars based on search query (number plate, car model, owner, parking bay)
+  const filteredStops = societyStops.filter((stop) => {
+    if (!searchPlate.trim()) return true;
+    const query = searchPlate.trim().toLowerCase().replace(/[\s-]/g, '');
+    const plate = (stop.registration_number || '').toLowerCase().replace(/[\s-]/g, '');
+    const model = (stop.vehicle_name || '').toLowerCase();
+    const owner = (stop.owner_name || '').toLowerCase();
+    const bay = (stop.parking_location || '').toLowerCase();
+    return plate.includes(query) || model.includes(query) || owner.includes(query) || bay.includes(query);
+  });
 
-  // Today's total expected earnings calculation
-  const totalExpectedPayout = routeStops.reduce((sum, s) => sum + s.payout_amount, 0);
-  const earnedSoFar = completedStops.reduce((sum, s) => sum + s.payout_amount, 0);
+  // Target metrics calculation: Total target is the count of vehicles the washer is assigned
+  const totalTargetCount = selectedSociety === 'all' ? displayRouteStops.length : societyStops.length;
+
+  const completedStops = societyStops.filter((s) => s.status === 'completed');
+  const completedCount = completedStops.length;
+  const unavailableStops = societyStops.filter((s) => s.status === 'vehicle_unavailable');
+  const unavailableCount = unavailableStops.length;
+  const pendingCount = Math.max(0, totalTargetCount - completedCount - unavailableCount);
+  const progressPercent = totalTargetCount > 0 ? Math.min(100, Math.round((completedCount / totalTargetCount) * 100)) : 0;
+
+  // Shift earnings calculation based on vehicle tier (Hatchback/Sedan ₹12, Compact/Mid SUV ₹16, Luxury/7-Seater+ ₹21)
+  const currentStops = selectedSociety === 'all' ? displayRouteStops : societyStops;
+  const totalExpectedPayout = currentStops.reduce((sum, s) => sum + (s.payout_amount || 12), 0);
+  const earnedSoFar = currentStops
+    .filter((s) => s.status === 'completed' || s.status === 'vehicle_unavailable')
+    .reduce((sum, s) => sum + (s.payout_amount || 12), 0);
+
+  // Available for withdrawal and weekly total calculated from real Firestore data
+  const availableForWithdrawal = liveEarnings?.available ?? earnedSoFar;
+  const weeklyTotal = liveEarnings?.this_week ?? (availableForWithdrawal || earnedSoFar);
 
   const handleOpenUploadProof = (stop: RouteStop) => {
     setActiveStop(stop);
@@ -102,45 +220,35 @@ export default function WasherDashboardPage() {
       {/* 1. TOP OPERATIONAL HEADER: GREETING & RIGHT-ALIGNED DATE     */}
       {/* ============================================================ */}
       <header className="bg-[#0B132B]/90 backdrop-blur-2xl border-b border-white/10 sticky top-0 z-30 shadow-2xl pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          {/* Left: Washer Avatar & Good Morning Name */}
-          <div className="flex items-center gap-3.5">
-            <div className="relative w-12 h-12 rounded-2xl overflow-hidden border-2 border-emerald-400 shrink-0 shadow-lg">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3.5 sm:py-4 flex flex-row items-center justify-between gap-2.5 sm:gap-4">
+          {/* Left: Washer Avatar & Greeting Name */}
+          <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-emerald-400 shrink-0 shadow-lg bg-emerald-950/40">
               <Image
-                src="/images/washer_amit.jpg"
-                alt="Amit Kumar"
+                src={firebaseWasher?.avatar || user?.avatar_url || "/images/washer_amit.jpg"}
+                alt={washerDisplayName}
                 fill
                 className="object-cover"
                 priority
               />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400">
-                  Operations Console
-                </span>
-                {isOffline && (
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-400/30">
-                    <WifiOff className="w-3 h-3" /> Offline
-                  </span>
-                )}
-              </div>
-              <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Good Morning, Amit 👋
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-xl md:text-2xl font-black text-white tracking-tight truncate" suppressHydrationWarning>
+                Hi, {washerFirstName} 👋
               </h1>
             </div>
           </div>
 
-          {/* Right: Present Date Aligned to Good Morning, Name */}
-          <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-lg shrink-0 self-start sm:self-auto">
-            <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 flex items-center justify-center">
-              <Calendar className="w-4 h-4" />
+          {/* Right: Present Date Aligned to the Right of Name on All Screen Sizes */}
+          <div className="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl sm:rounded-2xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-lg shrink-0">
+            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 flex items-center justify-center shrink-0">
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </div>
-            <div className="text-right sm:text-left">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-emerald-400 block font-bold">
+            <div className="text-right">
+              <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-emerald-400 block font-bold leading-none mb-0.5">
                 Present Date
               </span>
-              <span className="text-xs sm:text-sm font-black text-white font-mono tracking-tight">
+              <span className="text-[11px] sm:text-xs md:text-sm font-black text-white font-mono tracking-tight whitespace-nowrap" suppressHydrationWarning>
                 {formattedPresentDate}
               </span>
             </div>
@@ -158,11 +266,11 @@ export default function WasherDashboardPage() {
               <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5" /> Shift Milestones
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1">
-                Total Target: {totalTargetCount} Vehicles
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1" suppressHydrationWarning>
+                Total Target: {totalTargetCount} {totalTargetCount === 1 ? 'Vehicle' : 'Vehicles'}
               </h2>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Society basement cluster route • Zero travel lag • Guaranteed payout
+              <p className="text-xs text-slate-300 mt-0.5" suppressHydrationWarning>
+                {washerSociety} basement cluster route • Shift: {washerRouteWindow} • Guaranteed ₹35/car payout
               </p>
             </div>
 
@@ -170,12 +278,9 @@ export default function WasherDashboardPage() {
               <span className="text-[10px] font-mono font-bold uppercase text-slate-400 block">
                 Shift Earnings
               </span>
-              <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono">
+              <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono" suppressHydrationWarning>
                 ₹{earnedSoFar} <span className="text-xs font-bold text-slate-400 font-sans">/ ₹{totalExpectedPayout}</span>
               </div>
-              <span className="text-[10px] font-bold text-emerald-300 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-400/20 mt-1 inline-block">
-                Instant Transfer Protected ✓
-              </span>
             </div>
           </div>
 
@@ -228,41 +333,68 @@ export default function WasherDashboardPage() {
         {/* 3. SOCIETY WISE DROPDOWN & VEHICLE LIST                       */}
         {/* ============================================================ */}
         <section className="space-y-4">
-          <div className="p-5 sm:p-6 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5" /> Society Selection
-              </span>
-              <h3 className="text-lg sm:text-xl font-black text-white">
-                Filter by Residential Society
-              </h3>
-              <p className="text-xs text-slate-400">
-                Select your society to view assigned parking bays and upload morning proof photos.
-              </p>
+          <div className="p-5 sm:p-6 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5" /> Route Management & Search
+                </span>
+                <h3 className="text-lg sm:text-xl font-black text-white">
+                  Find Assigned Vehicles
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Search by vehicle number plate or filter by society to view parking bays and upload morning proof photos.
+                </p>
+              </div>
+
+              {/* SOCIETY WISE DROPDOWN */}
+              <div className="relative min-w-[240px] sm:min-w-[280px]">
+                <select
+                  value={selectedSociety}
+                  onChange={(e) => setSelectedSociety(e.target.value)}
+                  className="w-full appearance-none px-4 py-3.5 pr-10 rounded-2xl bg-[#0B132B] border border-emerald-400/40 text-xs font-black text-white focus:outline-hidden focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 shadow-xl cursor-pointer"
+                >
+                  <option value="all">
+                    🏢 All Assigned Societies ({displayRouteStops.length} Cars)
+                  </option>
+                  {societies.map((soc) => {
+                    const count = displayRouteStops.filter(
+                      (s) => (s.society_name || washerSociety) === soc
+                    ).length;
+                    return (
+                      <option key={soc} value={soc}>
+                        📍 {soc} ({count} Cars)
+                      </option>
+                    );
+                  })}
+                </select>
+                <ChevronDown className="w-4 h-4 text-emerald-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
             </div>
 
-            {/* SOCIETY WISE DROPDOWN */}
-            <div className="relative min-w-[260px] sm:min-w-[300px]">
-              <select
-                value={selectedSociety}
-                onChange={(e) => setSelectedSociety(e.target.value)}
-                className="w-full appearance-none px-4 py-3.5 pr-10 rounded-2xl bg-[#0B132B] border border-emerald-400/40 text-xs font-black text-white focus:outline-hidden focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 shadow-xl cursor-pointer"
-              >
-                <option value="all">
-                  🏢 All Assigned Societies ({routeStops.length} Cars)
-                </option>
-                {societies.map((soc) => {
-                  const count = routeStops.filter(
-                    (s) => (s.society_name || 'Green Valley Residency') === soc
-                  ).length;
-                  return (
-                    <option key={soc} value={soc}>
-                      📍 {soc} ({count} Cars)
-                    </option>
-                  );
-                })}
-              </select>
-              <ChevronDown className="w-4 h-4 text-emerald-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            {/* SEARCH INPUT BY NUMBER PLATE */}
+            <div className="relative pt-3 border-t border-white/10">
+              <div className="relative flex items-center">
+                <Search className="w-4 h-4 text-emerald-400 absolute left-4 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchPlate}
+                  onChange={(e) => setSearchPlate(e.target.value)}
+                  placeholder="Search by car number plate (e.g. DL 01 AB 4291, 4291, HR 26)..."
+                  className="w-full pl-11 pr-24 sm:pr-28 py-3.5 rounded-2xl bg-[#0B132B]/90 border border-white/15 hover:border-white/25 focus:border-emerald-400/80 focus:ring-2 focus:ring-emerald-400/20 text-xs sm:text-sm font-mono font-semibold text-white placeholder:text-slate-500 placeholder:font-sans transition-all shadow-inner outline-hidden"
+                />
+                {searchPlate && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchPlate('')}
+                    className="absolute right-3 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title="Clear search"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span>Clear</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -270,15 +402,45 @@ export default function WasherDashboardPage() {
           {/* 4. CAR ROWS: CAR NUMBER & UPLOAD PROOF BUTTON ON THE RIGHT   */}
           {/* ============================================================ */}
           <div className="space-y-3.5">
-            <div className="flex items-center justify-between px-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-wider">
+            <div className="flex items-center justify-between px-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex-wrap gap-2">
               <span>
-                {selectedSociety === 'all'
-                  ? 'All Scheduled Vehicles'
-                  : selectedSociety}{' '}
-                ({filteredStops.length})
+                {searchPlate ? (
+                  <span className="text-emerald-300">
+                    Search Results for &ldquo;{searchPlate}&rdquo; ({filteredStops.length} matching)
+                  </span>
+                ) : selectedSociety === 'all' ? (
+                  `All Scheduled Vehicles (${filteredStops.length})`
+                ) : (
+                  `${selectedSociety} (${filteredStops.length})`
+                )}
               </span>
               <span>Morning Route Schedule</span>
             </div>
+
+            {filteredStops.length === 0 ? (
+              <div className="p-8 sm:p-10 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl text-center space-y-3 shadow-xl">
+                <div className="w-12 h-12 rounded-2xl bg-white/10 text-slate-400 flex items-center justify-center mx-auto">
+                  {searchPlate ? <Search className="w-6 h-6 text-slate-400" /> : <Car className="w-6 h-6 text-slate-400" />}
+                </div>
+                <h3 className="text-base font-bold text-white">
+                  {searchPlate ? `No vehicles found matching "${searchPlate}"` : 'No vehicles scheduled yet'}
+                </h3>
+                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                  {searchPlate
+                    ? 'Double check the registration number plate or clear the search to view all morning schedule cars.'
+                    : `Vehicles assigned to your shift route in ${washerSociety} will appear here with bay numbers and owner details.`}
+                </p>
+                {searchPlate && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchPlate('')}
+                    className="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-bold border border-emerald-400/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
+                  >
+                    <X className="w-3.5 h-3.5" /> Clear Search Filter
+                  </button>
+                )}
+              </div>
+            ) : null}
 
             {filteredStops.map((stop) => {
               const isCompleted = stop.status === 'completed';
@@ -433,11 +595,17 @@ export default function WasherDashboardPage() {
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 block">
                   Available For Withdrawal
                 </span>
-                <div className="text-2xl font-black text-white font-mono mt-0.5">
-                  ₹{washerEarnings.available}
+                <div className="text-2xl font-black text-white font-mono mt-0.5" suppressHydrationWarning>
+                  ₹{availableForWithdrawal}
                   <span className="text-xs text-slate-400 font-sans font-normal ml-2">
-                    (Weekly Total: ₹{washerEarnings.this_week})
+                    (Weekly Total: ₹{weeklyTotal})
                   </span>
+                </div>
+                <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                  <Landmark className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Settling to: <strong className="text-white">{washerBankAccount}</strong></span>
+                  <span>•</span>
+                  <span className="font-mono text-emerald-300">IFSC: {washerIfsc}</span>
                 </div>
               </div>
             </div>
@@ -537,6 +705,7 @@ export default function WasherDashboardPage() {
         onClose={() => {
           setShowWashModal(false);
           setActiveStop(null);
+          loadWasherDashboard();
         }}
       />
 
@@ -549,6 +718,7 @@ export default function WasherDashboardPage() {
         onClose={() => {
           setShowUnavailableModal(false);
           setActiveStop(null);
+          loadWasherDashboard();
         }}
       />
 

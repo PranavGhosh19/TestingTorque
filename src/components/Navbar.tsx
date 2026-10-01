@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Shield, Menu, X, ArrowRight, Bell, Sparkles, ChevronDown, Car, Lock } from 'lucide-react';
+import { Shield, Menu, X, ArrowRight, Bell, Sparkles, ChevronDown, Car, Lock, CalendarCheck, Wallet, UserCheck } from 'lucide-react';
 import { useStore } from '@/lib/store';
 
 export default function Navbar() {
@@ -11,18 +11,14 @@ export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [loginMenuOpen, setLoginMenuOpen] = useState(false);
   const loginMenuRef = useRef<HTMLDivElement>(null);
-  const { role, user, notifications, isLoggedIn, isHydrated } = useStore();
-
-  const isUserLoggedIn =
-    isLoggedIn ||
-    (typeof window !== 'undefined' && localStorage.getItem('torque_logged_in') === 'true');
+  const { role, notifications } = useStore();
 
   const isAppRoute =
-    pathname.startsWith('/owner') ||
-    pathname.startsWith('/washer') ||
-    pathname.startsWith('/admin');
+    (pathname.startsWith('/owner') && pathname !== '/owner/login') ||
+    (pathname.startsWith('/washer') && !pathname.startsWith('/washer/login') && !pathname.startsWith('/washer/auth')) ||
+    (pathname.startsWith('/admin') && pathname !== '/admin/login');
 
-  const hideOnMobile = isUserLoggedIn || isAppRoute;
+  const hideOnMobile = isAppRoute;
 
   const isPublicPage =
     pathname === '/' ||
@@ -37,21 +33,29 @@ export default function Navbar() {
     pathname.startsWith('/admin/login') ||
     pathname.startsWith('/owner/login');
 
+  const isWasherPortal =
+    pathname.startsWith('/washer') &&
+    !pathname.startsWith('/washer/login') &&
+    !pathname.startsWith('/washer/auth');
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   useEffect(() => {
+    if (!loginMenuOpen) return;
+
     function handleClickOutside(event: MouseEvent) {
       if (loginMenuRef.current && !loginMenuRef.current.contains(event.target as Node)) {
         setLoginMenuOpen(false);
       }
     }
+
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [loginMenuOpen]);
 
   return (
     <header
-      className={`sticky top-0 z-40 w-full bg-[#080D1A]/95 backdrop-blur-xl border-b border-white/10 transition-colors pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)] ${
+      className={`sticky top-0 z-40 w-full bg-[#080D1A]/95 backdrop-blur-xl border-b border-white/10 transition-colors pt-[max(env(safe-area-inset-top),1rem)] md:pt-0 ${
         hideOnMobile ? 'hidden md:block' : ''
       }`}
     >
@@ -72,8 +76,46 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Public Desktop Nav Links */}
-        {isPublicPage ? (
+        {/* Washer Portal Desktop Nav (Today, Earnings, Profile) */}
+        {isWasherPortal ? (
+          <nav className="hidden md:flex items-center gap-1.5 bg-white/5 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xl shadow-lg">
+            <Link
+              href="/washer/dashboard"
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                pathname === '/washer/dashboard' || pathname === '/washer/route'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25 font-black'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <CalendarCheck className="w-3.5 h-3.5" />
+              <span>Today</span>
+            </Link>
+
+            <Link
+              href="/washer/earnings"
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                pathname === '/washer/earnings'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25 font-black'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <Wallet className="w-3.5 h-3.5" />
+              <span>Earnings</span>
+            </Link>
+
+            <Link
+              href="/washer/profile"
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                pathname === '/washer/profile'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/25 font-black'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <UserCheck className="w-3.5 h-3.5" />
+              <span>Profile</span>
+            </Link>
+          </nav>
+        ) : isPublicPage ? (
           <nav className="hidden md:flex items-center gap-7 text-xs font-bold uppercase tracking-wider text-slate-300">
             <Link
               href="/how-it-works"
@@ -109,16 +151,7 @@ export default function Navbar() {
               About
             </Link>
           </nav>
-        ) : (
-          <div className="hidden md:flex items-center gap-2 text-xs text-slate-400">
-            <span className="font-bold text-slate-300 uppercase tracking-wider text-[10px]">
-              Active Session:
-            </span>
-            <span className="px-3 py-1 rounded-full bg-white/10 text-white font-mono text-xs border border-white/10 capitalize">
-              {role} ({user.name})
-            </span>
-          </div>
-        )}
+        ) : null}
 
         {/* Right CTA */}
         <div className="hidden md:flex items-center gap-3">
@@ -206,6 +239,26 @@ export default function Navbar() {
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
             </>
+          ) : isWasherPortal ? (
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 font-mono">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                Live Route Active
+              </span>
+              <Link
+                href="/washer/profile"
+                className="flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-colors"
+              >
+                <div className="w-7 h-7 rounded-lg overflow-hidden border border-emerald-400/50 bg-emerald-950/40 relative">
+                  <img
+                    src="/images/washer_amit.jpg"
+                    alt="Partner"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <span>Partner</span>
+              </Link>
+            </div>
           ) : (
             <div className="flex items-center gap-3">
               <Link

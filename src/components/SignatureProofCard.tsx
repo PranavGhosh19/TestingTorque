@@ -18,10 +18,13 @@ import {
 } from 'lucide-react';
 import { Vehicle, WashRecord } from '@/lib/types';
 import { useStore } from '@/lib/store';
+import { isPresentDateProofBefore10AM } from '@/lib/washUtils';
 
 interface Props {
   wash?: WashRecord;
   vehicle?: Vehicle;
+  washerName?: string;
+  washerAvatar?: string;
   className?: string;
   showFullProofBtn?: boolean;
 }
@@ -29,12 +32,14 @@ interface Props {
 export default function SignatureProofCard({
   wash,
   vehicle,
+  washerName: propWasherName,
+  washerAvatar: propWasherAvatar,
   className = '',
   showFullProofBtn = true,
 }: Props) {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
-  const { vehicles } = useStore();
+  const { vehicles, user } = useStore();
 
   const currentVehicle = vehicle || (vehicles && vehicles.length > 0 ? vehicles[0] : null);
 
@@ -54,10 +59,26 @@ export default function SignatureProofCard({
     wash?.parking_location ||
     'Assigned Bay';
 
-  const afterPhoto = wash?.after_photo || '/images/honda_city_after.jpg';
-  const time = wash?.completed_at || '7:42 AM';
-  const washerName = wash?.washer_name || 'Amit Kumar';
-  const washerAvatar = wash?.washer_avatar || '/images/washer_amit.jpg';
+  // Evaluate if present date proof is submitted before 10:00 AM
+  const verification = isPresentDateProofBefore10AM(wash);
+  const { isWashedToday, isToday, hasProof, isBefore10AM, submissionTimeStr } = verification;
+
+  const afterPhoto = wash?.after_photo || '';
+  const time = submissionTimeStr || wash?.completed_at || '07:30 AM';
+  const isSunday = new Date().getDay() === 0;
+
+  const washerName =
+    propWasherName ||
+    (wash?.washer_name && wash.washer_name !== 'Amit Kumar' ? wash.washer_name : null) ||
+    currentVehicle?.assigned_washer_name ||
+    user?.assigned_washer_name ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null) ||
+    wash?.washer_name ||
+    'Amit Kumar';
+  const washerAvatar =
+    propWasherAvatar ||
+    wash?.washer_avatar ||
+    '/images/washer_amit.jpg';
 
   return (
     <>
@@ -68,49 +89,94 @@ export default function SignatureProofCard({
         <div className="absolute -top-24 -right-24 w-60 h-60 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Top Bar: Honda City on Left, Washed Today on Right in a Single Line */}
+        {/* Top Bar: Vehicle Name on Left, Status Badge on Right */}
         <div className="relative z-10 flex items-center justify-between mb-3.5">
           <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
             {vehicleName}
           </h2>
 
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
-            <ShieldCheck className="w-4 h-4 text-emerald-400" />
-            <span>Washed Today</span>
-          </div>
+          {/* Condition: if present date proof is submitted before 10am then mark Washed Today */}
+          {isWashedToday ? (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
+              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <span>Washed Today</span>
+            </div>
+          ) : isToday && hasProof && !isBefore10AM ? (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
+              <Clock className="w-4 h-4 text-amber-400" />
+              <span>Completed ({time})</span>
+            </div>
+          ) : isToday && wash?.status === 'in_progress' ? (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
+              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+              <span>Wash In Progress</span>
+            </div>
+          ) : isSunday ? (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-500/15 border border-white/20 text-slate-300 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
+              <Sparkles className="w-4 h-4 text-slate-400" />
+              <span>Sunday Rest Day</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
+              <Clock className="w-4 h-4 text-blue-400" />
+              <span>Scheduled (By 10 AM)</span>
+            </div>
+          )}
         </div>
 
-        {/* Clean, Uncluttered Inspection Photo Showcase */}
-        <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-slate-950 border border-white/15 group shadow-2xl">
-          <Image
-            src={afterPhoto}
-            alt="Verified Clean Inspection"
-            fill
-            className="object-cover transition-transform duration-700 group-hover:scale-105"
-            sizes="(max-width: 768px) 100vw, 600px"
-            priority
-          />
+        {/* Clean Inspection Photo Showcase / Awaiting Care State */}
+        {hasProof && afterPhoto ? (
+          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-slate-950 border border-white/15 group shadow-2xl">
+            <Image
+              src={afterPhoto}
+              alt="Verified Clean Inspection"
+              fill
+              className="object-cover transition-transform duration-700 group-hover:scale-105"
+              sizes="(max-width: 768px) 100vw, 600px"
+              priority
+            />
 
-          {/* Minimal top gradient for contrast */}
-          <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+            {/* Minimal top gradient for contrast */}
+            <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
 
-          {/* Top Left: Single Clean Information Pill */}
-          <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-xs text-white shadow-lg">
-            <span className="w-2 h-2 rounded-full bg-emerald-400" />
-            <span className="font-semibold text-slate-100">{parkingLocation}</span>
-            <span className="text-white/40">•</span>
-            <span className="text-slate-300 font-mono text-[11px]">{time} IST</span>
+            {/* Top Left: Single Clean Information Pill */}
+            <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-xs text-white shadow-lg">
+              <span className={`w-2 h-2 rounded-full ${isWashedToday ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+              <span className="font-semibold text-slate-100">{parkingLocation}</span>
+              <span className="text-white/40">•</span>
+              <span className="text-slate-300 font-mono text-[11px]">{time} IST</span>
+            </div>
+
+            {/* Top Right: Tap to zoom */}
+            <button
+              onClick={() => setShowModal(true)}
+              aria-label="Enlarge inspection photo"
+              className="absolute top-3 right-3 p-2 rounded-full bg-black/60 backdrop-blur-md hover:bg-black/80 text-white/90 border border-white/15 transition-all shadow-md active:scale-95"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+            </button>
           </div>
-
-          {/* Top Right: Tap to zoom */}
-          <button
-            onClick={() => setShowModal(true)}
-            aria-label="Enlarge inspection photo"
-            className="absolute top-3 right-3 p-2 rounded-full bg-black/60 backdrop-blur-md hover:bg-black/80 text-white/90 border border-white/15 transition-all shadow-md active:scale-95"
-          >
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        ) : (
+          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-linear-to-b from-slate-900 via-[#0B132B] to-[#080D1A] border border-white/15 p-6 flex flex-col items-center justify-center text-center shadow-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-400/20 flex items-center justify-center text-blue-400 mb-3.5 shadow-lg">
+              <Clock className="w-7 h-7 animate-pulse" />
+            </div>
+            <div className="text-base font-extrabold text-white">
+              {isSunday ? 'Sunday Rest Day' : 'Morning Doorstep Wash Scheduled'}
+            </div>
+            <p className="text-xs text-slate-300 max-w-sm mt-1 leading-relaxed">
+              {isSunday
+                ? 'Under your 6-day Mon–Sat plan, Sunday is a scheduled rest day.'
+                : `Assigned partner ${washerName} will wash your car in the morning bay window. Verified photo proof will be posted here before 10:00 AM.`}
+            </p>
+            <div className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono text-slate-300">
+              <MapPin className="w-3 h-3 text-blue-400" />
+              <span>{parkingLocation}</span>
+              <span className="text-white/30">•</span>
+              <span>Preferred: {currentVehicle?.preferred_wash_time || '07:30 AM'}</span>
+            </div>
+          </div>
+        )}
 
         {/* Below the Image: Car Number Plate */}
         <div className="relative z-10 mt-3 flex items-center justify-between">
@@ -196,7 +262,7 @@ export default function SignatureProofCard({
               <div className="p-5 overflow-y-auto space-y-4">
                 <div className="relative aspect-16/10 rounded-2xl overflow-hidden border border-white/20 shadow-xl bg-slate-950">
                   <Image
-                    src={afterPhoto}
+                    src={afterPhoto || '/images/honda_city_after.jpg'}
                     alt="Inspected clean vehicle"
                     fill
                     className="object-cover"

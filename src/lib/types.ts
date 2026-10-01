@@ -17,6 +17,8 @@ export interface User {
   selected_plan?: string;
   assigned_washer_id?: string;
   assigned_washer_name?: string;
+  price?: number;
+  subscription_price?: number;
 }
 
 export interface Society {
@@ -55,7 +57,7 @@ export interface Vehicle {
   registration_number: string;
   make: string;
   model: string;
-  type: 'car' | 'suv' | 'bike';
+  type: 'car' | 'suv' | 'luxury' | 'bike';
   color: string;
   parking_location: string; // e.g. 'Block B • Parking 42'
   parking_floor?: string;
@@ -67,6 +69,11 @@ export interface Vehicle {
   selected_plan?: string;
   assigned_washer_id?: string;
   assigned_washer_name?: string;
+  price?: number;
+  subscription_price?: number;
+  lastWashStatus?: string;
+  lastWashDate?: string;
+  lastWashTime?: string;
 }
 
 export interface WashRecord {
@@ -94,6 +101,8 @@ export interface WashRecord {
   location_verified: boolean;
   before_photo?: string;
   after_photo?: string;
+  captured_at?: string;
+  created_at?: string;
   is_sunday_priority: boolean;
   priority_price?: number;
   is_backup_covered: boolean;
@@ -125,6 +134,7 @@ export interface RouteStop {
   payout_amount: number;
   society_name?: string;
   proof_photo?: string;
+  owner_id?: string;
   washer_id?: string;
   washer_name?: string;
 }

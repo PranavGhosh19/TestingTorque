@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -31,6 +31,7 @@ import OwnerBottomNav from '@/components/OwnerBottomNav';
 import { useStore } from '@/lib/store';
 import { fetchOwnerDashboardFromFirestore } from '@/lib/firebaseService';
 import { Vehicle, WasherPartner, WashRecord } from '@/lib/types';
+import { isPresentDateProofBefore10AM } from '@/lib/washUtils';
 
 export default function OwnerDashboardPage() {
   const router = useRouter();
@@ -61,6 +62,9 @@ export default function OwnerDashboardPage() {
   const [isFirebaseSyncing, setIsFirebaseSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [firebaseSource, setFirebaseSource] = useState<'firebase_live' | 'local_fallback'>('local_fallback');
+  const [firebaseWasher, setFirebaseWasher] = useState<WasherPartner | null>(null);
+  const [firebaseWashes, setFirebaseWashes] = useState<WashRecord[]>([]);
+  const [firebaseTodayWash, setFirebaseTodayWash] = useState<WashRecord | null>(null);
 
   // Selected Vehicle index for multi-car garages
   const [selectedVehicleIndex, setSelectedVehicleIndex] = useState(0);
@@ -84,6 +88,15 @@ export default function OwnerDashboardPage() {
           localStorage.setItem('torque_owner_name', fbData.vehicles[0].owner_name);
         }
       }
+      if (fbData.assignedWasher) {
+        setFirebaseWasher(fbData.assignedWasher);
+      }
+      if (fbData.washes && fbData.washes.length > 0) {
+        setFirebaseWashes(fbData.washes);
+      }
+      if (fbData.todayWash) {
+        setFirebaseTodayWash(fbData.todayWash);
+      }
       setFirebaseSource(fbData.source);
       setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
     } catch (err) {
@@ -101,47 +114,181 @@ export default function OwnerDashboardPage() {
   const hasVehicles = activeVehicles.length > 0;
   const primaryVehicle = hasVehicles ? activeVehicles[selectedVehicleIndex] || activeVehicles[0] : null;
 
+  // Resolve today's wash for the active vehicle
+  const activeTodayWash = useMemo(() => {
+    const allWashes = [...firebaseWashes, ...washes];
+    const targetVehId = primaryVehicle?.id;
+
+    const matched = allWashes.find((w) => {
+      const isVehMatch = !targetVehId || w.vehicle_id === targetVehId;
+      if (!isVehMatch) return false;
+      const { isToday } = isPresentDateProofBefore10AM(w);
+      return isToday;
+    });
+
+    if (matched) return matched;
+    if (firebaseTodayWash && (!targetVehId || firebaseTodayWash.vehicle_id === targetVehId)) {
+      return firebaseTodayWash;
+    }
+    if (todayWash && (!targetVehId || todayWash.vehicle_id === targetVehId)) {
+      return todayWash;
+    }
+    return null;
+  }, [firebaseWashes, washes, primaryVehicle?.id, firebaseTodayWash, todayWash]);
+
+  const allVehicleWashes = useMemo(() => {
+    return [...firebaseWashes, ...washes];
+  }, [firebaseWashes, washes]);
+
+  const verifiedWashesCount = useMemo(() => {
+    const targetVehId = primaryVehicle?.id;
+    const completedSet = new Set<string>();
+
+    allVehicleWashes.forEach((w) => {
+      const isVehMatch = !targetVehId || w.vehicle_id === targetVehId;
+      if (isVehMatch && w.status === 'completed' && (w.after_photo || (w as any).proof_photo)) {
+        completedSet.add(w.id);
+      }
+    });
+
+    if (completedSet.size > 0) return completedSet.size;
+    if (primaryVehicle?.washes_this_month && primaryVehicle.washes_this_month > 0) {
+      return primaryVehicle.washes_this_month;
+    }
+    if (primaryVehicle?.lastWashStatus === 'completed' || (primaryVehicle as any)?.last_wash_status === 'completed') {
+      return 1;
+    }
+    return 0;
+  }, [allVehicleWashes, primaryVehicle]);
+
+  const storedAssignedWasherName =
+    typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null;
+  const storedAssignedWasherId =
+    typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_id') : null;
+
+  const targetWasherId =
+    firebaseWasher?.id ||
+    primaryVehicle?.assigned_washer_id ||
+    user.assigned_washer_id ||
+    storedAssignedWasherId;
+
+  const targetWasherName =
+    firebaseWasher?.name ||
+    primaryVehicle?.assigned_washer_name ||
+    user.assigned_washer_name ||
+    storedAssignedWasherName;
+
+  const matchedStoreWasher = washers.find(
+    (w) =>
+      (targetWasherId && (w.id === targetWasherId || (w as any).uid === targetWasherId)) ||
+      (targetWasherName && w.name?.toLowerCase().trim() === targetWasherName.toLowerCase().trim())
+  );
+
   const assignedWasher: WasherPartner =
-    (primaryVehicle &&
-      washers.find(
-        (w) =>
-          w.id === primaryVehicle.assigned_washer_id ||
-          w.name === primaryVehicle.assigned_washer_name ||
-          w.id === user.assigned_washer_id ||
-          w.name === user.assigned_washer_name
-      )) ||
-    washers.find((w) => w.id === user.assigned_washer_id || w.name === user.assigned_washer_name) ||
-    washers[0] || {
-      id: 'wsh_amit',
-      name: 'Amit Kumar',
-      phone: '+91 98101 22334',
-      avatar: '/images/washer_amit.jpg',
-      rating: '4.98',
-      reviewsCount: 142,
-      society: 'Green Valley Residency',
-      assignedCarsPerDay: 30,
-      routeWindow: '06:30 AM - 09:30 AM',
-      avgTimePerCar: '5.5 mins',
-      completionRate: '100%',
-      totalLifetimeWashes: 1840,
-      status: 'Active on Route',
-      kyc: 'Verified (Aadhaar & Police Clear)',
-      aadhaarVerified: true,
-      phoneVerified: true,
-      absentThisMonth: 0,
-      absentDates: [],
-      leaveReason: '',
-      backupWasherName: 'Rajesh Sharma',
-      monthlyPayoutsGone: 48200,
-      pendingPayoutDue: 2840,
-      sundayBonusEarned: 1200,
-      disbursements: [],
-    };
+    firebaseWasher ||
+    matchedStoreWasher ||
+    (targetWasherName
+      ? {
+          id: targetWasherId || 'wsh_custom',
+          name: targetWasherName,
+          phone: '+91 98101 22334',
+          avatar: '/images/washer_amit.jpg',
+          rating: '4.98',
+          reviewsCount: 142,
+          society: 'Green Valley Residency',
+          assignedCarsPerDay: 30,
+          routeWindow: '06:30 AM - 09:30 AM',
+          avgTimePerCar: '5.5 mins',
+          completionRate: '100%',
+          totalLifetimeWashes: 1840,
+          status: 'Active on Route',
+          kyc: 'Verified (Aadhaar & Police Clear)',
+          aadhaarVerified: true,
+          phoneVerified: true,
+          absentThisMonth: 0,
+          absentDates: [],
+          leaveReason: '',
+          backupWasherName: 'Rajesh Sharma',
+          monthlyPayoutsGone: 48200,
+          pendingPayoutDue: 2840,
+          sundayBonusEarned: 1200,
+          disbursements: [],
+        }
+      : washers[0] || {
+          id: 'wsh_assigned',
+          name: 'Assigned Partner',
+          phone: '',
+          avatar: 'https://ui-avatars.com/api/?name=Partner&background=0B132B&color=10B981&bold=true',
+          rating: '4.98',
+          reviewsCount: 142,
+          society: 'Green Valley Residency',
+          assignedCarsPerDay: 30,
+          routeWindow: '06:30 AM - 09:30 AM',
+          avgTimePerCar: '5.5 mins',
+          completionRate: '100%',
+          totalLifetimeWashes: 1840,
+          status: 'Active on Route',
+          kyc: 'Verified (Aadhaar & Police Clear)',
+          aadhaarVerified: true,
+          phoneVerified: true,
+          absentThisMonth: 0,
+          absentDates: [],
+          leaveReason: '',
+          backupWasherName: 'Backup Partner',
+          monthlyPayoutsGone: 48200,
+          pendingPayoutDue: 2840,
+          sundayBonusEarned: 1200,
+          disbursements: [],
+        });
 
   const activePlanName =
     primaryVehicle?.selected_plan ||
     user.selected_plan ||
-    'HOME COMPLETE';
+    'HOME BASIC';
+
+  // Calculate opted subscription price (from Firestore user, vehicle, or body type)
+  const subscriptionPrice = useMemo(() => {
+    // 1. Direct price from user object (fetched from Firestore Car_Owners)
+    if (user?.price && typeof user.price === 'number') {
+      return user.price;
+    }
+    if (user?.subscription_price && typeof user.subscription_price === 'number') {
+      return user.subscription_price;
+    }
+
+    // 2. Sum of vehicle prices if vehicles exist
+    if (vehicles && vehicles.length > 0) {
+      const sum = vehicles.reduce((acc, v) => {
+        if (v.price && typeof v.price === 'number') return acc + v.price;
+        if (v.subscription_price && typeof v.subscription_price === 'number') return acc + v.subscription_price;
+        const t = (v.type || 'car').toLowerCase();
+        if (t === 'luxury') return acc + 799;
+        if (t === 'suv') return acc + 649;
+        if (t === 'bike') return acc + 399;
+        return acc + 599;
+      }, 0);
+      if (sum > 0) return sum;
+    }
+
+    // 3. Check localStorage
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('torque_subscription_price');
+      if (stored) {
+        const parsed = parseInt(stored, 10);
+        if (!isNaN(parsed) && parsed > 0) return parsed;
+      }
+    }
+
+    // 4. Fallback based on primary vehicle type
+    if (primaryVehicle) {
+      const t = (primaryVehicle.type || 'car').toLowerCase();
+      if (t === 'luxury') return 799;
+      if (t === 'suv') return 649;
+      if (t === 'bike') return 399;
+    }
+
+    return 599;
+  }, [user, vehicles, primaryVehicle]);
 
   // Dynamically resolve owner_name from Firebase user, primary vehicle, or localStorage
   const ownerName =
@@ -289,7 +436,12 @@ export default function OwnerDashboardPage() {
         ) : (
           <>
             {/* HERO SIGNATURE PROOF CARD */}
-            <SignatureProofCard wash={todayWash} vehicle={primaryVehicle || undefined} />
+            <SignatureProofCard
+              wash={activeTodayWash || todayWash}
+              vehicle={primaryVehicle || undefined}
+              washerName={assignedWasher.name}
+              washerAvatar={assignedWasher.avatar}
+            />
           </>
         )}
 
@@ -425,7 +577,7 @@ export default function OwnerDashboardPage() {
           <div className="grid grid-cols-3 gap-3.5">
             <div className="p-5 rounded-3xl bg-white/5 border border-white/10 text-center backdrop-blur-xl shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white">
-                {primaryVehicle?.washes_this_month ?? 0}
+                {verifiedWashesCount}
               </div>
               <div className="text-xs font-bold text-slate-300 mt-1">
                 Washes
@@ -449,7 +601,7 @@ export default function OwnerDashboardPage() {
 
             <div className="p-5 rounded-3xl bg-white/5 border border-white/10 text-center backdrop-blur-xl shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white">
-                {activePlanName.includes('CONNOISSEUR') ? '₹1,199' : activePlanName.includes('BASIC') ? '₹599' : '₹799'}
+                ₹{subscriptionPrice.toLocaleString('en-IN')}
               </div>
               <div className="text-xs font-bold text-slate-300 mt-1">
                 Subscription
@@ -462,7 +614,14 @@ export default function OwnerDashboardPage() {
         </div>
 
         {/* MONTHLY PROOF CALENDAR */}
-        <OwnerProofCalendar />
+        <OwnerProofCalendar
+          assignedWasherName={assignedWasher.name}
+          assignedWasherAvatar={assignedWasher.avatar}
+          parkingLocation={primaryVehicle?.parking_location}
+          washes={allVehicleWashes}
+          todayWash={activeTodayWash}
+          selectedVehicleId={primaryVehicle?.id}
+        />
 
         {/* TORQUE CARE VEHICLE HISTORY - Hidden on small screens */}
         <section className="hidden md:block p-6 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl space-y-5">

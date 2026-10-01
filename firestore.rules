@@ -14,75 +14,41 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() && 
-        (request.auth.token.role == 'admin' || 
-         request.auth.token.email.matches('.*@torquecare\\.com'));
+        (('role' in request.auth.token && request.auth.token.role == 'admin') || 
+         ('email' in request.auth.token && request.auth.token.email != null && request.auth.token.email.matches('.*@torquecare\\.com')));
     }
 
     // ===============================================================
-    // USERS COLLECTION (Owners, Washers, Admins)
+    // 1. CAR OWNERS HIERARCHY
+    // Car_Owners/{ownerId}
+    //   └── Vehicles/{vehicleId}
+    //         └── Washes/{washId}
     // ===============================================================
-    match /users/{userId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
+    match /Car_Owners/{ownerId} {
+      allow read, create, update: if true;
       allow delete: if isAdmin();
 
-      match /login_history/{loginId} {
-        allow read: if true;
-        allow write: if true;
+      match /Vehicles/{vehicleId} {
+        allow read, create, update: if true;
+        allow delete: if isAdmin();
+
+        match /Washes/{washId} {
+          allow read, create, update: if true;
+          allow delete: if isAdmin();
+        }
       }
     }
 
     // ===============================================================
-    // VEHICLES COLLECTION
+    // 2. WASHERS COLLECTION
+    // Washers/{washerId}
     // ===============================================================
-    match /vehicles/{vehicleId} {
-      allow read: if true;
-      allow create, update: if true;
+    match /Washers/{washerId} {
+      allow read, create, update: if true;
       allow delete: if isAdmin();
     }
 
-    // ===============================================================
-    // WASHERS COLLECTION (Onboarded Partners & Aadhaar KYC)
-    // ===============================================================
-    match /washers/{washerId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if isAdmin();
-    }
-
-    // ===============================================================
-    // WASHES COLLECTION (Proof of Care, Live Bay Photos & Calendar)
-    // ===============================================================
-    match /washes/{washId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if isAdmin();
-    }
-
-    // ===============================================================
-    // SOCIETIES COLLECTION
-    // ===============================================================
-    match /societies/{societyId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // ===============================================================
-    // AUDIT & AUTH LOGS (Append-only immutable audit trail)
-    // ===============================================================
-    match /auth_logs/{logId} {
-      allow create: if true;
-      allow read: if true;
-      allow update, delete: if false;
-    }
-
-    match /admin_audit_logs/{auditId} {
-      allow create: if true;
-      allow read: if true;
-      allow update, delete: if false;
-    }
-
+    // Fallback for app collections during development & live operations
     match /{document=**} {
       allow read, write: if true;
     }

@@ -42,21 +42,26 @@ interface StoreContextType {
       selectedPlan?: string;
       selectedWasherId?: string;
       selectedWasherName?: string;
+      price?: number;
+      subscriptionPrice?: number;
     },
     vehiclesList: Array<{
       make: string;
       model: string;
       registration_number: string;
-      type: 'car' | 'suv' | 'bike';
+      type: 'car' | 'suv' | 'luxury' | 'bike';
       color: string;
       parking_location: string;
       preferred_wash_time: string;
       society_name?: string;
+      price?: number;
+      subscription_price?: number;
     }>
   ) => void;
   washes: WashRecord[];
   todayWash: WashRecord | undefined;
   routeStops: RouteStop[];
+  setRouteStops: React.Dispatch<React.SetStateAction<RouteStop[]>>;
   washers: WasherPartner[];
   onboardWasher: (washerData: {
     name: string;
@@ -76,6 +81,7 @@ interface StoreContextType {
   isDataErased: boolean;
   verifyPhoneNumber: (phone: string, otp: string) => Promise<boolean>;
   washerEarnings: WasherEarnings;
+  setWasherEarnings: React.Dispatch<React.SetStateAction<WasherEarnings>>;
   societies: Society[];
   exceptions: ExceptionItem[];
   notifications: NotificationItem[];
@@ -88,7 +94,7 @@ interface StoreContextType {
   };
   requestSundayWash: () => void;
   washerStartWash: (stopNumber: number) => void;
-  washerCompleteWash: (stopNumber: number, beforeImg?: string, afterImg?: string) => void;
+  washerCompleteWash: (stopNumber: number, afterImg?: string) => Promise<void> | void;
   washerReportUnavailable: (stopNumber: number, reason: string, evidence?: string) => void;
   washerRequestLeave: (startDate: string, endDate: string, backupWasherId: string) => boolean;
   withdrawEarnings: (amount: number) => boolean;
@@ -366,212 +372,15 @@ const initialWashes: WashRecord[] = [
   },
 ];
 
-const initialRouteStops: RouteStop[] = [
-  {
-    stop_number: 1,
-    wash_id: 'wsh_route_1',
-    vehicle_id: 'v_1',
-    vehicle_name: 'Honda City',
-    registration_number: 'DL 01 AB 4291',
-    parking_location: 'Block B • Parking 42',
-    scheduled_time: '07:30 AM',
-    status: 'completed',
-    owner_name: 'Pranav Ghosh',
-    owner_phone: '+91 98765 43210',
-    payout_amount: 20,
-    society_name: 'Green Valley Residency',
-    proof_photo: '/images/honda_city_after.jpg',
-  },
-  {
-    stop_number: 2,
-    wash_id: 'wsh_route_2',
-    vehicle_id: 'v_2',
-    vehicle_name: 'Hyundai Creta',
-    registration_number: 'DL 04 EF 2281',
-    parking_location: 'Block B • Parking 45',
-    scheduled_time: '07:45 AM',
-    status: 'completed',
-    owner_name: 'Ananya Sharma',
-    owner_phone: '+91 98111 22334',
-    payout_amount: 20,
-    society_name: 'Green Valley Residency',
-    proof_photo: '/images/creta_after.jpg',
-  },
-  {
-    stop_number: 3,
-    wash_id: 'wsh_route_3',
-    vehicle_id: 'v_3',
-    vehicle_name: 'Maruti Swift',
-    registration_number: 'DL 09 PQ 9821',
-    parking_location: 'Block B • Parking 48',
-    scheduled_time: '08:00 AM',
-    status: 'completed',
-    owner_name: 'Vikram Mehta',
-    owner_phone: '+91 99223 34455',
-    payout_amount: 20,
-    society_name: 'Green Valley Residency',
-    proof_photo: '/images/hero_car.jpg',
-  },
-  {
-    stop_number: 4,
-    wash_id: 'wsh_route_4',
-    vehicle_id: 'v_4',
-    vehicle_name: 'Tata Nexon',
-    registration_number: 'DL 02 ZB 5512',
-    parking_location: 'Block B • Parking 50',
-    scheduled_time: '08:15 AM',
-    status: 'completed',
-    owner_name: 'Rohan Gupta',
-    owner_phone: '+91 98711 00223',
-    payout_amount: 20,
-    society_name: 'Green Valley Residency',
-    proof_photo: '/images/creta_after.jpg',
-  },
-  {
-    stop_number: 5,
-    wash_id: 'wsh_route_5',
-    vehicle_id: 'v_5',
-    vehicle_name: 'Kia Seltos',
-    registration_number: 'HR 26 AK 1190',
-    parking_location: 'Block B • Parking 52',
-    scheduled_time: '08:30 AM',
-    status: 'completed',
-    owner_name: 'Pooja Verma',
-    owner_phone: '+91 98100 44556',
-    payout_amount: 20,
-    society_name: 'Green Valley Residency',
-    proof_photo: '/images/honda_city_after.jpg',
-  },
-  {
-    stop_number: 6,
-    wash_id: 'wsh_route_6',
-    vehicle_id: 'v_6',
-    vehicle_name: 'Toyota Fortuner',
-    registration_number: 'UP 16 AX 8800',
-    parking_location: 'Block C • Parking 04',
-    scheduled_time: '08:45 AM',
-    status: 'completed',
-    owner_name: 'Col. Rajesh Singh',
-    owner_phone: '+91 97112 33445',
-    payout_amount: 25,
-    society_name: 'Green Valley Residency',
-    proof_photo: '/images/hero_car.jpg',
-  },
-  {
-    stop_number: 7,
-    wash_id: 'wsh_route_7',
-    vehicle_id: 'v_7',
-    vehicle_name: 'Mahindra XUV700',
-    registration_number: 'DL 10 CP 3491',
-    parking_location: 'Block C • Parking 08',
-    scheduled_time: '09:00 AM',
-    status: 'completed',
-    owner_name: 'Sameer Sen',
-    owner_phone: '+91 99990 11223',
-    payout_amount: 25,
-    society_name: 'Palm Residency',
-    proof_photo: '/images/creta_after.jpg',
-  },
-  {
-    stop_number: 8,
-    wash_id: 'wsh_route_8',
-    vehicle_id: 'v_8',
-    vehicle_name: 'Honda Elevate',
-    registration_number: 'DL 05 TR 7721',
-    parking_location: 'Block C • Parking 12',
-    scheduled_time: '09:15 AM',
-    status: 'completed',
-    owner_name: 'Divya Rao',
-    owner_phone: '+91 98450 99887',
-    payout_amount: 20,
-    society_name: 'Palm Residency',
-    proof_photo: '/images/honda_city_after.jpg',
-  },
-  {
-    stop_number: 9,
-    wash_id: 'wsh_route_9',
-    vehicle_id: 'v_9',
-    vehicle_name: 'BMW 3 Series',
-    registration_number: 'DL 01 ZZ 0007',
-    parking_location: 'Block C • Parking 21',
-    scheduled_time: '09:30 AM',
-    status: 'current',
-    owner_name: 'Aditya Kapoor',
-    owner_phone: '+91 98111 88899',
-    payout_amount: 30,
-    society_name: 'Palm Residency',
-    notes: 'Covered parking bay. Customer requested tire dressing extra.',
-  },
-  {
-    stop_number: 10,
-    wash_id: 'wsh_route_10',
-    vehicle_id: 'v_10',
-    vehicle_name: 'Volkswagen Taigun',
-    registration_number: 'DL 03 YK 4421',
-    parking_location: 'Block C • Parking 25',
-    scheduled_time: '09:45 AM',
-    status: 'pending',
-    owner_name: 'Neha Chawla',
-    owner_phone: '+91 98223 44556',
-    payout_amount: 20,
-    society_name: 'Sunrise Heights',
-  },
-  {
-    stop_number: 11,
-    wash_id: 'wsh_route_11',
-    vehicle_id: 'v_11',
-    vehicle_name: 'Hyundai Verna',
-    registration_number: 'DL 08 BL 6612',
-    parking_location: 'Block D • Parking 02',
-    scheduled_time: '10:00 AM',
-    status: 'pending',
-    owner_name: 'Karan Malhotra',
-    owner_phone: '+91 99100 12345',
-    payout_amount: 20,
-    society_name: 'Sunrise Heights',
-  },
-  {
-    stop_number: 12,
-    wash_id: 'wsh_route_12',
-    vehicle_id: 'v_12',
-    vehicle_name: 'Skoda Kushaq',
-    registration_number: 'DL 07 MN 3311',
-    parking_location: 'Block D • Parking 08',
-    scheduled_time: '10:15 AM',
-    status: 'pending',
-    owner_name: 'Shreya Patel',
-    owner_phone: '+91 98334 55667',
-    payout_amount: 20,
-    society_name: 'Sunrise Heights',
-  },
-];
+const initialRouteStops: RouteStop[] = [];
 
 const initialEarnings: WasherEarnings = {
-  total_earnings: 18420,
-  this_week: 2840,
-  available: 1940,
-  pending: 900,
-  bank_account_last4: '4821',
-  recent_payouts: [
-    {
-      id: 'po_01',
-      amount: 2840,
-      fee: 10,
-      net: 2830,
-      status: 'completed',
-      date: '20 Sep 2026',
-      bank_last4: '4821',
-    },
-    {
-      id: 'po_02',
-      amount: 3100,
-      fee: 10,
-      net: 3090,
-      status: 'completed',
-      date: '13 Sep 2026',
-      bank_last4: '4821',
-    },
-  ],
+  total_earnings: 0,
+  this_week: 0,
+  available: 0,
+  pending: 0,
+  bank_account_last4: '',
+  recent_payouts: [],
 };
 
 const initialSocieties: Society[] = [
@@ -809,10 +618,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setUser(demoOwnerUser);
       }
     } else if (newRole === 'washer') {
+      const savedWasherName = typeof window !== 'undefined' ? localStorage.getItem('torque_washer_name') : null;
+      const savedWasherId = typeof window !== 'undefined' ? localStorage.getItem('torque_washer_id') : null;
+      const savedWasherPhone = typeof window !== 'undefined' ? localStorage.getItem('torque_washer_phone') : null;
       setUser({
-        id: 'wsh_amit_1',
-        name: 'Amit Kumar',
-        phone: '+91 98100 12345',
+        id: savedWasherId || 'wsh_amit_1',
+        name: savedWasherName || 'Amit Kumar',
+        phone: savedWasherPhone || '+91 98100 12345',
         role: 'washer',
         avatar_url: '/images/washer_amit.jpg',
         status: 'active',
@@ -871,19 +683,39 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       selectedPlan?: string;
       selectedWasherId?: string;
       selectedWasherName?: string;
+      price?: number;
+      subscriptionPrice?: number;
     },
     vehiclesList: Array<{
       make: string;
       model: string;
       registration_number: string;
-      type: 'car' | 'suv' | 'bike';
+      type: 'car' | 'suv' | 'luxury' | 'bike';
       color: string;
       parking_location: string;
       preferred_wash_time: string;
       society_name?: string;
+      price?: number;
+      subscription_price?: number;
     }>
   ) => {
     const newUserId = `usr_${Date.now()}`;
+
+    const getBodyTypePrice = (type?: string): number => {
+      const t = (type || 'car').toLowerCase();
+      if (t === 'luxury') return 799;
+      if (t === 'suv') return 649;
+      if (t === 'bike') return 399;
+      return 599;
+    };
+
+    const calculatedTotal = vehiclesList.reduce(
+      (sum, v) => sum + (v.price || v.subscription_price || getBodyTypePrice(v.type)),
+      0
+    );
+
+    const finalPrice = ownerData.price || ownerData.subscriptionPrice || calculatedTotal || 599;
+
     const newUser: User = {
       id: newUserId,
       name: ownerData.name,
@@ -894,34 +726,41 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       role: 'owner',
       status: 'active',
       created_at: new Date().toISOString(),
-      selected_plan: ownerData.selectedPlan || 'HOME COMPLETE',
-      assigned_washer_id: ownerData.selectedWasherId || 'wsh_amit',
-      assigned_washer_name: ownerData.selectedWasherName || 'Amit Kumar',
+      selected_plan: ownerData.selectedPlan || 'HOME BASIC',
+      assigned_washer_id: ownerData.selectedWasherId || '',
+      assigned_washer_name: ownerData.selectedWasherName || 'Assigned Route Partner',
+      price: finalPrice,
+      subscription_price: finalPrice,
     };
 
     setUser(newUser);
     setRole('owner');
 
-    const createdVehicles: Vehicle[] = vehiclesList.map((v, index) => ({
-      id: `veh_${Date.now()}_${index}`,
-      owner_id: newUserId,
-      owner_name: ownerData.name,
-      registration_number: v.registration_number,
-      make: v.make,
-      model: v.model,
-      type: v.type,
-      color: v.color || 'Pearl White',
-      parking_location: v.parking_location || 'Assigned Bay',
-      parking_floor: 'Basement 1',
-      preferred_wash_time: v.preferred_wash_time || '07:30 AM',
-      society_id: 'soc_green_valley',
-      society_name: v.society_name || 'Green Valley Residency',
-      subscription_status: 'active',
-      washes_this_month: 0,
-      selected_plan: ownerData.selectedPlan || 'HOME COMPLETE',
-      assigned_washer_id: ownerData.selectedWasherId || 'wsh_amit',
-      assigned_washer_name: ownerData.selectedWasherName || 'Amit Kumar',
-    }));
+    const createdVehicles: Vehicle[] = vehiclesList.map((v, index) => {
+      const vPrice = v.price || v.subscription_price || getBodyTypePrice(v.type);
+      return {
+        id: `veh_${Date.now()}_${index}`,
+        owner_id: newUserId,
+        owner_name: ownerData.name,
+        registration_number: v.registration_number,
+        make: v.make,
+        model: v.model,
+        type: v.type,
+        color: v.color || 'Pearl White',
+        parking_location: v.parking_location || 'Assigned Bay',
+        parking_floor: 'Basement 1',
+        preferred_wash_time: v.preferred_wash_time || '07:30 AM',
+        society_id: 'soc_green_valley',
+        society_name: v.society_name || 'Green Valley Residency',
+        subscription_status: 'active',
+        washes_this_month: 0,
+        selected_plan: ownerData.selectedPlan || 'HOME BASIC',
+        assigned_washer_id: ownerData.selectedWasherId || '',
+        assigned_washer_name: ownerData.selectedWasherName || 'Assigned Route Partner',
+        price: vPrice,
+        subscription_price: vPrice,
+      };
+    });
 
     setVehicles(createdVehicles);
 
@@ -930,6 +769,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('torque_owner_reset');
       localStorage.setItem('torque_logged_in', 'true');
       localStorage.setItem('torque_owner_name', ownerData.name);
+      localStorage.setItem('torque_subscription_price', String(finalPrice));
+      if (ownerData.selectedWasherName) {
+        localStorage.setItem('torque_assigned_washer_name', ownerData.selectedWasherName);
+      }
+      if (ownerData.selectedWasherId) {
+        localStorage.setItem('torque_assigned_washer_id', ownerData.selectedWasherId);
+      }
       localStorage.setItem('torque_user', JSON.stringify(newUser));
       localStorage.setItem('torque_vehicles', JSON.stringify(createdVehicles));
     }
@@ -949,8 +795,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       owner_phone: newUser.phone,
       payout_amount: 30,
       status: 'pending',
-      washer_id: ownerData.selectedWasherId || 'wsh_amit',
-      washer_name: ownerData.selectedWasherName || 'Amit Kumar',
+      washer_id: ownerData.selectedWasherId || '',
+      washer_name: ownerData.selectedWasherName || 'Assigned Route Partner',
     }));
     setRouteStops((prev) => [...prev, ...newStops]);
 
@@ -963,7 +809,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       {
         id: `notif_welcome_${Date.now()}`,
         title: `Welcome to Torque Care, ${ownerData.name}!`,
-        body: `Your ${ownerData.selectedPlan || 'HOME COMPLETE'} plan is active with assigned partner ${ownerData.selectedWasherName || 'Amit Kumar'}. Morning care route active for ${createdVehicles.length} vehicle${createdVehicles.length > 1 ? 's' : ''}!`,
+        body: `Your ${ownerData.selectedPlan || 'HOME BASIC'} plan is active with assigned partner ${ownerData.selectedWasherName || 'your assigned specialist'}. Morning care route active for ${createdVehicles.length} vehicle${createdVehicles.length > 1 ? 's' : ''}!`,
         timestamp: 'Just now',
         read: false,
         category: 'system',
@@ -1149,14 +995,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       disbursements: [],
     };
 
-    setWashers((prev) => {
-      const updated = [newPartner, ...prev];
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('torque_washers', JSON.stringify(updated));
+    setWashers((prev) => [newPartner, ...prev]);
+
+    if (typeof window !== 'undefined') {
+      try {
         localStorage.removeItem('torque_data_erased');
+        // Prevent QuotaExceededError by stripping heavy base64 strings before localStorage serialization
+        const sanitizedPartner = {
+          ...newPartner,
+          aadhaarPhotoUrl:
+            newPartner.aadhaarPhotoUrl && newPartner.aadhaarPhotoUrl.startsWith('data:image') && newPartner.aadhaarPhotoUrl.length > 500
+              ? '[LOCAL_PHOTO_STORED]'
+              : newPartner.aadhaarPhotoUrl,
+        };
+        const existingStored = localStorage.getItem('torque_washers');
+        const existingList = existingStored ? JSON.parse(existingStored) : [];
+        const updatedStorage = [sanitizedPartner, ...(Array.isArray(existingList) ? existingList : [])];
+        localStorage.setItem('torque_washers', JSON.stringify(updatedStorage));
+      } catch (storageErr) {
+        console.warn('LocalStorage write safe warning in onboardWasher:', storageErr);
       }
-      return updated;
-    });
+    }
 
     setIsDataErased(false);
 
@@ -1222,9 +1081,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     );
   };
 
-  const washerCompleteWash = (
+  const washerCompleteWash = async (
     stopNumber: number,
-    beforeImg = '/images/honda_city_before.jpg',
     afterImg = '/images/honda_city_after.jpg'
   ) => {
     if (isOffline) {
@@ -1244,33 +1102,37 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
 
-    // Update earnings
+    // Update earnings with actual stop payout
+    const currentStop = routeStops.find((s) => s.stop_number === stopNumber);
+    const stopPayout = currentStop?.payout_amount || 35;
+    const activeWasherName = user?.name || (typeof window !== 'undefined' ? localStorage.getItem('torque_washer_name') : null) || 'Amit Kumar';
+    const washId = currentStop?.wash_id || `wash_${currentStop?.vehicle_id || 'veh'}_today`;
+
     setWasherEarnings((prev) => ({
       ...prev,
-      available: prev.available + 20,
-      this_week: prev.this_week + 20,
-      total_earnings: prev.total_earnings + 20,
+      available: prev.available + stopPayout,
+      this_week: prev.this_week + stopPayout,
+      total_earnings: prev.total_earnings + stopPayout,
     }));
 
     const newWashRecord: WashRecord = {
-      id: `wash_live_${Date.now()}`,
-      vehicle_id: 'veh_honda_city',
-      vehicle_name: 'Honda City',
-      registration_number: 'DL 01 AB 4291',
-      parking_location: 'Block B • Parking 42',
-      washer_id: 'wsh_amit_1',
-      washer_name: 'Amit Kumar',
-      washer_avatar: '/images/washer_amit.jpg',
+      id: washId,
+      vehicle_id: currentStop?.vehicle_id || 'veh_honda_city',
+      vehicle_name: currentStop?.vehicle_name || 'Honda City',
+      registration_number: currentStop?.registration_number || 'DL 01 AB 4291',
+      parking_location: currentStop?.parking_location || 'Block B • Parking 42',
+      washer_id: user?.id || 'wsh_amit_1',
+      washer_name: activeWasherName,
+      washer_avatar: user?.avatar_url || '/images/washer_amit.jpg',
       washer_rating: 4.9,
       status: 'completed',
       scheduled_date: 'Today',
-      scheduled_time: '7:30 AM',
+      scheduled_time: currentStop?.scheduled_time || '7:30 AM',
       started_at: '7:40 AM',
       completed_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       location_verified: true,
       latitude: 28.5355,
       longitude: 77.3910,
-      before_photo: beforeImg,
       after_photo: afterImg,
       is_sunday_priority: false,
       is_backup_covered: false,
@@ -1280,16 +1142,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setWashes((prev) => [newWashRecord, ...prev]);
 
     // Asynchronously sync wash record to Firebase
-    syncWashRecordToFirestore(newWashRecord).catch((err) => {
+    try {
+      await syncWashRecordToFirestore(newWashRecord, currentStop?.owner_id);
+    } catch (err) {
       console.warn('Firebase syncWashRecord error:', err);
-    });
+    }
 
     // Send owner notification
     setNotifications((prev) => [
       {
         id: `notif_wsh_${Date.now()}`,
         title: 'Wash completed ✓',
-        body: `Your Honda City was washed at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by Amit Kumar. Verified photo attached.`,
+        body: `Your ${currentStop?.vehicle_name || 'Honda City'} was washed at ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} by ${activeWasherName}. Verified photo attached.`,
         timestamp: 'Just now',
         read: false,
         category: 'wash',
@@ -1559,7 +1423,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ]);
   };
 
-  const todayWash = washes.find((w) => w.scheduled_date === '06 Oct' && w.status === 'completed');
+  const todayWash = washes.find((w) => {
+    const isCompleted = w.status === 'completed';
+    const sched = (w.scheduled_date || '').toLowerCase().trim();
+    if (sched === 'today' && isCompleted) return true;
+    const now = new Date();
+    const dayPadded = String(now.getDate()).padStart(2, '0');
+    const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+    const currentMonth = monthNames[now.getMonth()];
+    if ((sched.includes(currentMonth) && (sched.includes(dayPadded) || sched.includes(String(now.getDate())))) && isCompleted) {
+      return true;
+    }
+    return false;
+  });
 
   return (
     <StoreContext.Provider
@@ -1575,6 +1451,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         washes,
         todayWash,
         routeStops,
+        setRouteStops,
         washers,
         onboardWasher,
         eraseAllData,
@@ -1583,6 +1460,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         isDataErased,
         verifyPhoneNumber,
         washerEarnings,
+        setWasherEarnings,
         societies,
         exceptions,
         notifications,

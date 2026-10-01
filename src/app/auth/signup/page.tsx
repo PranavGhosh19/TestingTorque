@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -21,15 +21,18 @@ import {
   Star,
   Award,
   Zap,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
-import { WasherPartner } from '@/lib/washerPartners';
+import { WasherPartner, washerPartners as initialWasherPartners } from '@/lib/washerPartners';
+import { fetchAllWashersFromFirestore } from '@/lib/firebaseService';
 
 interface VehicleDraft {
   make: string;
   model: string;
   registration_number: string;
-  type: 'car' | 'suv' | 'bike';
+  type: 'car' | 'suv' | 'luxury' | 'bike';
   color: string;
   parking_location: string;
   preferred_wash_time: string;
@@ -100,97 +103,120 @@ export default function SignUpPage() {
   const [vehicleErrors, setVehicleErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Step 3: Choose a Plan
+  // Step 3: Choose a Plan (HOME BASIC only)
   const planOptions: PlanOption[] = [
     {
       id: 'basic',
       name: 'HOME BASIC',
       monthlyBasePrice: 599,
+      badge: 'RECOMMENDED PLAN',
       tagline: 'Essential weekday care for daily office commuters',
-      washesPerWeek: '5 Days / week (Mon – Fri)',
-      interiorFrequency: '1x Monthly Interior Vacuum',
+      washesPerWeek: '6 Days / week (Mon – Sat)',
+      interiorFrequency: 'Standard Care',
       features: [
         'Exterior microfiber gentle wash',
         'Windshield & side mirror clarity buff',
-        'Tire dressing & dust wipe',
         'Verified photo proof every wash',
         'Washer-appointed backup coverage',
       ],
     },
-    {
-      id: 'standard',
-      name: 'HOME COMPLETE',
-      monthlyBasePrice: 799,
-      badge: 'RECOMMENDED',
-      tagline: 'Complete care with 6-day wash and deep cockpit cleaning',
-      washesPerWeek: '6 Days / week (Mon – Sat)',
-      interiorFrequency: '2x Monthly Deep Interior Vacuum',
-      features: [
-        'All Basic plan features',
-        '6 Days comprehensive morning care',
-        '2x Deep interior vacuum & dashboard wipe',
-        'Rims & alloy detailing spray',
-        'Sunday Priority Wash eligibility',
-        'Touchup guarantee within 2 hours',
-      ],
-    },
-    {
-      id: 'premium',
-      name: 'HOME CONNOISSEUR',
-      monthlyBasePrice: 1199,
-      badge: 'PRESTIGE',
-      tagline: 'Showroom finish for luxury and ceramic coated vehicles',
-      washesPerWeek: '6 Days + 1 Sunday Priority Included',
-      interiorFrequency: 'Weekly Interior Cleaning & Disinfection',
-      features: [
-        'All Standard plan features',
-        'Ceramic-safe pH-neutral care products',
-        'Weekly full interior vacuum & steam mat sanitize',
-        '1 Free Sunday Priority slot every month',
-        'Top-rated senior partner assignment (★ 4.9+)',
-        'Quarterly water-beading protective coat',
-      ],
-    },
   ];
 
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('standard');
-  const selectedPlan = planOptions.find((p) => p.id === selectedPlanId) || planOptions[1];
+  const [selectedPlanId, setSelectedPlanId] = useState<string>('basic');
+  const selectedPlan = planOptions[0];
 
-  // Step 4: Choose a Washer
-  const availableWashers: WasherPartner[] = washers && washers.length > 0
-    ? washers
-    : [
-        {
-          id: 'wsh_amit',
-          name: 'Amit Kumar',
-          phone: '+91 98101 22334',
-          avatar: '/images/washer_amit.jpg',
-          rating: '4.98',
-          reviewsCount: 142,
-          society: 'Green Valley Residency',
-          assignedCarsPerDay: 30,
-          routeWindow: '06:30 AM - 09:30 AM',
-          avgTimePerCar: '5.5 mins',
-          completionRate: '100%',
-          totalLifetimeWashes: 1840,
-          status: 'Active on Route',
-          kyc: 'Verified (Aadhaar & Police Clear)',
-          aadhaarVerified: true,
-          phoneVerified: true,
-          absentThisMonth: 0,
-          absentDates: [],
-          leaveReason: '',
-          backupWasherName: 'Rajesh Sharma',
-          monthlyPayoutsGone: 48200,
-          pendingPayoutDue: 2840,
-          sundayBonusEarned: 1200,
-          disbursements: [],
-        },
-      ];
+  const getVehicleMonthlyPrice = (vehicleType: string, basePrice: number) => {
+    if (basePrice === 599) {
+      if (vehicleType === 'luxury') return 799;
+      if (vehicleType === 'suv') return 649;
+      return 599;
+    }
+    if (vehicleType === 'luxury') return Math.round(basePrice * 1.35);
+    if (vehicleType === 'suv') return Math.round(basePrice * 1.15);
+    return basePrice;
+  };
 
-  const [selectedWasherId, setSelectedWasherId] = useState<string>(
-    availableWashers[0]?.id || 'wsh_amit'
-  );
+  // Step 4: Choose a Washer (Live from Firebase Firestore)
+  const [firebaseWashers, setFirebaseWashers] = useState<WasherPartner[]>([]);
+  const [isLoadingWashers, setIsLoadingWashers] = useState(true);
+
+  const loadFirebaseWashers = async () => {
+    setIsLoadingWashers(true);
+    try {
+      const fetched = await fetchAllWashersFromFirestore();
+      if (fetched && fetched.length > 0) {
+        setFirebaseWashers(fetched);
+      }
+    } catch (err) {
+      console.warn('Failed to load washers from Firebase:', err);
+    } finally {
+      setIsLoadingWashers(false);
+    }
+  };
+
+  useEffect(() => {
+    loadFirebaseWashers();
+  }, []);
+
+  const availableWashers = useMemo(() => {
+    const map = new Map<string, WasherPartner>();
+
+    const EXCLUDED_WASHER_NAMES = ['Rahul Sharma', 'Suresh Verma', 'Vijay Pal', 'Amit Kumar'];
+    const EXCLUDED_WASHER_IDS = ['wsh_rahul', 'wsh_suresh', 'wsh_vijay', 'wsh_amit'];
+
+    const isExcluded = (w: WasherPartner) =>
+      EXCLUDED_WASHER_IDS.includes(w.id) ||
+      EXCLUDED_WASHER_NAMES.some(
+        (name) => (w.name || '').trim().toLowerCase() === name.trim().toLowerCase()
+      );
+
+    // 1. First add all live washers fetched from Firebase Firestore
+    firebaseWashers.forEach((w) => {
+      if (!isExcluded(w)) {
+        map.set(w.id, { ...w, isFirebaseLive: true } as any);
+      }
+    });
+
+    // 2. Also check if local storage has any recently onboarded washer partner
+    if (typeof window !== 'undefined') {
+      try {
+        const localWashersStr = localStorage.getItem('torque_washers');
+        if (localWashersStr) {
+          const localWashers: WasherPartner[] = JSON.parse(localWashersStr);
+          if (Array.isArray(localWashers)) {
+            localWashers.forEach((w) => {
+              if (!isExcluded(w) && !map.has(w.id)) {
+                map.set(w.id, { ...w, isFirebaseLive: true } as any);
+              }
+            });
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    // 3. Fallback to store washers if none found in Firebase yet
+    (washers || []).forEach((w) => {
+      if (!isExcluded(w) && !map.has(w.id)) {
+        map.set(w.id, w);
+      }
+    });
+
+    return Array.from(map.values());
+  }, [firebaseWashers, washers]);
+
+  const [selectedWasherId, setSelectedWasherId] = useState<string>('');
+
+  // Keep selected washer synchronized with available list
+  useEffect(() => {
+    if (availableWashers.length > 0) {
+      if (!selectedWasherId || !availableWashers.some((w) => w.id === selectedWasherId)) {
+        setSelectedWasherId(availableWashers[0].id);
+      }
+    }
+  }, [availableWashers, selectedWasherId]);
+
   const selectedWasher =
     availableWashers.find((w) => w.id === selectedWasherId) || availableWashers[0];
 
@@ -320,6 +346,17 @@ export default function SignUpPage() {
     e.preventDefault();
     setIsSubmitting(true);
 
+    const totalSubscriptionPrice = vehicles.reduce(
+      (sum, v) => sum + getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
+      0
+    );
+
+    const enrichedVehicles = vehicles.map((v) => ({
+      ...v,
+      price: getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
+      subscription_price: getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
+    }));
+
     // Call store action with owner data, selected plan, and selected washer
     registerOwner(
       {
@@ -328,10 +365,12 @@ export default function SignUpPage() {
         address: address.trim() || undefined,
         alt_phone: altPhone.trim() || undefined,
         selectedPlan: selectedPlan.name,
-        selectedWasherId: selectedWasher.id,
-        selectedWasherName: selectedWasher.name,
+        selectedWasherId: selectedWasher?.id || availableWashers[0]?.id || '',
+        selectedWasherName: selectedWasher?.name || availableWashers[0]?.name || 'Assigned Route Partner',
+        price: totalSubscriptionPrice,
+        subscriptionPrice: totalSubscriptionPrice,
       },
-      vehicles
+      enrichedVehicles
     );
 
     // Redirect to Owner Dashboard
@@ -692,12 +731,13 @@ export default function SignUpPage() {
                       <select
                         value={v.type}
                         onChange={(e) =>
-                          handleVehicleChange(index, 'type', e.target.value as 'car' | 'suv' | 'bike')
+                          handleVehicleChange(index, 'type', e.target.value as 'car' | 'suv' | 'luxury' | 'bike')
                         }
                         className="w-full px-4 py-3 bg-[#0B132B] border border-white/15 rounded-2xl text-xs font-semibold text-white focus:outline-hidden focus:border-blue-400 transition-all"
                       >
-                        <option value="car">Hatchback / Sedan</option>
-                        <option value="suv">SUV / MUV</option>
+                        <option value="car">Hatchback / Sedan (₹599)</option>
+                        <option value="suv">Compact / Mid SUV (₹649)</option>
+                        <option value="luxury">Luxury / 7-Seater+ (₹799)</option>
                         <option value="bike">Motorcycle / Scooter</option>
                       </select>
                     </div>
@@ -853,25 +893,24 @@ export default function SignUpPage() {
               </span>
             </div>
 
-            {/* Plan Cards Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Plan Card (Centered HOME BASIC as per body type) */}
+            <div className="max-w-xl mx-auto w-full">
               {planOptions.map((plan) => {
                 const isSelected = selectedPlanId === plan.id;
-                const totalCost = plan.monthlyBasePrice * vehicles.length;
+                const totalCost = vehicles.reduce(
+                  (sum, v) => sum + getVehicleMonthlyPrice(v.type, plan.monthlyBasePrice),
+                  0
+                );
 
                 return (
                   <div
                     key={plan.id}
                     onClick={() => setSelectedPlanId(plan.id)}
-                    className={`relative p-6 sm:p-7 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between ${
-                      isSelected
-                        ? 'bg-blue-600/15 border-blue-400 shadow-[0_10px_35px_rgba(79,124,255,0.3)] scale-[1.02]'
-                        : 'bg-white/5 border-white/10 hover:border-white/25 hover:bg-white/10'
-                    }`}
+                    className="relative p-7 sm:p-8 rounded-3xl border transition-all cursor-pointer flex flex-col justify-between bg-blue-600/15 border-blue-400 shadow-[0_10px_35px_rgba(79,124,255,0.3)]"
                   >
                     {/* Badge */}
                     {plan.badge && (
-                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-[10px] font-black uppercase tracking-widest text-white shadow-md">
+                      <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 text-[10px] font-black uppercase tracking-widest text-white shadow-md">
                         {plan.badge}
                       </span>
                     )}
@@ -880,47 +919,78 @@ export default function SignUpPage() {
                       {/* Plan Header */}
                       <div className="flex items-center justify-between">
                         <div>
-                          <h4 className="text-base font-black text-white">{plan.name}</h4>
-                          <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{plan.tagline}</p>
+                          <h4 className="text-xl font-black text-white">{plan.name}</h4>
+                          <p className="text-xs text-slate-400 mt-0.5 leading-snug">{plan.tagline}</p>
                         </div>
-                        <div
-                          className={`w-6 h-6 rounded-full border flex items-center justify-center ${
-                            isSelected
-                              ? 'bg-blue-500 border-blue-400 text-white'
-                              : 'border-white/20'
-                          }`}
-                        >
-                          {isSelected && <Check className="w-3.5 h-3.5" />}
+                        <div className="w-6 h-6 rounded-full border flex items-center justify-center bg-blue-500 border-blue-400 text-white">
+                          <Check className="w-3.5 h-3.5" />
                         </div>
                       </div>
 
-                      {/* Pricing */}
-                      <div className="pt-2 border-t border-white/10">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-3xl font-black text-white">₹{plan.monthlyBasePrice}</span>
-                          <span className="text-xs text-slate-400">/ car / mo</span>
+                      {/* Pricing As Per Registered Vehicle Body Type */}
+                      <div className="pt-3 border-t border-white/10 space-y-3">
+                        <div className="flex items-baseline gap-1.5">
+                          <span className="text-4xl font-black text-white">₹{totalCost}</span>
+                          <span className="text-xs text-slate-400 font-mono">
+                            / month {vehicles.length > 1 ? `(${vehicles.length} vehicles)` : ''}
+                          </span>
                         </div>
-                        {vehicles.length > 1 && (
-                          <div className="text-[11px] text-blue-300 font-mono font-semibold mt-1">
-                            Total: ₹{totalCost}/mo ({vehicles.length} cars)
+
+                        {/* Breakdown per vehicle body type */}
+                        <div className="p-3.5 bg-white/5 rounded-2xl border border-white/10 space-y-2">
+                          <div className="text-[10px] uppercase font-mono font-bold text-blue-400 flex items-center justify-between">
+                            <span>Plan Rate (As Per Body Type)</span>
+                            <span>6 Days / wk</span>
                           </div>
-                        )}
+                          {vehicles.map((v, i) => {
+                            const vPrice = getVehicleMonthlyPrice(v.type, plan.monthlyBasePrice);
+                            const vLabel =
+                              v.type === 'luxury'
+                                ? 'Luxury / 7-Seater+'
+                                : v.type === 'suv'
+                                ? 'Compact / Mid SUV'
+                                : v.type === 'bike'
+                                ? 'Motorcycle / Scooter'
+                                : 'Hatchback / Sedan';
+
+                            return (
+                              <div key={i} className="flex items-center justify-between text-xs font-mono">
+                                <span className="text-slate-300">
+                                  {v.make || 'Vehicle'} {v.model || ''} ({vLabel})
+                                </span>
+                                <span className="text-white font-bold">₹{vPrice} / mo</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Standard Rate Reference Guide */}
+                        <div className="grid grid-cols-3 gap-1.5 text-center text-[10px] font-mono pt-1">
+                          <div className="p-2 rounded-xl bg-white/5 border border-white/5">
+                            <span className="text-slate-400 block">Hatchback/Sedan</span>
+                            <span className="text-white font-bold">₹599/mo</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-white/5 border border-white/5">
+                            <span className="text-slate-400 block">Compact/Mid SUV</span>
+                            <span className="text-white font-bold">₹649/mo</span>
+                          </div>
+                          <div className="p-2 rounded-xl bg-white/5 border border-white/5">
+                            <span className="text-slate-400 block">Luxury/7-Seater+</span>
+                            <span className="text-white font-bold">₹799/mo</span>
+                          </div>
+                        </div>
                       </div>
 
                       {/* Key Frequencies */}
-                      <div className="space-y-2 py-2 border-y border-white/10 text-xs">
+                      <div className="py-2 border-y border-white/10 text-xs">
                         <div className="flex items-center gap-2 text-slate-200">
                           <Sparkles className="w-3.5 h-3.5 text-blue-400 shrink-0" />
                           <span className="font-semibold">{plan.washesPerWeek}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-slate-300">
-                          <Zap className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          <span>{plan.interiorFrequency}</span>
-                        </div>
                       </div>
 
                       {/* Bullet Features */}
-                      <ul className="space-y-2 text-[11px] text-slate-400">
+                      <ul className="space-y-2 text-xs text-slate-400">
                         {plan.features.map((feat, fIdx) => (
                           <li key={fIdx} className="flex items-start gap-2">
                             <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
@@ -932,13 +1002,9 @@ export default function SignUpPage() {
 
                     <button
                       type="button"
-                      className={`w-full mt-6 py-2.5 rounded-xl text-xs font-bold transition-all ${
-                        isSelected
-                          ? 'bg-blue-500 text-white font-black shadow-md'
-                          : 'bg-white/10 text-slate-300 hover:text-white'
-                      }`}
+                      className="w-full mt-6 py-3 rounded-xl text-xs font-bold transition-all bg-blue-500 text-white font-black shadow-md cursor-pointer"
                     >
-                      {isSelected ? '✓ Selected Plan' : 'Select Plan'}
+                      ✓ Selected Plan (HOME BASIC)
                     </button>
                   </div>
                 );
@@ -976,62 +1042,106 @@ export default function SignUpPage() {
             onSubmit={handleFinalSubmit}
             className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-200"
           >
-            <div className="p-6 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-xl flex items-center justify-between">
+            <div className="p-6 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 shrink-0">
                   <span className="text-xl">🧼</span>
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">Choose Your Dedicated Washer Partner</h3>
-                  <p className="text-xs text-slate-400">
-                    Verified service partner assigned to your society morning route with daily photo verification.
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="text-sm font-bold text-white">Choose Your Dedicated Washer Partner</h3>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-300 text-[10px] font-mono font-bold border border-emerald-400/30 flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      Firebase Verified Partners ({availableWashers.length})
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Verified service partners from Firebase assigned to your society morning route with daily photo verification.
                   </p>
                 </div>
               </div>
-              <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-white/10 text-white">
-                Step 4 of 4
-              </span>
+              <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                <button
+                  type="button"
+                  onClick={loadFirebaseWashers}
+                  disabled={isLoadingWashers}
+                  className="px-2.5 py-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  title="Reload Live Washers from Firebase"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isLoadingWashers ? 'animate-spin text-emerald-400' : ''}`} />
+                  <span className="text-[11px] font-mono">Sync</span>
+                </button>
+                <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-white/10 text-white">
+                  Step 4 of 4
+                </span>
+              </div>
             </div>
 
             {/* Washer Partner Cards Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {availableWashers.map((washer) => {
-                const isSelected = selectedWasherId === washer.id;
+              {availableWashers.length === 0 ? (
+                <div className="col-span-full p-8 rounded-3xl bg-white/5 border border-white/10 text-center space-y-3">
+                  {isLoadingWashers ? (
+                    <div className="flex flex-col items-center justify-center gap-3 py-6">
+                      <RefreshCw className="w-6 h-6 animate-spin text-emerald-400" />
+                      <p className="text-xs text-slate-300 font-medium">Fetching verified partners from Firebase...</p>
+                    </div>
+                  ) : (
+                    <div className="py-6 space-y-2">
+                      <p className="text-sm font-bold text-white">No active partners found for this route yet</p>
+                      <p className="text-xs text-slate-400">Our operations team will automatically allocate a verified society washer upon membership activation.</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                availableWashers.map((washer) => {
+                  const isSelected = selectedWasherId === washer.id;
 
-                return (
-                  <div
-                    key={washer.id}
-                    onClick={() => setSelectedWasherId(washer.id)}
-                    className={`p-6 rounded-3xl border transition-all cursor-pointer relative flex flex-col justify-between ${
-                      isSelected
-                        ? 'bg-emerald-600/15 border-emerald-400 shadow-[0_10px_35px_rgba(16,185,129,0.25)] scale-[1.01]'
-                        : 'bg-white/5 border-white/10 hover:border-white/25 hover:bg-white/10'
-                    }`}
-                  >
-                    <div className="flex items-start gap-4">
-                      {/* Washer Avatar */}
-                      <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/20 shrink-0 bg-slate-800">
-                        <img
-                          src={washer.avatar || '/images/washer_amit.jpg'}
-                          alt={washer.name}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-base font-bold text-white">{washer.name}</h4>
-                          <div
-                            className={`w-6 h-6 rounded-full border flex items-center justify-center ${
-                              isSelected
-                                ? 'bg-emerald-500 border-emerald-400 text-slate-950 font-bold'
-                                : 'border-white/20'
-                            }`}
-                          >
-                            {isSelected && <Check className="w-3.5 h-3.5" />}
-                          </div>
+                  return (
+                    <div
+                      key={washer.id}
+                      onClick={() => setSelectedWasherId(washer.id)}
+                      className={`p-6 rounded-3xl border transition-all cursor-pointer relative flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-emerald-600/15 border-emerald-400 shadow-[0_10px_35px_rgba(16,185,129,0.25)] scale-[1.01]'
+                          : 'bg-white/5 border-white/10 hover:border-white/25 hover:bg-white/10'
+                      }`}
+                    >
+                      <div className="flex items-start gap-4">
+                        {/* Washer Avatar */}
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/20 shrink-0 bg-slate-800 relative">
+                          <img
+                            src={
+                              washer.avatar ||
+                              `https://ui-avatars.com/api/?name=${encodeURIComponent(washer.name || 'Partner')}&background=0B132B&color=10B981&bold=true`
+                            }
+                            alt={washer.name}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
+
+                        {/* Info */}
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-base font-bold text-white">{washer.name}</h4>
+                              {(washer as any).isFirebaseLive && (
+                                <span className="text-[9px] font-mono font-bold text-emerald-300 bg-emerald-500/15 px-1.5 py-0.5 rounded border border-emerald-500/30 flex items-center gap-1">
+                                  <span className="w-1 h-1 rounded-full bg-emerald-400 animate-pulse" />
+                                  Firebase Partner
+                                </span>
+                              )}
+                            </div>
+                            <div
+                              className={`w-6 h-6 rounded-full border flex items-center justify-center ${
+                                isSelected
+                                  ? 'bg-emerald-500 border-emerald-400 text-slate-950 font-bold'
+                                  : 'border-white/20'
+                              }`}
+                            >
+                              {isSelected && <Check className="w-3.5 h-3.5" />}
+                            </div>
+                          </div>
 
                         <p className="text-xs text-slate-400 flex items-center gap-1.5">
                           <MapPin className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
@@ -1088,7 +1198,7 @@ export default function SignUpPage() {
                     </button>
                   </div>
                 );
-              })}
+              }))}
             </div>
 
             {/* Summary Review Card */}
@@ -1115,7 +1225,7 @@ export default function SignUpPage() {
                   </span>
                   <div className="font-bold text-blue-400 mt-0.5">{selectedPlan.name}</div>
                   <div className="text-[11px] text-slate-300 font-semibold mt-0.5">
-                    ₹{selectedPlan.monthlyBasePrice * vehicles.length}/mo • {selectedPlan.washesPerWeek}
+                    ₹{vehicles.reduce((sum, v) => sum + getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice), 0)}/mo • {selectedPlan.washesPerWeek}
                   </div>
                 </div>
 
@@ -1123,9 +1233,11 @@ export default function SignUpPage() {
                   <span className="text-slate-400 block text-[10px] uppercase font-mono">
                     Assigned Washer Partner
                   </span>
-                  <div className="font-bold text-emerald-400 mt-0.5">{selectedWasher.name}</div>
+                  <div className="font-bold text-emerald-400 mt-0.5">
+                    {selectedWasher?.name || availableWashers[0]?.name || 'Auto-Assigned Route Partner'}
+                  </div>
                   <div className="text-[11px] text-slate-300 mt-0.5 font-mono">
-                    Route: {selectedWasher.routeWindow}
+                    Route: {selectedWasher?.routeWindow || availableWashers[0]?.routeWindow || '06:30 AM - 09:30 AM'}
                   </div>
                 </div>
               </div>
