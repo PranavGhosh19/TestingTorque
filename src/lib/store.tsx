@@ -28,6 +28,11 @@ import { isWashFromToday, getTodayISTDate } from './washUtils';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
+import {
+  enqueueWashUpload,
+  getPendingUploadsCount,
+  drainUploadQueue,
+} from './offlineUploadQueue';
 import { signOutFirebaseUser } from './firebaseAuth';
 
 interface StoreContextType {
@@ -638,8 +643,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Initialize resilient upload queue count and wire change events
+    setOfflineQueueCount(getPendingUploadsCount());
+    const handleQueueChange = () => {
+      setOfflineQueueCount(getPendingUploadsCount());
+    };
+    window.addEventListener('torque_upload_queue_changed', handleQueueChange);
+    window.addEventListener('online', handleQueueChange);
+    window.addEventListener('offline', handleQueueChange);
+
     return () => {
       unsubscribeAuth();
+      window.removeEventListener('torque_upload_queue_changed', handleQueueChange);
+      window.removeEventListener('online', handleQueueChange);
+      window.removeEventListener('offline', handleQueueChange);
     };
   }, []);
 
@@ -790,7 +807,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         updatedAt: serverTimestamp(),
       },
       { merge: true }
-    ).catch((err) => console.warn('users/{uid} sync notice:', err));
+    ).catch((err: any) => console.warn('users/{uid} sync notice:', err));
 
     setUser(newUser);
     setRole('owner');
@@ -1209,12 +1226,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     setWashes((prev) => [newWashRecord, ...prev]);
 
-    // Asynchronously sync wash record to Firebase
-    try {
-      await syncWashRecordToFirestore(newWashRecord, currentStop?.owner_id);
-    } catch (err) {
-      console.warn('Firebase syncWashRecord error:', err);
-    }
+    // Persist immediately to resilient offline upload queue and trigger background sync
+    enqueueWashUpload(stopNumber, newWashRecord, currentStop?.owner_id);
+    setOfflineQueueCount(getPendingUploadsCount());
 
     // Send owner notification
     setNotifications((prev) => [
@@ -1271,33 +1285,36 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }));
 
     // Record in washes list
-    setWashes((prev) => [
-      {
-        id: `wash_unavail_${Date.now()}`,
-        vehicle_id: currentStop?.vehicle_id || 'veh_honda_city',
-        vehicle_name: currentStop?.vehicle_name || 'Honda City',
-        registration_number: currentStop?.registration_number || 'DL 01 AB 4291',
-        parking_location: currentStop?.parking_location || 'Bay D-14',
-        washer_id: 'wsh_amit_1',
-        washer_name: 'Amit Kumar',
-        washer_avatar: '/images/washer_amit.jpg',
-        washer_rating: 4.9,
-        status: 'vehicle_unavailable',
-        outcome_label: 'Customer / Vehicle Unavailable',
-        washer_present: true,
-        service_possible: false,
-        payout_protected: true,
-        bay_empty_photo: evidence,
-        scheduled_date: 'Today',
-        scheduled_time: currentStop?.scheduled_time || '7:30 AM',
-        completed_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        location_verified: true,
-        is_sunday_priority: false,
-        is_backup_covered: false,
-        notes: 'Customer / Vehicle Unavailable. Washer reached assigned bay during scheduled window, but vehicle was not available. Washer present ✓. Service not possible. Washer payout protected ✓. Not classified as a missed wash by washer.',
-      },
-      ...prev,
-    ]);
+    const unavailWashRecord: WashRecord = {
+      id: `wash_unavail_${Date.now()}`,
+      vehicle_id: currentStop?.vehicle_id || 'veh_honda_city',
+      vehicle_name: currentStop?.vehicle_name || 'Honda City',
+      registration_number: currentStop?.registration_number || 'DL 01 AB 4291',
+      parking_location: currentStop?.parking_location || 'Bay D-14',
+      washer_id: 'wsh_amit_1',
+      washer_name: 'Amit Kumar',
+      washer_avatar: '/images/washer_amit.jpg',
+      washer_rating: 4.9,
+      status: 'vehicle_unavailable',
+      outcome_label: 'Customer / Vehicle Unavailable',
+      washer_present: true,
+      service_possible: false,
+      payout_protected: true,
+      bay_empty_photo: evidence,
+      scheduled_date: 'Today',
+      scheduled_time: currentStop?.scheduled_time || '7:30 AM',
+      completed_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      location_verified: true,
+      is_sunday_priority: false,
+      is_backup_covered: false,
+      notes: 'Customer / Vehicle Unavailable. Washer reached assigned bay during scheduled window, but vehicle was not available. Washer present ✓. Service not possible. Washer payout protected ✓. Not classified as a missed wash by washer.',
+    };
+
+    setWashes((prev) => [unavailWashRecord, ...prev]);
+
+    // Resilient offline queue persistence for empty bay proof
+    enqueueWashUpload(stopNumber, unavailWashRecord, currentStop?.owner_id);
+    setOfflineQueueCount(getPendingUploadsCount());
 
     // Send owner notification
     setNotifications((prev) => [

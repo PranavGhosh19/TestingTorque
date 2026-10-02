@@ -45,6 +45,7 @@ export default function WasherDashboardPage() {
     washerEarnings,
     setWasherEarnings,
     isOffline,
+    offlineQueueCount,
   } = useStore();
 
   // Firebase Washer Partner live state
@@ -257,6 +258,20 @@ export default function WasherDashboardPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-7">
+        {/* RESILIENT BASEMENT OFFLINE UPLOAD QUEUE BANNER */}
+        {offlineQueueCount > 0 && (
+          <div className="flex items-center justify-between p-3.5 px-4 rounded-2xl bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-semibold backdrop-blur-md shadow-lg animate-pulse">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0" />
+              <span>
+                📶 <strong>{offlineQueueCount} wash proof{offlineQueueCount > 1 ? 's' : ''}</strong> saved securely on this device (Basement Offline Mode).
+              </span>
+            </div>
+            <span className="text-[10px] font-mono font-bold bg-amber-950/80 px-2.5 py-1 rounded-md border border-amber-500/30 text-amber-200 shrink-0">
+              Auto-syncing to cloud
+            </span>
+          </div>
+        )}
         {/* ============================================================ */}
         {/* 2. TOTAL TARGET OVERVIEW CARD                                */}
         {/* ============================================================ */}

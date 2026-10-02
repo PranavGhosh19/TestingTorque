@@ -43,6 +43,7 @@ export default function WasherWashWorkflowModal({
   const emptyBayFileInputRef = useRef<HTMLInputElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isStartingCameraRef = useRef<boolean>(false);
+  const cameraRequestIdRef = useRef<number>(0);
 
   // Real-time live timestamp generator (IST)
   useEffect(() => {
@@ -68,6 +69,8 @@ export default function WasherWashWorkflowModal({
 
   // Bulletproof camera shutdown: stops all hardware tracks & clears video pipeline
   const stopLiveCamera = () => {
+    // Invalidate any pending or in-flight getUserMedia requests
+    cameraRequestIdRef.current += 1;
     isStartingCameraRef.current = false;
 
     // 1. Terminate all tracks on streamRef
@@ -107,11 +110,12 @@ export default function WasherWashWorkflowModal({
     setCameraLoading(false);
   };
 
-  // Live Camera Controls: Opens device rear camera feed
+  // Live Camera Controls: Opens device rear camera feed with single-lifecycle guarantee
   const startLiveCamera = async () => {
     if (isStartingCameraRef.current) return;
     if (streamRef.current && cameraActive) return;
 
+    const currentRequestId = ++cameraRequestIdRef.current;
     isStartingCameraRef.current = true;
     setCameraError(null);
     setCameraLoading(true);
@@ -139,8 +143,8 @@ export default function WasherWashWorkflowModal({
         audio: false,
       });
 
-      // If user closed modal while awaiting camera permission prompt, shut down immediately
-      if (!isStartingCameraRef.current) {
+      // If stopLiveCamera was invoked or a newer request occurred while awaiting prompt:
+      if (cameraRequestIdRef.current !== currentRequestId) {
         stream.getTracks().forEach((t) => {
           t.stop();
           t.enabled = false;
@@ -159,16 +163,20 @@ export default function WasherWashWorkflowModal({
       }
       setCameraActive(true);
     } catch (err: any) {
-      console.warn('Live camera notice:', err?.message || err);
-      setCameraActive(false);
-      setCameraError(err?.message || 'Camera permission required');
+      if (cameraRequestIdRef.current === currentRequestId) {
+        console.warn('Live camera notice:', err?.message || err);
+        setCameraActive(false);
+        setCameraError(err?.message || 'Camera permission required');
+      }
     } finally {
-      setCameraLoading(false);
-      isStartingCameraRef.current = false;
+      if (cameraRequestIdRef.current === currentRequestId) {
+        setCameraLoading(false);
+        isStartingCameraRef.current = false;
+      }
     }
   };
 
-  // Lifecycle: Single clean effect to start camera on open, stop on close
+  // Lifecycle: Single clean effect to start camera on open, stop on close or background
   useEffect(() => {
     if (isOpen && stop) {
       setStep('after');
@@ -178,8 +186,24 @@ export default function WasherWashWorkflowModal({
       stopLiveCamera();
     }
 
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        stopLiveCamera();
+      }
+    };
+    const handlePageHide = () => {
+      stopLiveCamera();
+    };
+
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handlePageHide);
+    window.addEventListener('beforeunload', handlePageHide);
+
     return () => {
       stopLiveCamera();
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handlePageHide);
+      window.removeEventListener('beforeunload', handlePageHide);
     };
   }, [isOpen, stop?.stop_number]);
 
@@ -291,22 +315,20 @@ export default function WasherWashWorkflowModal({
       return;
     }
 
-    // B. IMMEDIATELY TURN OFF CAMERA RECORDER (Stops camera hardware indicator on iOS/Android)
+    // B. IMMEDIATELY TURN OFF CAMERA HARDWARE (Stops camera hardware indicator on iOS/Android instantly)
     stopLiveCamera();
 
-    // C. Persist wash completion in Firestore and local store
-    try {
-      await washerCompleteWash(stop.stop_number, stampedPhoto);
-    } catch (err) {
-      console.warn('Firebase wash sync error:', err);
-    }
-
-    // D. Close camera modal immediately
+    // C. IMMEDIATELY CLOSE CAMERA MODAL (Zero network wait time for the washer in basements)
     setIsSaving(false);
     onClose();
     if (onFinishedNext) {
       onFinishedNext();
     }
+
+    // D. Hand off to resilient offline queue in the background
+    Promise.resolve(washerCompleteWash(stop.stop_number, stampedPhoto)).catch((err: any) => {
+      console.warn('Background wash completion sync notice:', err);
+    });
   };
 
   // Action: Empty Bay Capture -> Shut down camera recorder, Report unavailable & Close
@@ -335,24 +357,22 @@ export default function WasherWashWorkflowModal({
       return;
     }
 
-    // Stop recorder immediately
+    // Stop camera hardware immediately
     stopLiveCamera();
 
-    try {
-      await washerReportUnavailable(
-        stop.stop_number,
-        'Vehicle not at assigned parking bay',
-        stampedBay
-      );
-    } catch (err) {
-      console.warn('Firebase empty bay sync error:', err);
-    }
-
+    // Close modal immediately
     setIsSaving(false);
     onClose();
     if (onFinishedNext) {
       onFinishedNext();
     }
+
+    // Persist empty bay report via resilient queue
+    washerReportUnavailable(
+      stop.stop_number,
+      'Vehicle not at assigned parking bay',
+      stampedBay
+    );
   };
 
   return (
