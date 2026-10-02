@@ -218,37 +218,45 @@ export default function OwnerProofCalendar({
             return false;
           }
 
-          // Check if today matches
-          const sDate = (w.scheduled_date || '').toLowerCase().trim();
-          if (isToday && (sDate === 'today' || sDate === 'current')) return true;
-
-          // Check scheduled date strings
-          if (sDate.startsWith(isoDate)) return true;
-          if (sDate.includes(`${dPadded} ${monthShort.toLowerCase()}`)) return true;
-          if (sDate.includes(`${d} ${monthShort.toLowerCase()}`)) return true;
-
-          // Check captured_at timestamp
+          // 1. If wash has captured_at timestamp, strictly match calendar day!
           if ((w as any).captured_at) {
             const capDate = new Date((w as any).captured_at);
-            if (!isNaN(capDate.getTime()) && isSameDay(capDate, fullDate)) {
-              return true;
+            if (!isNaN(capDate.getTime())) {
+              return isSameDay(capDate, fullDate);
             }
           }
 
-          // Check created_at timestamp
+          // 2. If wash has created_at timestamp, strictly match calendar day!
           if ((w as any).created_at) {
             const crDate = new Date((w as any).created_at);
-            if (!isNaN(crDate.getTime()) && isSameDay(crDate, fullDate)) {
-              return true;
+            if (!isNaN(crDate.getTime())) {
+              return isSameDay(crDate, fullDate);
             }
           }
 
-          // Check completed_at timestamp
-          if (w.completed_at) {
+          // 3. Check scheduled_date with exact ISO date (e.g. 2026-10-02)
+          const sDate = (w.scheduled_date || '').trim();
+          if (sDate.startsWith(isoDate)) return true;
+
+          // 4. Check date in wash ID (e.g. wash_veh_..._2026-10-02)
+          if (w.id && w.id.includes(isoDate)) return true;
+
+          // 5. Check completed_at timestamp
+          if (w.completed_at && w.completed_at.includes('-')) {
             const compDate = new Date(w.completed_at);
-            if (!isNaN(compDate.getTime()) && isSameDay(compDate, fullDate)) {
-              return true;
+            if (!isNaN(compDate.getTime())) {
+              return isSameDay(compDate, fullDate);
             }
+          }
+
+          // 6. Check formatted date strings like "02 Oct" or "2 Oct"
+          if (sDate.includes(`${dPadded} ${monthShort.toLowerCase()}`) || sDate.includes(`${d} ${monthShort.toLowerCase()}`)) {
+            return true;
+          }
+
+          // 7. If scheduled_date is explicitly 'today' without any past timestamp, only match if isToday!
+          if (isToday && (sDate.toLowerCase() === 'today' || sDate.toLowerCase() === 'current')) {
+            return true;
           }
 
           return false;

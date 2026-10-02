@@ -24,6 +24,7 @@ import {
   resetOwnerFirestoreData,
 } from './firebaseService';
 import { WasherPartner, initialWasherPartners } from './washerPartners';
+import { isWashFromToday, getTodayISTDate } from './washUtils';
 
 interface StoreContextType {
   role: UserRole;
@@ -1106,7 +1107,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const currentStop = routeStops.find((s) => s.stop_number === stopNumber);
     const stopPayout = currentStop?.payout_amount || 35;
     const activeWasherName = user?.name || (typeof window !== 'undefined' ? localStorage.getItem('torque_washer_name') : null) || 'Amit Kumar';
-    const washId = currentStop?.wash_id || `wash_${currentStop?.vehicle_id || 'veh'}_today`;
+    const istInfo = getTodayISTDate();
+    const washId = currentStop?.wash_id && !currentStop.wash_id.endsWith('_today')
+      ? currentStop.wash_id
+      : `wash_${currentStop?.vehicle_id || 'veh'}_${istInfo.dateIso}`;
 
     setWasherEarnings((prev) => ({
       ...prev,
@@ -1126,7 +1130,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       washer_avatar: user?.avatar_url || '/images/washer_amit.jpg',
       washer_rating: 4.9,
       status: 'completed',
-      scheduled_date: 'Today',
+      scheduled_date: istInfo.dateIso,
       scheduled_time: currentStop?.scheduled_time || '7:30 AM',
       started_at: '7:40 AM',
       completed_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
@@ -1134,6 +1138,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       latitude: 28.5355,
       longitude: 77.3910,
       after_photo: afterImg,
+      captured_at: new Date().toISOString(),
       is_sunday_priority: false,
       is_backup_covered: false,
       offline_queued: isOffline,
@@ -1423,19 +1428,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ]);
   };
 
-  const todayWash = washes.find((w) => {
-    const isCompleted = w.status === 'completed';
-    const sched = (w.scheduled_date || '').toLowerCase().trim();
-    if (sched === 'today' && isCompleted) return true;
-    const now = new Date();
-    const dayPadded = String(now.getDate()).padStart(2, '0');
-    const monthNames = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-    const currentMonth = monthNames[now.getMonth()];
-    if ((sched.includes(currentMonth) && (sched.includes(dayPadded) || sched.includes(String(now.getDate())))) && isCompleted) {
-      return true;
-    }
-    return false;
-  });
+  const todayWash = washes.find((w) => isWashFromToday(w));
 
   return (
     <StoreContext.Provider

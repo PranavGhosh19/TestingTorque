@@ -32,6 +32,24 @@ service cloud.firestore {
         allow read, create, update: if true;
         allow delete: if isAdmin();
 
+        // Month -> Date Hierarchy
+        // Car_Owners/{ownerId}/Vehicles/{vehicleId}/{monthCol}/{dateDoc}
+        match /{monthCol}/{dateDoc} {
+          allow read, create, update: if true;
+          allow delete: if isAdmin();
+        }
+
+        // Nested Months collection
+        match /Months/{monthDoc} {
+          allow read, create, update: if true;
+          allow delete: if isAdmin();
+
+          match /Dates/{dateDoc} {
+            allow read, create, update: if true;
+            allow delete: if isAdmin();
+          }
+        }
+
         match /Washes/{washId} {
           allow read, create, update: if true;
           allow delete: if isAdmin();

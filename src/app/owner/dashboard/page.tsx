@@ -31,7 +31,7 @@ import OwnerBottomNav from '@/components/OwnerBottomNav';
 import { useStore } from '@/lib/store';
 import { fetchOwnerDashboardFromFirestore } from '@/lib/firebaseService';
 import { Vehicle, WasherPartner, WashRecord } from '@/lib/types';
-import { isPresentDateProofBefore10AM } from '@/lib/washUtils';
+import { isPresentDateProofBefore10AM, isWashFromToday } from '@/lib/washUtils';
 
 export default function OwnerDashboardPage() {
   const router = useRouter();
@@ -116,29 +116,38 @@ export default function OwnerDashboardPage() {
 
   // Resolve today's wash for the active vehicle
   const activeTodayWash = useMemo(() => {
-    const allWashes = [...firebaseWashes, ...washes];
     const targetVehId = primaryVehicle?.id;
+    const combinedWashes = [...firebaseWashes, ...washes];
 
-    const matched = allWashes.find((w) => {
+    const matched = combinedWashes.find((w) => {
       const isVehMatch = !targetVehId || w.vehicle_id === targetVehId;
       if (!isVehMatch) return false;
-      const { isToday } = isPresentDateProofBefore10AM(w);
-      return isToday;
+      return isWashFromToday(w);
     });
 
     if (matched) return matched;
-    if (firebaseTodayWash && (!targetVehId || firebaseTodayWash.vehicle_id === targetVehId)) {
+    if (firebaseTodayWash && (!targetVehId || firebaseTodayWash.vehicle_id === targetVehId) && isWashFromToday(firebaseTodayWash)) {
       return firebaseTodayWash;
     }
-    if (todayWash && (!targetVehId || todayWash.vehicle_id === targetVehId)) {
+    if (todayWash && (!targetVehId || todayWash.vehicle_id === targetVehId) && isWashFromToday(todayWash)) {
       return todayWash;
     }
     return null;
   }, [firebaseWashes, washes, primaryVehicle?.id, firebaseTodayWash, todayWash]);
 
   const allVehicleWashes = useMemo(() => {
-    return [...firebaseWashes, ...washes];
-  }, [firebaseWashes, washes]);
+    const targetVehId = primaryVehicle?.id;
+    if (firebaseWashes.length > 0) {
+      if (targetVehId) {
+        return firebaseWashes.filter((w) => !w.vehicle_id || w.vehicle_id === targetVehId);
+      }
+      return firebaseWashes;
+    }
+    if (targetVehId) {
+      return washes.filter((w) => !w.vehicle_id || w.vehicle_id === targetVehId);
+    }
+    return washes;
+  }, [firebaseWashes, washes, primaryVehicle?.id]);
 
   const verifiedWashesCount = useMemo(() => {
     const targetVehId = primaryVehicle?.id;

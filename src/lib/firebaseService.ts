@@ -16,6 +16,7 @@ import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage } from './firebase';
 import { User, Vehicle, WashRecord, RouteStop } from './types';
 import { WasherPartner } from './washerPartners';
+import { isWashFromToday, getTodayISTDate } from './washUtils';
 
 /**
  * Payout per vehicle wash:
@@ -553,24 +554,60 @@ export async function fetchWasherDashboardDataFromFirestore(
         );
 
         if (isAssigned) {
-          // Fetch wash record for this vehicle
+          // Fetch wash record for this vehicle (check both Washes and current Month)
           let washRecord: any = null;
+          const today = getTodayISTDate();
+
           try {
-            const wSnap = await getDocs(collection(db, 'Car_Owners', ownerId, 'Vehicles', vId, 'Washes'));
-            if (!wSnap.empty) {
-              washRecord = { id: wSnap.docs[0].id, ...wSnap.docs[0].data() };
+            // 1. Check current Month subcollection: Car_Owners/{ownerId}/Vehicles/{vId}/{today.monthKey}/{today.dateIso}
+            const dateDoc = await getDoc(doc(db, 'Car_Owners', ownerId, 'Vehicles', vId, today.monthKey, today.dateIso));
+            if (dateDoc.exists()) {
+              washRecord = { id: dateDoc.id, ...dateDoc.data() };
             }
-          } catch (err) {
-            console.warn('Could not fetch washes for vehicle:', vId, err);
+          } catch (mErr) {
+            // ignore
           }
 
-          const status = washRecord?.status || 'pending';
-          const proofPhoto = washRecord?.proof?.photoUrl || washRecord?.after_photo;
+          if (!washRecord) {
+            try {
+              const wSnap = await getDocs(collection(db, 'Car_Owners', ownerId, 'Vehicles', vId, 'Washes'));
+              // Find if any wash in Washes was completed TODAY
+              const foundToday = wSnap.docs.find((d) => {
+                const data = d.data();
+                return isWashFromToday({
+                  id: d.id,
+                  status: data.status,
+                  scheduled_date: data.scheduledDate,
+                  captured_at: data.proof?.capturedAt,
+                  created_at: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+                  completed_at: data.completedAt,
+                } as any);
+              });
+
+              if (foundToday) {
+                washRecord = { id: foundToday.id, ...foundToday.data() };
+              }
+            } catch (err) {
+              console.warn('Could not fetch washes for vehicle:', vId, err);
+            }
+          }
+
+          const isCompletedToday = Boolean(washRecord && isWashFromToday({
+            id: washRecord.id || washRecord.washId,
+            status: washRecord.status,
+            scheduled_date: washRecord.scheduledDate || washRecord.date,
+            captured_at: washRecord.proof?.capturedAt,
+            created_at: washRecord.createdAt?.toDate ? washRecord.createdAt.toDate().toISOString() : washRecord.createdAt,
+            completed_at: washRecord.completedAt,
+          } as any));
+
+          const status = isCompletedToday ? 'completed' : 'pending';
+          const proofPhoto = isCompletedToday ? (washRecord?.proof?.photoUrl || washRecord?.after_photo) : undefined;
           const payoutAmount = getWasherPayoutPerWash(vData);
 
           stops.push({
             stop_number: stops.length + 1,
-            wash_id: washRecord?.id || `wash_${vId}_today`,
+            wash_id: isCompletedToday ? (washRecord?.id || `wash_${vId}_${today.dateIso}`) : `wash_${vId}_${today.dateIso}`,
             vehicle_id: vId,
             vehicle_name: `${vData.make || ''} ${vData.model || ''}`.trim() || 'Assigned Vehicle',
             registration_number: vData.registrationNumber || vData.registration_number || '',
@@ -582,7 +619,7 @@ export async function fetchWasherDashboardDataFromFirestore(
             owner_id: ownerId,
             payout_amount: payoutAmount,
             society_name: vData.societyName || vData.society_name || washer?.society || 'Green Valley Residency',
-            proof_photo: proofPhoto || undefined,
+            proof_photo: proofPhoto,
             washer_id: assignedWasherId,
             washer_name: assignedWasherName,
           });
@@ -714,27 +751,66 @@ export async function syncWashRecordToFirestore(
     }
 
     if (resolvedOwnerId && wash.vehicle_id) {
-      const washId = wash.id || `wash_${wash.vehicle_id}_today`;
-      const washRef = doc(db, 'Car_Owners', resolvedOwnerId, 'Vehicles', wash.vehicle_id, 'Washes', washId);
-      await setDoc(
-        washRef,
-        {
-          washId,
-          vehicleId: wash.vehicle_id,
-          washerId: wash.washer_id || 'wsh_amit',
-          washerName: wash.washer_name || 'Washer Partner',
-          scheduledDate: wash.scheduled_date || 'Today',
-          completedAt: wash.completed_at || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          status: wash.status || 'completed',
-          proof: {
-            photoUrl: wash.after_photo || '/images/honda_city_after.jpg',
-            capturedAt: new Date().toISOString(),
-          },
-          updatedAt: serverTimestamp(),
-          createdAt: serverTimestamp(),
+      // 1. Compute exact date components in IST
+      const now = new Date();
+      const istInfo = getTodayISTDate(now);
+      const dateIso = wash.scheduled_date && wash.scheduled_date.match(/^\d{4}-\d{2}-\d{2}$/)
+        ? wash.scheduled_date
+        : istInfo.dateIso;
+      const monthKey = istInfo.monthKey; // e.g. "October_2026"
+      const completedTime = wash.completed_at || now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const photoUrl = wash.after_photo || '/images/honda_city_after.jpg';
+      const capturedAt = wash.captured_at || now.toISOString();
+
+      const washId = wash.id && !wash.id.endsWith('_today')
+        ? wash.id
+        : `wash_${wash.vehicle_id}_${dateIso}`;
+
+      const washDataToSave = {
+        washId,
+        date: dateIso,
+        day: Number(istInfo.dayNum),
+        month: istInfo.monthName,
+        year: istInfo.year,
+        monthKey,
+        vehicleId: wash.vehicle_id,
+        washerId: wash.washer_id || 'wsh_amit',
+        washerName: wash.washer_name || 'Washer Partner',
+        scheduledDate: dateIso,
+        completedAt: completedTime,
+        status: wash.status || 'completed',
+        proof: {
+          photoUrl,
+          capturedAt,
         },
-        { merge: true }
-      );
+        updatedAt: serverTimestamp(),
+        createdAt: serverTimestamp(),
+      };
+
+      // STRUCTURE: Car_Owners --> ID --> Vehicle --> Month (starts from sign-up month) --> Date --> data saved
+      // 1. Direct collection per Month: Car_Owners/{ownerId}/Vehicles/{vehicleId}/{monthKey}/{dateIso}
+      try {
+        const monthDateDocRef = doc(db, 'Car_Owners', resolvedOwnerId, 'Vehicles', wash.vehicle_id, monthKey, dateIso);
+        await setDoc(monthDateDocRef, washDataToSave, { merge: true });
+      } catch (err1) {
+        console.warn('Error saving to monthDateDocRef:', err1);
+      }
+
+      // 2. Nested Months collection: Car_Owners/{ownerId}/Vehicles/{vehicleId}/Months/{monthKey}/Dates/{dateIso}
+      try {
+        const nestedMonthDocRef = doc(db, 'Car_Owners', resolvedOwnerId, 'Vehicles', wash.vehicle_id, 'Months', monthKey, 'Dates', dateIso);
+        await setDoc(nestedMonthDocRef, washDataToSave, { merge: true });
+      } catch (err2) {
+        console.warn('Error saving to nestedMonthDocRef:', err2);
+      }
+
+      // 3. Washes subcollection for compatibility: Car_Owners/{ownerId}/Vehicles/{vehicleId}/Washes/{washId}
+      try {
+        const washRef = doc(db, 'Car_Owners', resolvedOwnerId, 'Vehicles', wash.vehicle_id, 'Washes', washId);
+        await setDoc(washRef, washDataToSave, { merge: true });
+      } catch (err3) {
+        console.warn('Error saving to washRef:', err3);
+      }
 
       // Also update the vehicle document with last wash completion status
       try {
@@ -742,8 +818,8 @@ export async function syncWashRecordToFirestore(
         await setDoc(
           vehicleRef,
           {
-            lastWashDate: 'Today',
-            lastWashTime: wash.completed_at || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            lastWashDate: dateIso,
+            lastWashTime: completedTime,
             lastWashStatus: 'completed',
             updatedAt: serverTimestamp(),
           },
@@ -962,13 +1038,47 @@ export async function fetchOwnerDashboardFromFirestore(
             subscription_price: vPrice,
           };
 
-          // 3. Fetch Washes subcollection: Car_Owners/{ownerId}/Vehicles/{vehicleId}/Washes
+          // 3. Fetch Month and Washes subcollections:
+          // Car_Owners/{ownerId}/Vehicles/{vehicleId}/{monthKey}/{dateIso}
+          // Car_Owners/{ownerId}/Vehicles/{vehicleId}/Months/{monthKey}/Dates/{dateIso}
+          // Car_Owners/{ownerId}/Vehicles/{vehicleId}/Washes/{washId}
           try {
-            const washesSubRef = collection(db, 'Car_Owners', resolvedOwnerId, 'Vehicles', vId, 'Washes');
-            const wSnap = await getDocs(washesSubRef);
+            const currentIst = getTodayISTDate();
+            // Determine start month (from user created_at or subscription)
+            const startDate = result.user?.created_at ? new Date(result.user.created_at) : new Date();
+            const startYear = !isNaN(startDate.getTime()) ? startDate.getFullYear() : currentIst.year;
+            const startMonth = !isNaN(startDate.getTime()) ? startDate.getMonth() : new Date().getMonth();
+
+            const monthNames = [
+              'January', 'February', 'March', 'April', 'May', 'June',
+              'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+
+            const monthsToQuery: string[] = [];
+            // Generate list of months starting from owner signup month to current month
+            let curY = startYear;
+            let curM = startMonth;
+            const targetY = currentIst.year;
+            const targetM = new Date().getMonth();
+
+            while (curY < targetY || (curY === targetY && curM <= targetM)) {
+              monthsToQuery.push(`${monthNames[curM]}_${curY}`);
+              curM++;
+              if (curM > 11) {
+                curM = 0;
+                curY++;
+              }
+            }
+
+            // Ensure current month is always included
+            if (!monthsToQuery.includes(currentIst.monthKey)) {
+              monthsToQuery.push(currentIst.monthKey);
+            }
+
+            const washMap = new Map<string, WashRecord>();
             let vehicleWashCount = 0;
-            wSnap.forEach((wDoc) => {
-              const wData = wDoc.data();
+
+            const processWashDoc = (wDocId: string, wData: any) => {
               const proof = wData.proof || {};
               const resolvedWasherName =
                 (wData.washerName && wData.washerName !== 'Unregistered Owner' && wData.washerName !== 'Washer Partner'
@@ -979,13 +1089,11 @@ export async function fetchOwnerDashboardFromFirestore(
                 'Shubham G';
 
               const washPhotoUrl = proof.photoUrl || wData.photoUrl || (wData.status === 'completed' ? '/images/honda_city_after.jpg' : null);
+              const schedDate = wData.scheduledDate || wData.date || (wData.day ? `${wData.year}-${String(wData.monthNum || currentIst.monthNum).padStart(2, '0')}-${String(wData.day).padStart(2, '0')}` : 'Today');
+              const washUniqueKey = wData.washId || wDocId || `wash_${vId}_${schedDate}`;
 
-              if (wData.status === 'completed') {
-                vehicleWashCount++;
-              }
-
-              fetchedWashes.push({
-                id: wDoc.id || wData.washId,
+              const record: WashRecord = {
+                id: washUniqueKey,
                 vehicle_id: vId,
                 vehicle_name: `${vehicleObj.make} ${vehicleObj.model}`.trim() || 'Your Vehicle',
                 registration_number: vehicleObj.registration_number,
@@ -995,7 +1103,7 @@ export async function fetchOwnerDashboardFromFirestore(
                 washer_avatar: wData.washerAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedWasherName)}&background=0B132B&color=10B981&bold=true`,
                 washer_rating: 4.9,
                 status: (wData.status as any) || 'completed',
-                scheduled_date: wData.scheduledDate || 'Today',
+                scheduled_date: schedDate,
                 scheduled_time: vehicleObj.preferred_wash_time,
                 completed_at: wData.completedAt || null,
                 location_verified: true,
@@ -1004,7 +1112,43 @@ export async function fetchOwnerDashboardFromFirestore(
                 created_at: wData.createdAt?.toDate ? wData.createdAt.toDate().toISOString() : (typeof wData.createdAt === 'string' ? wData.createdAt : null),
                 is_sunday_priority: false,
                 is_backup_covered: false,
-              });
+              };
+
+              washMap.set(schedDate, record);
+              if (record.status === 'completed') {
+                vehicleWashCount++;
+              }
+            };
+
+            // 1. Query Month subcollections (e.g. October_2026)
+            for (const mKey of monthsToQuery) {
+              try {
+                const monthSubRef = collection(db, 'Car_Owners', resolvedOwnerId, 'Vehicles', vId, mKey);
+                const mSnap = await getDocs(monthSubRef);
+                mSnap.forEach((docSnap) => processWashDoc(docSnap.id, docSnap.data()));
+              } catch (mErr) {
+                // ignore
+              }
+              try {
+                const nestedSubRef = collection(db, 'Car_Owners', resolvedOwnerId, 'Vehicles', vId, 'Months', mKey, 'Dates');
+                const nSnap = await getDocs(nestedSubRef);
+                nSnap.forEach((docSnap) => processWashDoc(docSnap.id, docSnap.data()));
+              } catch (nErr) {
+                // ignore
+              }
+            }
+
+            // 2. Query legacy Washes subcollection for compatibility
+            try {
+              const washesSubRef = collection(db, 'Car_Owners', resolvedOwnerId, 'Vehicles', vId, 'Washes');
+              const wSnap = await getDocs(washesSubRef);
+              wSnap.forEach((wDoc) => processWashDoc(wDoc.id, wDoc.data()));
+            } catch (wErr) {
+              console.warn('Could not read vehicle washes subcollection:', wErr);
+            }
+
+            washMap.forEach((rec) => {
+              fetchedWashes.push(rec);
             });
 
             if (vehicleWashCount > 0) {
@@ -1013,7 +1157,7 @@ export async function fetchOwnerDashboardFromFirestore(
               vehicleObj.washes_this_month = 1;
             }
           } catch (wErr) {
-            console.warn('Could not read vehicle washes subcollection:', wErr);
+            console.warn('Could not read vehicle washes:', wErr);
           }
 
           fetchedVehicles.push(vehicleObj);
@@ -1024,7 +1168,12 @@ export async function fetchOwnerDashboardFromFirestore(
         }
         if (fetchedWashes.length > 0) {
           result.washes = fetchedWashes;
-          result.todayWash = fetchedWashes[0] || null;
+          // CRITICAL: ONLY set todayWash if a wash was ACTUALLY completed TODAY in IST!
+          // This ensures that previous days' wash proofs are NOT shown every day!
+          const todayWashCandidate = fetchedWashes.find((w) => isWashFromToday(w));
+          result.todayWash = todayWashCandidate || null;
+        } else {
+          result.todayWash = null;
         }
       } catch (subErr) {
         console.warn('Error reading Car_Owners subcollections:', subErr);

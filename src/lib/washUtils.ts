@@ -1,5 +1,113 @@
 import { WashRecord } from './types';
 
+export interface ISTDateInfo {
+  year: number;
+  monthNum: string; // '01'-'12'
+  dayNum: string;   // '01'-'31'
+  monthName: string; // 'October'
+  monthShort: string; // 'oct'
+  monthKey: string;  // 'October_2026'
+  dateIso: string;   // '2026-10-02'
+  dateDisplay: string; // '02 Oct'
+}
+
+/**
+ * Returns current date components in Indian Standard Time (Asia/Kolkata).
+ */
+export function getTodayISTDate(date = new Date()): ISTDateInfo {
+  const istFormatter = new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  const parts = istFormatter.formatToParts(date);
+  const dayNum = parts.find((p) => p.type === 'day')?.value || String(date.getDate()).padStart(2, '0');
+  const monthNum = parts.find((p) => p.type === 'month')?.value || String(date.getMonth() + 1).padStart(2, '0');
+  const year = Number(parts.find((p) => p.type === 'year')?.value || date.getFullYear());
+
+  const monthName = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', month: 'long' }).format(date);
+  const monthShort = new Intl.DateTimeFormat('en-IN', { timeZone: 'Asia/Kolkata', month: 'short' }).format(date).toLowerCase();
+
+  const monthKey = `${monthName}_${year}`;
+  const dateIso = `${year}-${monthNum}-${dayNum}`;
+  const dateDisplay = `${dayNum} ${monthName.slice(0, 3)}`;
+
+  return {
+    year,
+    monthNum,
+    dayNum,
+    monthName,
+    monthShort,
+    monthKey,
+    dateIso,
+    dateDisplay,
+  };
+}
+
+/**
+ * Checks whether a wash record was ACTUALLY executed/captured TODAY in Indian Standard Time.
+ * Prevents yesterday's or past wash proofs from showing as today's wash.
+ */
+export function isWashFromToday(wash?: WashRecord | null): boolean {
+  if (!wash) return false;
+
+  const today = getTodayISTDate();
+
+  // 1. Check captured_at ISO timestamp (most accurate)
+  if (wash.captured_at) {
+    const capDate = new Date(wash.captured_at);
+    if (!isNaN(capDate.getTime())) {
+      const capIST = getTodayISTDate(capDate);
+      return capIST.dateIso === today.dateIso;
+    }
+  }
+
+  // 2. Check created_at ISO timestamp or Firestore timestamp string
+  if (wash.created_at) {
+    const crDate = new Date(wash.created_at);
+    if (!isNaN(crDate.getTime())) {
+      const crIST = getTodayISTDate(crDate);
+      return crIST.dateIso === today.dateIso;
+    }
+  }
+
+  // 3. Check scheduled_date if in ISO format (e.g. '2026-10-02')
+  const sched = (wash.scheduled_date || '').trim();
+  if (sched === today.dateIso) {
+    return true;
+  }
+
+  // 4. If scheduled_date is explicitly 'Today' or 'current',
+  // verify it has NOT been saved with an older created_at / completed_at!
+  if (sched.toLowerCase() === 'today' || sched.toLowerCase() === 'current') {
+    // If completed_at is a full ISO timestamp, verify the day
+    if (wash.completed_at && wash.completed_at.includes('-')) {
+      const compDate = new Date(wash.completed_at);
+      if (!isNaN(compDate.getTime())) {
+        const compIST = getTodayISTDate(compDate);
+        return compIST.dateIso === today.dateIso;
+      }
+    }
+    // If no older timestamp is recorded and it's marked today, check wash id
+    if (wash.id && wash.id.includes('_')) {
+      const datePartMatch = wash.id.match(/\d{4}-\d{2}-\d{2}/);
+      if (datePartMatch) {
+        return datePartMatch[0] === today.dateIso;
+      }
+    }
+    // If purely a volatile in-memory 'Today' without a past timestamp:
+    return true;
+  }
+
+  // 5. Check if scheduled_date matches '02 Oct' or similar for today
+  if (sched.toLowerCase().includes(today.monthShort) && sched.includes(today.dayNum)) {
+    return true;
+  }
+
+  return false;
+}
+
 export interface ProofVerificationResult {
   isWashedToday: boolean;
   isToday: boolean;
@@ -29,64 +137,8 @@ export function isPresentDateProofBefore10AM(wash?: WashRecord | null): ProofVer
   const hasProof = Boolean(wash.after_photo && wash.after_photo.trim().length > 0);
   const isCompleted = wash.status === 'completed';
 
-  // 2. Present Date check (Indian Standard Time Asia/Kolkata)
-  const now = new Date();
-  const istFormatter = new Intl.DateTimeFormat('en-IN', {
-    timeZone: 'Asia/Kolkata',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-  
-  // Format now as e.g. "1 Oct 2026"
-  const nowParts = istFormatter.formatToParts(now);
-  const currentDay = Number(nowParts.find((p) => p.type === 'day')?.value || now.getDate());
-  const currentMonthShort = (nowParts.find((p) => p.type === 'month')?.value || '').toLowerCase();
-  const currentYear = Number(nowParts.find((p) => p.type === 'year')?.value || now.getFullYear());
-
-  let isToday = false;
-  const sched = (wash.scheduled_date || '').toLowerCase().trim();
-
-  if (sched === 'today' || sched === 'current') {
-    isToday = true;
-  } else if (sched) {
-    // Check "01 Oct", "1 Oct", "1 Oct 2026", etc.
-    const dayPadded = String(currentDay).padStart(2, '0');
-    if (
-      (sched.includes(`${dayPadded} ${currentMonthShort}`) ||
-        sched.includes(`${currentDay} ${currentMonthShort}`) ||
-        sched.includes(currentMonthShort)) &&
-      (sched.includes(String(currentDay)) || sched.includes(dayPadded))
-    ) {
-      isToday = true;
-    } else {
-      // Try parsing date string
-      const parsedDate = new Date(wash.scheduled_date);
-      if (!isNaN(parsedDate.getTime())) {
-        const pParts = istFormatter.formatToParts(parsedDate);
-        const pDay = Number(pParts.find((p) => p.type === 'day')?.value);
-        const pMonth = (pParts.find((p) => p.type === 'month')?.value || '').toLowerCase();
-        const pYear = Number(pParts.find((p) => p.type === 'year')?.value);
-        if (pDay === currentDay && pMonth === currentMonthShort && pYear === currentYear) {
-          isToday = true;
-        }
-      }
-    }
-  }
-
-  // Also verify against completed_at date if it's an ISO timestamp
-  if (!isToday && wash.completed_at) {
-    const parsedComp = new Date(wash.completed_at);
-    if (!isNaN(parsedComp.getTime())) {
-      const cParts = istFormatter.formatToParts(parsedComp);
-      const cDay = Number(cParts.find((p) => p.type === 'day')?.value);
-      const cMonth = (cParts.find((p) => p.type === 'month')?.value || '').toLowerCase();
-      const cYear = Number(cParts.find((p) => p.type === 'year')?.value);
-      if (cDay === currentDay && cMonth === currentMonthShort && cYear === currentYear) {
-        isToday = true;
-      }
-    }
-  }
+  // 2. Strictly verify whether the wash is from the PRESENT DATE (today) in IST
+  const isToday = isWashFromToday(wash);
 
   // 3. Submitted Before 10:00 AM Check
   let isBefore10AM = false;
