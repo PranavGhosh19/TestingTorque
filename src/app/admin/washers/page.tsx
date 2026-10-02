@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -16,39 +16,111 @@ import {
   Phone,
   CreditCard,
   UserCheck,
+  UserX,
+  RotateCcw,
+  Search,
+  CheckCircle2,
+  AlertTriangle,
+  Clock,
+  Layers,
+  Activity,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
 import { useStore } from '@/lib/store';
+import { WasherPartner } from '@/lib/washerPartners';
 import OnboardWasherModal from '@/components/modals/OnboardWasherModal';
+import AppointWasherModal from '@/components/modals/AppointWasherModal';
+import DismissWasherModal from '@/components/modals/DismissWasherModal';
 
 export default function AdminWashersPage() {
-  const { washers } = useStore();
+  const { washers, routeStops, reinstateWasher } = useStore();
   const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false);
+  const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
+  const [appointPreselectedWasherId, setAppointPreselectedWasherId] = useState<string | undefined>();
+  const [isDismissModalOpen, setIsDismissModalOpen] = useState(false);
+  const [washerForDismissal, setWasherForDismissal] = useState<WasherPartner | null>(null);
+
+  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'dismissed'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Counts
+  const activeCount = useMemo(() => washers.filter((w) => w.status !== 'Dismissed').length, [washers]);
+  const dismissedCount = useMemo(() => washers.filter((w) => w.status === 'Dismissed').length, [washers]);
+
+  // Filtered list
+  const filteredWashers = useMemo(() => {
+    return washers.filter((w) => {
+      // Tab filter
+      if (activeTab === 'active' && w.status === 'Dismissed') return false;
+      if (activeTab === 'dismissed' && w.status !== 'Dismissed') return false;
+
+      // Search filter
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        w.name.toLowerCase().includes(q) ||
+        w.society.toLowerCase().includes(q) ||
+        w.phone.toLowerCase().includes(q) ||
+        (w.aadhaarNumber && w.aadhaarNumber.includes(q))
+      );
+    });
+  }, [washers, activeTab, searchQuery]);
+
+  const handleOpenAppoint = (e: React.MouseEvent, washerId?: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setAppointPreselectedWasherId(washerId);
+    setIsAppointModalOpen(true);
+  };
+
+  const handleOpenDismiss = (e: React.MouseEvent, washer: WasherPartner) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setWasherForDismissal(washer);
+    setIsDismissModalOpen(true);
+  };
+
+  const handleReinstate = async (e: React.MouseEvent, washerId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (confirm('Are you sure you want to reinstate this washer partner back to active duty?')) {
+      await reinstateWasher(washerId);
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-[#F5F7FA]">
       <AdminSidebar />
 
-      <main className="flex-1 pt-9 px-4 pb-6 sm:p-6 lg:p-10 space-y-8 overflow-y-auto pt-[max(env(safe-area-inset-top),2.25rem)]">
+      <main className="flex-1 pt-9 px-4 pb-6 sm:p-6 lg:p-10 space-y-7 overflow-y-auto pt-[max(env(safe-area-inset-top),2.25rem)]">
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-                Partner Management & Audit Portal
+                Partner Management & Operations
               </span>
               <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                 Aadhaar KYC Enforced
               </span>
+              <span className="text-[11px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                Live Route Sync
+              </span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0B132B] tracking-tight mt-1">
-              Washer Network
+              Washer Network & Fleet
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200">
-              {washers.length} Active Partners
-            </span>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={(e) => handleOpenAppoint(e)}
+              className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 font-bold text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Car className="w-4 h-4 text-emerald-600" />
+              <span>Appoint Washer to Car</span>
+            </button>
             <button
               type="button"
               onClick={() => setIsOnboardModalOpen(true)}
@@ -60,133 +132,330 @@ export default function AdminWashersPage() {
           </div>
         </div>
 
-        {/* Empty state if data was erased */}
-        {washers.length === 0 ? (
+        {/* Filter Tabs & Search Bar */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            <button
+              type="button"
+              onClick={() => setActiveTab('all')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'all'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              <span>All Partners</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
+              }`}>
+                {washers.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('active')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'active'
+                  ? 'bg-emerald-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-700'
+              }`}
+            >
+              <span>Active on Route</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                activeTab === 'active' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'
+              }`}>
+                {activeCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('dismissed')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                activeTab === 'dismissed'
+                  ? 'bg-red-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:bg-red-50 hover:text-red-700'
+              }`}
+            >
+              <span>Dismissed</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
+                activeTab === 'dismissed' ? 'bg-white/20 text-white' : 'bg-red-100 text-red-800'
+              }`}>
+                {dismissedCount}
+              </span>
+            </button>
+          </div>
+
+          <div className="relative w-full sm:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search partner, society, phone..."
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+            />
+          </div>
+        </div>
+
+        {/* Empty state */}
+        {filteredWashers.length === 0 ? (
           <div className="premium-card p-12 bg-white border-slate-200/90 text-center space-y-4 max-w-lg mx-auto shadow-xs">
             <div className="w-16 h-16 rounded-3xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto text-2xl">
               🧼
             </div>
             <h2 className="text-lg font-extrabold text-slate-900">
-              No Washer Partners Active
+              No Washers Found
             </h2>
             <p className="text-xs text-slate-500 leading-relaxed">
-              All data has been cleared. Onboard your first washer partner with government Aadhaar Card verification, mobile OTP authentication, and route assignment.
+              {searchQuery
+                ? `No partners match your search query "${searchQuery}". Try a different name or society.`
+                : activeTab === 'dismissed'
+                ? 'No washer partners are currently dismissed. All registered partners are active!'
+                : 'No washer partners available. Onboard your first washer partner with government Aadhaar Card verification.'}
             </p>
-            <button
-              type="button"
-              onClick={() => setIsOnboardModalOpen(true)}
-              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center gap-2 shadow-md cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Onboard First Partner with Aadhaar</span>
-            </button>
+            {activeTab === 'dismissed' ? (
+              <button
+                type="button"
+                onClick={() => setActiveTab('all')}
+                className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
+              >
+                View All Partners
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsOnboardModalOpen(true)}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center gap-2 shadow-md cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Onboard Partner with Aadhaar</span>
+              </button>
+            )}
           </div>
         ) : (
           /* Washer Cards Grid - Each links to dedicated page */
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {washers.map((w) => (
-              <Link
-                key={w.id}
-                href={`/admin/washers/${w.id}`}
-                className="premium-card p-6 bg-white border-slate-200/90 shadow-xs space-y-4 hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer group block"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3.5">
-                    <div className="relative w-14 h-14 rounded-2xl overflow-hidden border-2 border-emerald-500/80 shadow-xs shrink-0">
-                      <Image
-                        src={w.avatar}
-                        alt={w.name}
-                        fill
-                        className="object-cover"
-                      />
+            {filteredWashers.map((w) => {
+              // Calculate live today's route progress
+              const stops = routeStops.filter((s) => s.washer_id === w.id);
+              const totalStops = stops.length;
+              const completedStops = stops.filter((s) => s.status === 'completed').length;
+              const inProgressStop = stops.find((s) => s.status === 'current');
+              const completionPercent = totalStops > 0 ? Math.round((completedStops / totalStops) * 100) : 0;
+              const isDismissed = w.status === 'Dismissed';
+
+              return (
+                <div
+                  key={w.id}
+                  className={`premium-card p-6 bg-white border shadow-xs space-y-4 transition-all relative group flex flex-col justify-between ${
+                    isDismissed
+                      ? 'border-red-200/90 bg-red-50/15 opacity-90'
+                      : 'border-slate-200/90 hover:border-emerald-400 hover:shadow-md'
+                  }`}
+                >
+                  <div className="space-y-4">
+                    {/* Header Info */}
+                    <div className="flex items-start justify-between gap-3">
+                      <Link
+                        href={`/admin/washers/${w.id}`}
+                        className="flex items-center gap-3.5 group/link cursor-pointer"
+                      >
+                        <div className={`relative w-14 h-14 rounded-2xl overflow-hidden border-2 shadow-xs shrink-0 ${
+                          isDismissed ? 'border-red-400 grayscale' : 'border-emerald-500/80'
+                        }`}>
+                          <Image
+                            src={w.avatar}
+                            alt={w.name}
+                            fill
+                            className="object-cover"
+                          />
+                        </div>
+                        <div>
+                          <h2 className="text-base font-extrabold text-[#0B132B] group-hover/link:text-emerald-700 transition-colors flex items-center gap-1.5">
+                            <span>{w.name}</span>
+                            <ChevronRight className="w-4 h-4 text-slate-400 group-hover/link:translate-x-1 group-hover/link:text-emerald-600 transition-all" />
+                          </h2>
+                          <div className="flex items-center gap-2 text-xs font-bold text-amber-600 mt-0.5">
+                            <span className="flex items-center gap-1">
+                              <Star className="w-3.5 h-3.5 fill-amber-500" /> {w.rating} Rating
+                            </span>
+                            <span className="text-slate-400 font-normal">({w.reviewsCount} reviews)</span>
+                          </div>
+                        </div>
+                      </Link>
+
+                      <div className="text-right space-y-1 shrink-0">
+                        {isDismissed ? (
+                          <span className="text-[10px] font-black uppercase text-red-700 bg-red-100/80 px-2.5 py-1 rounded-full border border-red-300 block">
+                            Dismissed Partner
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 block">
+                            {w.status}
+                          </span>
+                        )}
+                        {w.aadhaarVerified && (
+                          <span className="text-[9px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 inline-block">
+                            UIDAI Aadhaar ✓
+                          </span>
+                        )}
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="text-base font-extrabold text-[#0B132B] group-hover:text-emerald-700 transition-colors flex items-center gap-1.5">
-                        <span>{w.name}</span>
-                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:translate-x-1 group-hover:text-emerald-600 transition-all" />
-                      </h2>
-                      <div className="flex items-center gap-2 text-xs font-bold text-amber-600 mt-0.5">
-                        <span className="flex items-center gap-1">
-                          <Star className="w-3.5 h-3.5 fill-amber-500" /> {w.rating} Rating
+
+                    {/* Dismissal Reason Notice (if dismissed) */}
+                    {isDismissed && (
+                      <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-900 flex items-start gap-2">
+                        <UserX className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                        <div>
+                          <span className="font-bold">Partner Access Revoked:</span>{' '}
+                          <span>{w.dismissalReason || 'Account deactivated by Manager'}</span>
+                          {w.dismissedAt && (
+                            <div className="text-[10px] text-red-600 font-mono mt-0.5">
+                              Dismissed on: {new Date(w.dismissedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* LIVE ROUTE PROGRESS TRACKING BAR */}
+                    {!isDismissed ? (
+                      <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/70 space-y-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-bold text-slate-700 flex items-center gap-1.5">
+                            <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Today&apos;s Route Progress</span>
+                          </span>
+                          <span className="font-mono font-bold text-slate-800">
+                            {completedStops} / {totalStops > 0 ? totalStops : w.assignedCarsPerDay} Stops ({completionPercent}%)
+                          </span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        <div className="w-full h-2 rounded-full bg-slate-200 overflow-hidden">
+                          <div
+                            className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                            style={{ width: `${completionPercent}%` }}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                          {inProgressStop ? (
+                            <span className="text-amber-700 font-semibold flex items-center gap-1">
+                              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                              Washing: {inProgressStop.vehicle_name} ({inProgressStop.parking_location})
+                            </span>
+                          ) : completedStops === totalStops && totalStops > 0 ? (
+                            <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" /> All daily stops completed
+                            </span>
+                          ) : (
+                            <span>Window: {w.routeWindow}</span>
+                          )}
+                          <span className="font-mono text-slate-600">{w.society}</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="p-3 rounded-2xl bg-slate-100 border border-slate-200 text-xs text-slate-500 flex items-center justify-between">
+                        <span>Route suspended</span>
+                        <span className="font-mono">Formerly: {w.society}</span>
+                      </div>
+                    )}
+
+                    {/* Quick Metrics */}
+                    <div className="grid grid-cols-3 gap-2 text-center">
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="text-[10px] text-slate-500 font-medium">Daily Target</div>
+                        <div className="text-sm font-black text-slate-900 mt-0.5 font-mono">
+                          {w.assignedCarsPerDay} Cars
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                        <div className="text-[10px] text-slate-500 font-medium">Absences</div>
+                        <div
+                          className={`text-sm font-black mt-0.5 font-mono ${
+                            w.absentThisMonth > 0 ? 'text-amber-600' : 'text-emerald-600'
+                          }`}
+                        >
+                          {w.absentThisMonth} {w.absentThisMonth === 1 ? 'day' : 'days'}
+                        </div>
+                      </div>
+                      <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-100">
+                        <div className="text-[10px] text-emerald-700 font-medium">Payouts Disbursed</div>
+                        <div className="text-sm font-black text-emerald-800 font-mono mt-0.5">
+                          ₹{w.monthlyPayoutsGone.toLocaleString()}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Cluster & Verification details */}
+                    <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 text-xs text-slate-600">
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Aadhaar Card:</span>
+                        <span className="font-mono font-bold text-slate-800">
+                          {w.aadhaarNumber ? `•••• •••• ${w.aadhaarNumber.slice(-4)}` : 'Verified on File'}
                         </span>
-                        <span className="text-slate-400 font-normal">({w.reviewsCount} reviews)</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-500">Phone Verification:</span>
+                        <span className="text-emerald-700 font-semibold flex items-center gap-1">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                          {w.phone}
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="text-right space-y-1">
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 block">
-                      {w.status}
-                    </span>
-                    {w.aadhaarVerified && (
-                      <span className="text-[9px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 inline-block">
-                        UIDAI Aadhaar ✓
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Quick Metrics */}
-                <div className="grid grid-cols-3 gap-2.5 pt-1 text-center">
-                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 group-hover:bg-slate-100/70 transition-colors">
-                    <div className="text-[11px] text-slate-500 font-medium">Cars / Day</div>
-                    <div className="text-base font-black text-slate-900 mt-0.5 font-mono">
-                      {w.assignedCarsPerDay}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-2xl bg-slate-50 border border-slate-100 group-hover:bg-slate-100/70 transition-colors">
-                    <div className="text-[11px] text-slate-500 font-medium">Monthly Absences</div>
-                    <div
-                      className={`text-base font-black mt-0.5 font-mono ${
-                        w.absentThisMonth > 0 ? 'text-amber-600' : 'text-emerald-600'
-                      }`}
+                  {/* MANAGER ACTIONS BAR */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
+                    <Link
+                      href={`/admin/washers/${w.id}`}
+                      className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 group/btn"
                     >
-                      {w.absentThisMonth} {w.absentThisMonth === 1 ? 'day' : 'days'}
+                      <span>Full Audit & Proofs</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover/btn:translate-x-1 transition-transform" />
+                    </Link>
+
+                    <div className="flex items-center gap-2">
+                      {!isDismissed ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenAppoint(e, w.id)}
+                            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center gap-1 border border-emerald-200 cursor-pointer transition-colors"
+                            title="Appoint vehicles to this washer"
+                          >
+                            <Car className="w-3.5 h-3.5 text-emerald-700" />
+                            <span>Appoint Cars</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleOpenDismiss(e, w)}
+                            className="px-2.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center gap-1 border border-red-200 cursor-pointer transition-colors"
+                            title="Dismiss washer partner"
+                          >
+                            <UserX className="w-3.5 h-3.5 text-red-600" />
+                            <span>Dismiss</span>
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => handleReinstate(e, w.id)}
+                          className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center gap-1.5 border border-blue-200 cursor-pointer transition-colors shadow-2xs"
+                          title="Reinstate washer partner"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                          <span>Reinstate Partner</span>
+                        </button>
+                      )}
                     </div>
                   </div>
-                  <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-100 group-hover:bg-emerald-100/70 transition-colors">
-                    <div className="text-[11px] text-emerald-700 font-medium">Payouts Gone</div>
-                    <div className="text-base font-black text-emerald-800 font-mono mt-0.5">
-                      ₹{w.monthlyPayoutsGone.toLocaleString()}
-                    </div>
-                  </div>
                 </div>
-
-                {/* Cluster & KYC Info */}
-                <div className="p-3.5 bg-slate-50 rounded-xl space-y-1.5 text-xs text-slate-600">
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Society Cluster:</span>
-                    <span className="font-semibold text-slate-900">{w.society}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Morning Route Window:</span>
-                    <span className="font-mono text-slate-800 font-semibold">{w.routeWindow}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Aadhaar Card:</span>
-                    <span className="font-mono font-bold text-slate-800">
-                      {w.aadhaarNumber ? `•••• •••• ${w.aadhaarNumber.slice(-4)}` : 'Verified on File'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Phone Verification:</span>
-                    <span className="text-emerald-700 font-semibold flex items-center gap-1">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                      {w.phone} (Verified)
-                    </span>
-                  </div>
-                </div>
-
-                {/* Action Banner */}
-                <div className="pt-2 flex items-center justify-between text-xs text-emerald-700 font-bold border-t border-slate-100">
-                  <span>View Dedicated Profile & Track Record</span>
-                  <span className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                    <span>Open Partner Page</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
-                  </span>
-                </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
@@ -196,7 +465,28 @@ export default function AdminWashersPage() {
         isOpen={isOnboardModalOpen}
         onClose={() => setIsOnboardModalOpen(false)}
       />
+
+      {/* Appoint Washer Modal */}
+      <AppointWasherModal
+        isOpen={isAppointModalOpen}
+        onClose={() => {
+          setIsAppointModalOpen(false);
+          setAppointPreselectedWasherId(undefined);
+        }}
+        preselectedWasherId={appointPreselectedWasherId}
+      />
+
+      {/* Dismiss Washer Modal */}
+      <DismissWasherModal
+        isOpen={isDismissModalOpen}
+        onClose={() => {
+          setIsDismissModalOpen(false);
+          setWasherForDismissal(null);
+        }}
+        washer={washerForDismissal}
+      />
     </div>
   );
 }
+
 

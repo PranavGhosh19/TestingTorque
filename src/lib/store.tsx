@@ -20,6 +20,9 @@ import {
   syncVehicleToFirestore,
   syncWashRecordToFirestore,
   syncWasherToFirestore,
+  dismissWasherInFirestore,
+  reinstateWasherInFirestore,
+  appointWasherToVehicleInFirestore,
   recordUserLogin,
   resetOwnerFirestoreData,
 } from './firebaseService';
@@ -86,6 +89,9 @@ interface StoreContextType {
     ifscCode?: string;
     address?: string;
   }) => WasherPartner;
+  dismissWasher: (washerId: string, reason?: string) => Promise<boolean>;
+  reinstateWasher: (washerId: string) => Promise<boolean>;
+  appointWasherToVehicle: (vehicleId: string, washerId: string, ownerId?: string) => Promise<boolean>;
   eraseAllData: () => void;
   resetOwnerData: () => Promise<void>;
   resetToDemoData: () => void;
@@ -1120,6 +1126,205 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return newPartner;
   };
 
+  const dismissWasher = async (washerId: string, reason = 'Administrative dismissal'): Promise<boolean> => {
+    const targetWasher = washers.find((w) => w.id === washerId);
+    const washerName = targetWasher?.name || 'Washer Partner';
+
+    // 1. Update local washer state
+    setWashers((prev) =>
+      prev.map((w) =>
+        w.id === washerId
+          ? {
+              ...w,
+              status: 'Dismissed',
+              dismissalReason: reason,
+              dismissedAt: new Date().toISOString(),
+            }
+          : w
+      )
+    );
+
+    // 2. Mark route stops as needing reassignment
+    setRouteStops((prev) =>
+      prev.map((s) =>
+        s.washer_id === washerId
+          ? { ...s, washer_name: `${washerName} (Dismissed - Reassign)` }
+          : s
+      )
+    );
+
+    // 3. Persist to localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('torque_washers');
+        if (stored) {
+          const list = JSON.parse(stored);
+          const updated = list.map((w: any) =>
+            w.id === washerId
+              ? { ...w, status: 'Dismissed', dismissalReason: reason, dismissedAt: new Date().toISOString() }
+              : w
+          );
+          localStorage.setItem('torque_washers', JSON.stringify(updated));
+        }
+      } catch (err) {
+        console.warn('LocalStorage error on dismissWasher:', err);
+      }
+    }
+
+    // 4. Sync dismissal to Firebase Firestore
+    dismissWasherInFirestore(washerId, reason).catch((err) => {
+      console.warn('Firebase dismissWasher error:', err);
+    });
+
+    // 5. Notify admin and system
+    setNotifications((prev) => [
+      {
+        id: `notif_dismiss_${Date.now()}`,
+        title: `Washer Partner Dismissed: ${washerName}`,
+        body: `${washerName} has been relieved of duty (${reason}). Review and reassign their vehicles to another active partner.`,
+        timestamp: 'Just now',
+        read: false,
+        category: 'system',
+      },
+      ...prev,
+    ]);
+
+    return true;
+  };
+
+  const reinstateWasher = async (washerId: string): Promise<boolean> => {
+    const targetWasher = washers.find((w) => w.id === washerId);
+    const washerName = targetWasher?.name || 'Washer Partner';
+
+    setWashers((prev) =>
+      prev.map((w) =>
+        w.id === washerId
+          ? {
+              ...w,
+              status: 'Active on Route',
+              dismissalReason: undefined,
+              dismissedAt: undefined,
+            }
+          : w
+      )
+    );
+
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('torque_washers');
+        if (stored) {
+          const list = JSON.parse(stored);
+          const updated = list.map((w: any) =>
+            w.id === washerId
+              ? { ...w, status: 'Active on Route', dismissalReason: undefined, dismissedAt: undefined }
+              : w
+          );
+          localStorage.setItem('torque_washers', JSON.stringify(updated));
+        }
+      } catch (err) {
+        console.warn('LocalStorage error on reinstateWasher:', err);
+      }
+    }
+
+    reinstateWasherInFirestore(washerId).catch((err) => {
+      console.warn('Firebase reinstateWasher error:', err);
+    });
+
+    setNotifications((prev) => [
+      {
+        id: `notif_reinstated_${Date.now()}`,
+        title: `Washer Reinstated ✓: ${washerName}`,
+        body: `${washerName} is restored to active status and available for route assignment.`,
+        timestamp: 'Just now',
+        read: false,
+        category: 'system',
+      },
+      ...prev,
+    ]);
+
+    return true;
+  };
+
+  const appointWasherToVehicle = async (
+    vehicleId: string,
+    washerId: string,
+    ownerId?: string
+  ): Promise<boolean> => {
+    const targetWasher = washers.find((w) => w.id === washerId);
+    const washerName = targetWasher?.name || 'Assigned Partner';
+
+    // 1. Update vehicle state
+    let targetPlate = '';
+    let targetVehicleName = '';
+    setVehicles((prev) =>
+      prev.map((v) => {
+        if (v.id === vehicleId) {
+          targetPlate = v.registration_number;
+          targetVehicleName = `${v.make} ${v.model}`;
+          return {
+            ...v,
+            assigned_washer_id: washerId,
+            assigned_washer_name: washerName,
+          };
+        }
+        return v;
+      })
+    );
+
+    // 2. Update route stops state
+    setRouteStops((prev) =>
+      prev.map((s) => {
+        if (s.vehicle_id === vehicleId) {
+          return {
+            ...s,
+            washer_id: washerId,
+            washer_name: washerName,
+          };
+        }
+        return s;
+      })
+    );
+
+    // 3. Persist to localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const storedVehicles = localStorage.getItem('torque_vehicles');
+        if (storedVehicles) {
+          const list = JSON.parse(storedVehicles);
+          const updated = list.map((v: any) =>
+            v.id === vehicleId
+              ? { ...v, assigned_washer_id: washerId, assigned_washer_name: washerName }
+              : v
+          );
+          localStorage.setItem('torque_vehicles', JSON.stringify(updated));
+        }
+      } catch (err) {
+        console.warn('LocalStorage error on appointWasherToVehicle:', err);
+      }
+    }
+
+    // 4. Sync appointment to Firestore
+    const resolvedOwnerId = ownerId || user.id || (typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') || 'usr_guest' : 'usr_guest');
+    appointWasherToVehicleInFirestore(resolvedOwnerId, vehicleId, washerId, washerName).catch((err) => {
+      console.warn('Firebase appointWasher error:', err);
+    });
+
+    // 5. Send confirmation notification
+    setNotifications((prev) => [
+      {
+        id: `notif_appoint_${Date.now()}`,
+        title: `Washer Appointed ✓: ${washerName}`,
+        body: `${washerName} has been appointed to care for ${targetPlate || 'Vehicle'} (${targetVehicleName || 'Customer Car'}).`,
+        timestamp: 'Just now',
+        read: false,
+        category: 'system',
+      },
+      ...prev,
+    ]);
+
+    return true;
+  };
+
   const verifyPhoneNumber = async (phone: string, otp: string): Promise<boolean> => {
     await new Promise((resolve) => setTimeout(resolve, 500));
     return otp.trim().length === 4;
@@ -1527,6 +1732,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setRouteStops,
         washers,
         onboardWasher,
+        dismissWasher,
+        reinstateWasher,
+        appointWasherToVehicle,
         eraseAllData,
         resetOwnerData,
         resetToDemoData,

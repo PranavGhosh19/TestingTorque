@@ -310,6 +310,114 @@ export async function syncWasherToFirestore(
 }
 
 /**
+ * Dismisses a washer partner from active service:
+ * Updates Washers/{washerId} and users/{washerId} status to 'Dismissed'
+ */
+export async function dismissWasherInFirestore(
+  washerId: string,
+  reason: string = 'Administrative dismissal'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const washerRef = doc(db, 'Washers', washerId);
+    await setDoc(
+      washerRef,
+      {
+        status: 'Dismissed',
+        dismissalReason: reason,
+        dismissedAt: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    const userRef = doc(db, 'users', washerId);
+    await setDoc(
+      userRef,
+      {
+        status: 'dismissed',
+        dismissalReason: reason,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return { success: true };
+  } catch (error: any) {
+    console.warn('Firebase dismissWasherInFirestore notice:', error?.message || error);
+    return { success: false, error: error?.message || 'Dismissal sync failed' };
+  }
+}
+
+/**
+ * Reinstates a previously dismissed washer partner back to active duty
+ */
+export async function reinstateWasherInFirestore(
+  washerId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const washerRef = doc(db, 'Washers', washerId);
+    await setDoc(
+      washerRef,
+      {
+        status: 'Active on Route',
+        dismissalReason: null,
+        reinstatedAt: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    const userRef = doc(db, 'users', washerId);
+    await setDoc(
+      userRef,
+      {
+        status: 'active',
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return { success: true };
+  } catch (error: any) {
+    console.warn('Firebase reinstateWasherInFirestore notice:', error?.message || error);
+    return { success: false, error: error?.message || 'Reinstatement sync failed' };
+  }
+}
+
+/**
+ * Appoints / reassigns a washer partner to an owner's vehicle in Firestore:
+ * Updates Car_Owners/{ownerId}/Vehicles/{vehicleId}
+ */
+export async function appointWasherToVehicleInFirestore(
+  ownerId: string,
+  vehicleId: string,
+  washerId: string,
+  washerName: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const vehicleRef = doc(db, 'Car_Owners', ownerId, 'Vehicles', vehicleId);
+    await setDoc(
+      vehicleRef,
+      {
+        washerId,
+        washerName,
+        assigned_washer_id: washerId,
+        assigned_washer_name: washerName,
+        assignedWasherId: washerId,
+        assignedWasherName: washerName,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return { success: true };
+  } catch (error: any) {
+    console.warn('Firebase appointWasherToVehicleInFirestore notice:', error?.message || error);
+    return { success: false, error: error?.message || 'Appoint washer sync failed' };
+  }
+}
+
+/**
  * Records user login by updating users/{uid} and Car_Owners or Washers document.
  */
 export async function recordUserLogin(

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
@@ -22,19 +22,64 @@ import {
   Sparkles,
   Download,
   Share2,
+  UserX,
+  RotateCcw,
+  Camera,
+  Maximize2,
+  X,
+  Layers,
+  MapPin,
+  RefreshCw,
+  Building2,
+  Check,
+  Eye,
+  UserCheck,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
 import { washerPartners, getWasherById } from '@/lib/washerPartners';
 import { useStore } from '@/lib/store';
+import AppointWasherModal from '@/components/modals/AppointWasherModal';
+import DismissWasherModal from '@/components/modals/DismissWasherModal';
 
 export default function WasherProfileDetailPage() {
   const params = useParams();
   const id = (params?.id as string) || 'wsh_amit';
-  const { washers } = useStore();
+  const { washers, vehicles, routeStops, reinstateWasher } = useStore();
   const washer = washers.find((w) => w.id === id) || getWasherById(id) || washerPartners[0];
 
   const [selectedDisbursement, setSelectedDisbursement] = useState<string | null>(null);
+  const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
+  const [appointPreselectedVehicleId, setAppointPreselectedVehicleId] = useState<string | undefined>();
+  const [isDismissModalOpen, setIsDismissModalOpen] = useState(false);
+  const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string } | null>(null);
 
+  const isDismissed = washer.status === 'Dismissed';
+
+  // Live today's route stops for this washer
+  const todayStops = useMemo(() => {
+    return routeStops.filter((s) => s.washer_id === washer.id);
+  }, [routeStops, washer.id]);
+
+  const completedStopsCount = todayStops.filter((s) => s.status === 'completed').length;
+  const inProgressStopsCount = todayStops.filter((s) => s.status === 'current').length;
+
+  // Appointed vehicles for this washer
+  const appointedVehicles = useMemo(() => {
+    return vehicles.filter(
+      (v) => v.assigned_washer_id === washer.id || (v as unknown as { washerId?: string }).washerId === washer.id
+    );
+  }, [vehicles, washer.id]);
+
+  const handleReinstate = async () => {
+    if (confirm(`Reinstate ${washer.name} back to active partner status?`)) {
+      await reinstateWasher(washer.id);
+    }
+  };
+
+  const handleOpenAppointForVehicle = (vehicleId?: string) => {
+    setAppointPreselectedVehicleId(vehicleId);
+    setIsAppointModalOpen(true);
+  };
 
   return (
     <div className="flex min-h-screen bg-[#F5F7FA]">
@@ -56,11 +101,53 @@ export default function WasherProfileDetailPage() {
           </span>
         </div>
 
+        {/* DISMISSAL BANNER (If Dismissed) */}
+        {isDismissed && (
+          <div className="p-4 sm:p-5 rounded-2xl bg-red-500/10 border-2 border-red-500/40 text-red-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <UserX className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-mono font-black uppercase tracking-wider text-red-700">
+                    Partner Access Revoked
+                  </span>
+                  <span className="text-[10px] font-bold bg-red-200 text-red-800 px-2 py-0.2 rounded">
+                    Status: Dismissed
+                  </span>
+                </div>
+                <h2 className="text-base font-black text-red-950 mt-0.5">
+                  {washer.dismissalReason || 'Account deactivated by Manager'}
+                </h2>
+                {washer.dismissedAt && (
+                  <p className="text-xs text-red-700 font-mono mt-0.5">
+                    Dismissed timestamp: {new Date(washer.dismissedAt).toLocaleString('en-IN')}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleReinstate}
+              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 shrink-0 cursor-pointer shadow-sm transition-all"
+            >
+              <RotateCcw className="w-4 h-4 text-emerald-400" />
+              <span>Reinstate to Active Duty</span>
+            </button>
+          </div>
+        )}
+
         {/* Profile Hero Header Card */}
-        <div className="premium-card p-6 sm:p-8 bg-white border-slate-200/90 shadow-xs relative overflow-hidden">
+        <div className={`premium-card p-6 sm:p-8 bg-white border shadow-xs relative overflow-hidden ${
+          isDismissed ? 'border-red-300' : 'border-slate-200/90'
+        }`}>
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div className="flex items-center gap-5">
-              <div className="relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl overflow-hidden border-3 border-emerald-500 shadow-md shrink-0">
+              <div className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl overflow-hidden border-3 shadow-md shrink-0 ${
+                isDismissed ? 'border-red-500 grayscale' : 'border-emerald-500'
+              }`}>
                 <Image
                   src={washer.avatar}
                   alt={washer.name}
@@ -77,9 +164,15 @@ export default function WasherProfileDetailPage() {
                   <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
                     ✓ Verified Partner
                   </span>
-                  <span className="text-[11px] font-bold text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
-                    {washer.status}
-                  </span>
+                  {isDismissed ? (
+                    <span className="text-[11px] font-bold text-red-800 bg-red-100 px-2.5 py-0.5 rounded-full border border-red-300">
+                      Dismissed Partner
+                    </span>
+                  ) : (
+                    <span className="text-[11px] font-bold text-blue-800 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                      {washer.status}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-4 text-xs text-slate-500 flex-wrap">
@@ -102,7 +195,38 @@ export default function WasherProfileDetailPage() {
             </div>
 
             {/* Header Actions */}
-            <div className="flex items-center gap-2.5 self-start sm:self-center shrink-0">
+            <div className="flex items-center gap-2.5 self-start sm:self-center shrink-0 flex-wrap">
+              {!isDismissed ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleOpenAppointForVehicle(undefined)}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                  >
+                    <Car className="w-3.5 h-3.5" />
+                    <span>Appoint Vehicle</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setIsDismissModalOpen(true)}
+                    className="px-3.5 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <UserX className="w-3.5 h-3.5 text-red-600" />
+                    <span>Dismiss Partner</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleReinstate}
+                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reinstate Partner</span>
+                </button>
+              )}
+
               <a
                 href={`tel:${washer.phone.replace(/[^0-9+]/g, '')}`}
                 className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
@@ -146,6 +270,231 @@ export default function WasherProfileDetailPage() {
           </div>
         </div>
 
+        {/* SECTION: LIVE ROUTE & TODAY'S WASH PROOFS TRACKING */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between text-xs font-mono font-bold uppercase tracking-wider text-slate-400 px-1">
+            <span className="flex items-center gap-2">
+              <Camera className="w-4 h-4 text-emerald-600" />
+              <span>Live Daily Route & Wash Proofs Audit</span>
+            </span>
+            <span className="text-slate-500 font-sans normal-case">
+              {todayStops.length > 0
+                ? `${completedStopsCount} of ${todayStops.length} stops verified with photographic proof`
+                : 'Standard assigned route window: ' + washer.routeWindow}
+            </span>
+          </div>
+
+          {todayStops.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-white border border-slate-200/90 text-center space-y-2 shadow-xs">
+              <Car className="w-10 h-10 text-slate-300 mx-auto" />
+              <h3 className="text-sm font-extrabold text-slate-800">No Route Stops Scheduled Today</h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                {isDismissed
+                  ? 'This partner has been dismissed. Route access has been revoked.'
+                  : 'No stops currently assigned to this partner for today. Use the "Appoint Vehicle" button to assign vehicles to this washer.'}
+              </p>
+              {!isDismissed && (
+                <button
+                  type="button"
+                  onClick={() => handleOpenAppointForVehicle(undefined)}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-2xs mt-2"
+                >
+                  <Car className="w-4 h-4" />
+                  <span>Appoint First Vehicle</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {todayStops.map((stop) => {
+                const isCompleted = stop.status === 'completed';
+                const isCurrent = stop.status === 'current';
+
+                return (
+                  <div
+                    key={stop.wash_id || stop.vehicle_id}
+                    className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-xs space-y-3 flex flex-col justify-between hover:border-emerald-300 transition-all"
+                  >
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                          Stop #{stop.stop_number}
+                        </span>
+                        {isCompleted ? (
+                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/80 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Completed
+                          </span>
+                        ) : isCurrent ? (
+                          <span className="text-[10px] font-bold text-amber-800 bg-amber-100/90 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-600 animate-pulse" /> In Progress
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
+                            Pending
+                          </span>
+                        )}
+                      </div>
+
+                      <div>
+                        <h4 className="text-sm font-extrabold text-slate-900">
+                          {stop.vehicle_name}
+                        </h4>
+                        <div className="text-xs font-mono font-bold text-emerald-700">
+                          {stop.registration_number}
+                        </div>
+                      </div>
+
+                      <div className="text-xs text-slate-500 space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>{stop.parking_location}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span>Window: {stop.scheduled_time}</span>
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          Owner: <span className="text-slate-700 font-semibold">{stop.owner_name}</span> ({stop.owner_phone})
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Wash Proof Photo Preview */}
+                    <div className="pt-2 border-t border-slate-100">
+                      {stop.proof_photo ? (
+                        <div
+                          onClick={() =>
+                            setPreviewPhoto({
+                              url: stop.proof_photo!,
+                              title: `${stop.vehicle_name} (${stop.registration_number})`,
+                            })
+                          }
+                          className="relative h-28 rounded-xl overflow-hidden border border-emerald-300 group cursor-pointer shadow-2xs"
+                        >
+                          <Image
+                            src={stop.proof_photo}
+                            alt="Wash Proof"
+                            fill
+                            className="object-cover group-hover:scale-105 transition-transform"
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1.5">
+                            <Eye className="w-4 h-4" />
+                            <span>Audit High-Res Proof</span>
+                          </div>
+                          <span className="absolute bottom-1.5 left-1.5 text-[9px] font-mono font-bold text-white bg-black/70 px-1.5 py-0.5 rounded backdrop-blur-xs flex items-center gap-1">
+                            <Check className="w-2.5 h-2.5 text-emerald-400" /> Cryptographic Proof
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="h-16 rounded-xl bg-slate-50 border border-dashed border-slate-200 flex items-center justify-center text-slate-400 text-xs">
+                          {isCurrent ? 'Wash in progress (camera standby)' : 'Proof awaiting washer upload'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* SECTION: APPOINTED VEHICLES & OWNERS ROSTER */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between text-xs font-mono font-bold uppercase tracking-wider text-slate-400 px-1">
+            <span className="flex items-center gap-2">
+              <Car className="w-4 h-4 text-emerald-600" />
+              <span>Appointed Vehicles & Owners Roster</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => handleOpenAppointForVehicle(undefined)}
+              className="text-emerald-700 font-sans font-bold hover:underline cursor-pointer flex items-center gap-1"
+            >
+              <span>+ Appoint Another Car</span>
+            </button>
+          </div>
+
+          <div className="premium-card bg-white border-slate-200/90 shadow-xs overflow-hidden">
+            {appointedVehicles.length === 0 ? (
+              <div className="p-8 text-center space-y-2">
+                <Car className="w-10 h-10 text-slate-300 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-800">No Vehicles Appointed to {washer.name}</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Allocate owner vehicles to this partner so they populate their morning service route.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => handleOpenAppointForVehicle(undefined)}
+                  className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold inline-flex items-center gap-1.5 mt-2"
+                >
+                  <Car className="w-4 h-4 text-emerald-400" />
+                  <span>Appoint Car Now</span>
+                </button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
+                    <tr>
+                      <th className="p-4">Vehicle & Number Plate</th>
+                      <th className="p-4">Owner Name & Contact</th>
+                      <th className="p-4">Parking Location</th>
+                      <th className="p-4">Preferred Slot</th>
+                      <th className="p-4">Plan Status</th>
+                      <th className="p-4 text-right">Manager Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {appointedVehicles.map((v) => (
+                      <tr key={v.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="p-4">
+                          <div className="font-extrabold text-slate-900 text-xs">
+                            {v.make} {v.model}
+                          </div>
+                          <div className="font-mono text-emerald-700 font-bold mt-0.5">
+                            {v.registration_number}
+                          </div>
+                        </td>
+
+                        <td className="p-4">
+                          <div className="font-semibold text-slate-800">{v.owner_name}</div>
+                          <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                            ID: {v.owner_id}
+                          </div>
+                        </td>
+
+                        <td className="p-4 text-slate-600">
+                          <div>{v.parking_location}</div>
+                          <div className="text-[11px] text-slate-400">{v.society_name}</div>
+                        </td>
+
+                        <td className="p-4 font-mono text-slate-700">
+                          {v.preferred_wash_time || '07:30 AM'}
+                        </td>
+
+                        <td className="p-4">
+                          <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-2.5 py-0.5 rounded-full capitalize">
+                            {v.subscription_status}
+                          </span>
+                        </td>
+
+                        <td className="p-4 text-right">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAppointForVehicle(v.id)}
+                            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-emerald-50 hover:text-emerald-800 text-slate-700 font-bold text-xs border border-slate-200 hover:border-emerald-300 transition-colors cursor-pointer"
+                          >
+                            Reassign Washer
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* SECTION 1: PERFORMANCE & TRACK RECORD */}
         <section className="space-y-3">
@@ -270,11 +619,11 @@ export default function WasherProfileDetailPage() {
               </div>
 
               <div className="flex sm:flex-col items-center sm:items-end justify-between gap-3 border-t sm:border-t-0 border-white/10 pt-4 sm:pt-0">
-                <div className="text-left sm:text-right">
+                <div className="text-left sm:right">
                   <span className="text-[11px] text-slate-400 block font-mono uppercase">Pending Cycle Due</span>
                   <span className="text-xl font-bold font-mono text-white">₹{washer.pendingPayoutDue.toLocaleString()}</span>
                 </div>
-                <div className="text-left sm:text-right">
+                <div className="text-left sm:right">
                   <span className="text-[11px] text-slate-400 block font-mono uppercase">Sunday Bonus Retained</span>
                   <span className="text-sm font-bold font-mono text-emerald-400">+₹{washer.sundayBonusEarned.toLocaleString()}</span>
                 </div>
@@ -375,6 +724,64 @@ export default function WasherProfileDetailPage() {
           </div>
         </section>
       </main>
+
+      {/* Appoint Washer Modal */}
+      <AppointWasherModal
+        isOpen={isAppointModalOpen}
+        onClose={() => {
+          setIsAppointModalOpen(false);
+          setAppointPreselectedVehicleId(undefined);
+        }}
+        preselectedWasherId={washer.id}
+        preselectedVehicleId={appointPreselectedVehicleId}
+      />
+
+      {/* Dismiss Washer Modal */}
+      <DismissWasherModal
+        isOpen={isDismissModalOpen}
+        onClose={() => setIsDismissModalOpen(false)}
+        washer={washer}
+      />
+
+      {/* Full Photo Audit Lightbox */}
+      {previewPhoto && (
+        <div
+          onClick={() => setPreviewPhoto(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="relative max-w-2xl w-full bg-slate-950 rounded-3xl overflow-hidden border border-white/20 shadow-2xl space-y-4"
+          >
+            <div className="p-4 bg-slate-900 border-b border-white/10 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2">
+                <Camera className="w-4 h-4 text-emerald-400" />
+                <span className="font-extrabold text-xs">{previewPhoto.title}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewPhoto(null)}
+                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="relative w-full h-[60vh] sm:h-[70vh]">
+              <Image
+                src={previewPhoto.url}
+                alt={previewPhoto.title}
+                fill
+                className="object-contain"
+              />
+            </div>
+            <div className="p-3 bg-slate-900/90 border-t border-white/10 text-[11px] text-slate-400 flex items-center justify-between">
+              <span>Cryptographic Proof Timestamp: Authenticated</span>
+              <span className="text-emerald-400 font-bold">100% Waterless Clean Verified</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

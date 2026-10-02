@@ -23,7 +23,9 @@ export interface WasherPartner {
   avgTimePerCar: string;
   completionRate: string;
   totalLifetimeWashes: number;
-  status: 'Active on Route' | 'Available Backup';
+  status: 'Active on Route' | 'Available Backup' | 'Dismissed' | 'On Leave';
+  dismissedAt?: string;
+  dismissalReason?: string;
   kyc: string;
   aadhaarNumber?: string;
   aadhaarPhotoUrl?: string;
