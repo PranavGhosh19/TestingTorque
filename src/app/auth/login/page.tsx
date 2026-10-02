@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Shield, ArrowRight, Car, CheckCircle2, Sparkles, UserCheck, RefreshCw } from 'lucide-react';
+import { Shield, ArrowRight, Car, CheckCircle2, Sparkles, UserCheck, RefreshCw, AlertCircle } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { sendPhoneOtp, formatPhoneE164 } from '@/lib/firebaseAuth';
 
 export default function OwnerLoginPage() {
   const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const router = useRouter();
   const { setRole, isLoggedIn, isHydrated, role } = useStore();
 
@@ -31,13 +33,36 @@ export default function OwnerLoginPage() {
     }
   }, [isHydrated, isLoggedIn, role, router]);
 
-  const handleContinue = (e: React.FormEvent) => {
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+
+    const formatted = formatPhoneE164(phone);
+    const cleanDigits = formatted.replace(/\D/g, '');
+    if (cleanDigits.length < 10) {
+      setError('Please enter a valid 10-digit mobile number');
+      return;
+    }
+
     setLoading(true);
     setRole('owner');
-    setTimeout(() => {
-      router.push(`/auth/verify?role=owner&phone=${encodeURIComponent(phone.startsWith('+91') ? phone : '+91 ' + phone)}`);
-    }, 350);
+
+    try {
+      await sendPhoneOtp(formatted, 'recaptcha-container');
+      router.push(`/auth/verify?role=owner&phone=${encodeURIComponent(formatted)}`);
+    } catch (err: any) {
+      console.error('Firebase Phone Auth error:', err);
+      let message = err?.message || 'Failed to send verification SMS.';
+      if (err?.code === 'auth/invalid-phone-number') {
+        message = 'Invalid phone number format. Please check the digits.';
+      } else if (err?.code === 'auth/too-many-requests') {
+        message = 'Too many requests. Please wait a few moments or use a verified test number.';
+      } else if (err?.code === 'auth/captcha-check-failed') {
+        message = 'reCAPTCHA verification failed. Please try again.';
+      }
+      setError(message);
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,6 +91,13 @@ export default function OwnerLoginPage() {
 
         {/* Mobile Input Card */}
         <div className="p-7 sm:p-8 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl text-left space-y-6 luxury-sheen">
+          {error && (
+            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-2 text-rose-300 text-xs font-semibold">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+              <span>{error}</span>
+            </div>
+          )}
+
           <form onSubmit={handleContinue} className="space-y-5">
             <div>
               <label className="text-[11px] font-black text-slate-300 uppercase tracking-wider block mb-2">
@@ -80,19 +112,25 @@ export default function OwnerLoginPage() {
                   type="tel"
                   required
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (error) setError('');
+                  }}
                   placeholder="Enter 10-digit number"
                   className="w-full bg-transparent px-3 py-1.5 text-sm font-bold text-white focus:outline-hidden tracking-wider font-mono"
                 />
               </div>
             </div>
 
+            {/* Invisible reCAPTCHA Mount Node */}
+            <div id="recaptcha-container" className="flex justify-center" />
+
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 px-4 rounded-2xl bg-white hover:bg-slate-100 text-[#080D1A] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(255,255,255,0.15)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+              className="w-full py-4 px-4 rounded-2xl bg-white hover:bg-slate-100 text-[#080D1A] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(255,255,255,0.15)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50"
             >
-              <span>{loading ? 'Sending Verification Code...' : 'Sign In with OTP'}</span>
+              <span>{loading ? 'Sending Verification SMS...' : 'Sign In with OTP'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>

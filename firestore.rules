@@ -19,6 +19,14 @@ service cloud.firestore {
     }
 
     // ===============================================================
+    // 0. PRIMARY USERS COLLECTION (Firebase Auth UID Primary Identity)
+    // users/{userId}
+    // ===============================================================
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    // ===============================================================
     // 1. CAR OWNERS HIERARCHY
     // Car_Owners/{ownerId}
     //   └── Vehicles/{vehicleId}

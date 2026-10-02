@@ -27,6 +27,7 @@ import {
 import { useStore } from '@/lib/store';
 import { WasherPartner, washerPartners as initialWasherPartners } from '@/lib/washerPartners';
 import { fetchAllWashersFromFirestore } from '@/lib/firebaseService';
+import { sendPhoneOtp, verifyPhoneOtp, formatPhoneE164 } from '@/lib/firebaseAuth';
 
 interface VehicleDraft {
   make: string;
@@ -82,11 +83,14 @@ export default function SignUpPage() {
   const [altPhone, setAltPhone] = useState('');
   const [ownerErrors, setOwnerErrors] = useState<{ name?: string; phone?: string }>({});
 
-  // Phone Verification State
+  // Phone Verification State with Live Firebase Phone Auth
   const [isPhoneVerifying, setIsPhoneVerifying] = useState(false);
-  const [phoneOtp, setPhoneOtp] = useState(['4', '2', '9', '1']);
+  const [phoneOtp, setPhoneOtp] = useState(['', '', '', '', '', '']);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+  const [verifiedUid, setVerifiedUid] = useState<string>('');
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isConfirmingOtp, setIsConfirmingOtp] = useState(false);
 
   // Step 2: Vehicles List
   const [vehicles, setVehicles] = useState<VehicleDraft[]>([
@@ -230,28 +234,57 @@ export default function SignUpPage() {
     { make: 'BMW', model: '3 Series', type: 'car' as const },
   ];
 
-  // Send OTP
-  const handleSendOtp = () => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (!cleanPhone || cleanPhone.length < 10) {
+  // Send Live Firebase SMS OTP
+  const handleSendOtp = async () => {
+    const formatted = formatPhoneE164(phone);
+    const cleanDigits = formatted.replace(/\D/g, '');
+    if (!cleanDigits || cleanDigits.length < 10) {
       setOwnerErrors({ phone: 'Please enter a valid 10-digit mobile number' });
       return;
     }
     setOwnerErrors({});
-    setOtpSent(true);
-    setIsPhoneVerifying(true);
+    setIsSendingOtp(true);
+    try {
+      await sendPhoneOtp(formatted, 'signup-recaptcha-container');
+      setOtpSent(true);
+      setIsPhoneVerifying(true);
+    } catch (err: any) {
+      console.error('Signup Phone Auth error:', err);
+      let msg = err?.message || 'Failed to send SMS OTP. Please check mobile number.';
+      if (err?.code === 'auth/invalid-phone-number') {
+        msg = 'Invalid mobile number format. Please check digits.';
+      } else if (err?.code === 'auth/too-many-requests') {
+        msg = 'Too many requests. Please wait a minute or use a test phone number.';
+      }
+      setOwnerErrors({ phone: msg });
+    } finally {
+      setIsSendingOtp(false);
+    }
   };
 
-  // Confirm OTP
+  // Confirm Live Firebase Phone Auth OTP
   const handleConfirmOtp = async () => {
-    const code = phoneOtp.join('');
-    const isValid = await verifyPhoneNumber(phone, code);
-    if (isValid) {
+    const code = phoneOtp.join('').trim();
+    if (!code || code.length < 4) {
+      setOwnerErrors({ phone: 'Please enter the verification code' });
+      return;
+    }
+    setIsConfirmingOtp(true);
+    try {
+      const firebaseUser = await verifyPhoneOtp(code);
+      setVerifiedUid(firebaseUser.uid);
       setIsPhoneVerified(true);
       setIsPhoneVerifying(false);
       setOwnerErrors({});
-    } else {
-      setOwnerErrors({ phone: 'Invalid code. Use test verification code 4291' });
+    } catch (err: any) {
+      console.error('Firebase OTP confirm error:', err);
+      let msg = err?.message || 'Invalid verification code. Please check and try again.';
+      if (err?.code === 'auth/invalid-verification-code') {
+        msg = 'Incorrect verification code. Please check the digits.';
+      }
+      setOwnerErrors({ phone: msg });
+    } finally {
+      setIsConfirmingOtp(false);
     }
   };
 
@@ -357,11 +390,12 @@ export default function SignUpPage() {
       subscription_price: getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
     }));
 
-    // Call store action with owner data, selected plan, and selected washer
+    // Call store action with owner data, selected plan, and verified Firebase UID
     registerOwner(
       {
+        uid: verifiedUid || undefined,
         name: name.trim(),
-        phone: phone.trim().startsWith('+91') ? phone.trim() : `+91 ${phone.trim()}`,
+        phone: formatPhoneE164(phone),
         address: address.trim() || undefined,
         alt_phone: altPhone.trim() || undefined,
         selectedPlan: selectedPlan.name,
@@ -542,10 +576,12 @@ export default function SignUpPage() {
                   {!isPhoneVerified && (
                     <button
                       type="button"
+                      disabled={isSendingOtp}
                       onClick={handleSendOtp}
-                      className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider shrink-0 transition-all"
+                      className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold text-xs uppercase tracking-wider shrink-0 transition-all flex items-center gap-1"
                     >
-                      {otpSent ? 'Resend' : 'Verify'}
+                      {isSendingOtp && <RefreshCw className="w-3 h-3 animate-spin" />}
+                      <span>{otpSent ? 'Resend' : 'Verify'}</span>
                     </button>
                   )}
                 </div>
@@ -555,38 +591,45 @@ export default function SignUpPage() {
               </div>
             </div>
 
+            {/* Hidden reCAPTCHA for Signup */}
+            <div id="signup-recaptcha-container" className="hidden" />
+
             {/* OTP Verification Prompt */}
             {isPhoneVerifying && !isPhoneVerified && (
               <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/25 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-blue-300">
-                    Enter verification code sent to +91 {phone.replace(/\D/g, '')}
+                    Enter 6-digit SMS code sent to {formatPhoneE164(phone)}
                   </span>
-                  <span className="text-[10px] text-slate-400 font-mono">Test code: 4291</span>
+                  <span className="text-[10px] text-slate-400 font-mono">Firebase SMS OTP</span>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
                   <div className="flex gap-2">
                     {phoneOtp.map((digit, idx) => (
                       <input
                         key={idx}
                         type="text"
+                        inputMode="numeric"
                         maxLength={1}
                         value={digit}
                         onChange={(e) => {
+                          const val = e.target.value.replace(/\D/g, '');
                           const copy = [...phoneOtp];
-                          copy[idx] = e.target.value;
+                          copy[idx] = val;
                           setPhoneOtp(copy);
                         }}
-                        className="w-10 h-10 text-center font-mono font-black text-lg text-white bg-white/10 border border-white/20 rounded-xl focus:border-blue-400 focus:outline-hidden"
+                        className="w-9 h-11 sm:w-10 sm:h-12 text-center font-mono font-black text-lg text-white bg-white/10 border border-white/20 rounded-xl focus:border-blue-400 focus:outline-hidden"
                       />
                     ))}
                   </div>
                   <button
                     type="button"
+                    disabled={isConfirmingOtp}
                     onClick={handleConfirmOtp}
-                    className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition-all"
+                    className="px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-slate-950 font-black text-xs uppercase tracking-wider transition-all flex items-center gap-1.5"
                   >
-                    Confirm Code
+                    {isConfirmingOtp && <RefreshCw className="w-3 h-3 animate-spin" />}
+                    <span>Confirm Code</span>
                   </button>
                 </div>
               </div>

@@ -94,6 +94,23 @@ export async function syncOwnerToFirestore(
 
     const subscriptionPrice = owner.price || (owner as any).subscription_price || calculatedTotal;
 
+    // 0. PRIMARY IDENTITY: users/{ownerId}
+    const userRef = doc(db, 'users', ownerId);
+    await setDoc(
+      userRef,
+      {
+        uid: ownerId,
+        id: ownerId,
+        phoneNumber: owner.phone,
+        phone: owner.phone,
+        name: owner.name,
+        role: 'owner',
+        status: owner.status || 'active',
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
     // 1. CAR OWNER: Car_Owners/{ownerId}
     const carOwnerRef = doc(db, 'Car_Owners', ownerId);
     const carOwnerPayload = {
@@ -264,7 +281,24 @@ export async function syncWasherToFirestore(
       updated_at: serverTimestamp(),
     };
 
-    // Write ONLY to Washers collection
+    // Write to users/{washer.id} as primary identity
+    const userRef = doc(db, 'users', washer.id);
+    await setDoc(
+      userRef,
+      {
+        uid: washer.id,
+        id: washer.id,
+        phoneNumber: phoneWithCountry,
+        phone: phoneWithCountry,
+        name: washer.name,
+        role: 'washer',
+        status: washer.status || 'Active on Route',
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Write to Washers collection
     const washerRef = doc(db, 'Washers', washer.id);
     await setDoc(washerRef, washerPayload, { merge: true });
 
@@ -276,13 +310,32 @@ export async function syncWasherToFirestore(
 }
 
 /**
- * Records user login by updating the respective Car_Owners or Washers document.
+ * Records user login by updating users/{uid} and Car_Owners or Washers document.
  */
 export async function recordUserLogin(
   user: User,
   method: string = 'otp'
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    // 0. Primary identity document: users/{user.id}
+    const userRef = doc(db, 'users', user.id);
+    await setDoc(
+      userRef,
+      {
+        uid: user.id,
+        id: user.id,
+        phoneNumber: user.phone,
+        phone: user.phone,
+        name: user.name,
+        role: user.role || 'owner',
+        lastLoginAt: serverTimestamp(),
+        last_login_at: serverTimestamp(),
+        login_method: method,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
     if (user.role === 'washer') {
       const washerRef = doc(db, 'Washers', user.id);
       await setDoc(
@@ -345,6 +398,30 @@ export async function findUserByPhoneInFirestore(phone: string): Promise<User | 
   try {
     const cleanPhone = phone.replace(/\D/g, '');
     const last10 = cleanPhone.slice(-10);
+
+    // 0. Check primary users collection
+    const usersRef = collection(db, 'users');
+    const qUser1 = query(usersRef, where('phoneNumber', '==', phone));
+    let sUser = await getDocs(qUser1);
+    if (sUser.empty && last10) {
+      sUser = await getDocs(query(usersRef, where('phoneNumber', '==', `+91${last10}`)));
+    }
+    if (sUser.empty && last10) {
+      sUser = await getDocs(query(usersRef, where('phone', '==', phone)));
+    }
+    if (!sUser.empty) {
+      const uData = sUser.docs[0].data();
+      const uid = sUser.docs[0].id;
+      return {
+        id: uid,
+        name: uData.name || 'Vehicle Owner',
+        owner_name: uData.name || 'Vehicle Owner',
+        phone: uData.phoneNumber || uData.phone || phone,
+        role: uData.role || 'owner',
+        status: uData.status || 'active',
+        created_at: uData.createdAt || new Date().toISOString(),
+      };
+    }
 
     // 1. Check Car_Owners
     const ownersRef = collection(db, 'Car_Owners');

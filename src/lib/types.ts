@@ -4,7 +4,9 @@ export type UserRole = 'owner' | 'washer' | 'admin';
 
 export interface User {
   id: string;
+  uid?: string;
   phone: string;
+  phoneNumber?: string;
   name: string;
   owner_name?: string;
   email?: string;

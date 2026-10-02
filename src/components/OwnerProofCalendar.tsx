@@ -124,12 +124,19 @@ export default function OwnerProofCalendar({
   // Modal inspection state
   const [selectedDay, setSelectedDay] = useState<DayStatus | null>(null);
   const [activePhotoTab, setActivePhotoTab] = useState<'after' | 'before'>('after');
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const assignedWasherName =
     propWasherName ||
-    currentVehicle?.assigned_washer_name ||
-    user?.assigned_washer_name ||
-    (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null) ||
+    (mounted
+      ? currentVehicle?.assigned_washer_name ||
+        user?.assigned_washer_name ||
+        (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null)
+      : null) ||
     'Assigned Route Partner';
 
   const assignedWasherAvatar =

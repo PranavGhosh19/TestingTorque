@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -39,9 +39,14 @@ export default function SignatureProofCard({
 }: Props) {
   const [showModal, setShowModal] = useState<boolean>(false);
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
+  const [mounted, setMounted] = useState<boolean>(false);
   const { vehicles, user } = useStore();
 
-  const currentVehicle = vehicle || (vehicles && vehicles.length > 0 ? vehicles[0] : null);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const currentVehicle = vehicle || (mounted && vehicles && vehicles.length > 0 ? vehicles[0] : null);
 
   const vehicleName =
     (currentVehicle ? `${currentVehicle.make} ${currentVehicle.model}`.trim() : '') ||
@@ -67,12 +72,12 @@ export default function SignatureProofCard({
   const time = submissionTimeStr || wash?.completed_at || '07:30 AM';
   const isSunday = new Date().getDay() === 0;
 
+  // On server/first render, produce deterministic fallback ('Amit Kumar')
+  // After client hydration (mounted=true), reflect user's assigned partner if set
   const washerName =
     propWasherName ||
     (wash?.washer_name && wash.washer_name !== 'Amit Kumar' ? wash.washer_name : null) ||
-    currentVehicle?.assigned_washer_name ||
-    user?.assigned_washer_name ||
-    (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null) ||
+    (mounted ? (currentVehicle?.assigned_washer_name || user?.assigned_washer_name) : null) ||
     wash?.washer_name ||
     'Amit Kumar';
   const washerAvatar =
@@ -91,7 +96,7 @@ export default function SignatureProofCard({
 
         {/* Top Bar: Vehicle Name on Left, Status Badge on Right */}
         <div className="relative z-10 flex items-center justify-between mb-3.5">
-          <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+          <h2 suppressHydrationWarning className="text-xl sm:text-2xl font-black text-white tracking-tight">
             {vehicleName}
           </h2>
 
@@ -164,7 +169,7 @@ export default function SignatureProofCard({
             <div className="text-base font-extrabold text-white">
               {isSunday ? 'Sunday Rest Day' : 'Morning Doorstep Wash Scheduled'}
             </div>
-            <p className="text-xs text-slate-300 max-w-sm mt-1 leading-relaxed">
+            <p suppressHydrationWarning className="text-xs text-slate-300 max-w-sm mt-1 leading-relaxed">
               {isSunday
                 ? 'Under your 6-day Mon–Sat plan, Sunday is a scheduled rest day.'
                 : `Assigned partner ${washerName} will wash your car in the morning bay window. Verified photo proof will be posted here before 10:00 AM.`}

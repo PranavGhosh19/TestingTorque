@@ -25,6 +25,10 @@ import {
 } from './firebaseService';
 import { WasherPartner, initialWasherPartners } from './washerPartners';
 import { isWashFromToday, getTodayISTDate } from './washUtils';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from './firebase';
+import { signOutFirebaseUser } from './firebaseAuth';
 
 interface StoreContextType {
   role: UserRole;
@@ -36,6 +40,7 @@ interface StoreContextType {
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'owner_id' | 'owner_name' | 'washes_this_month' | 'subscription_status'>) => void;
   registerOwner: (
     ownerData: {
+      uid?: string;
       name: string;
       phone: string;
       address?: string;
@@ -604,6 +609,38 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsHydrated(true);
     }
+
+    // Subscribe to Firebase Auth state to anchor identity to Firebase UID
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        const uid = firebaseUser.uid;
+        try {
+          const userDoc = await getDoc(doc(db, 'users', uid));
+          if (userDoc.exists()) {
+            const data = userDoc.data();
+            const resolvedRole = (data.role || 'owner') as UserRole;
+            setRoleState(resolvedRole);
+            setUser((prev) => ({
+              ...prev,
+              id: uid,
+              uid: uid,
+              phone: firebaseUser.phoneNumber || data.phoneNumber || data.phone || prev.phone,
+              name: data.name || prev.name,
+              owner_name: data.name || prev.name,
+              role: resolvedRole,
+              status: 'active',
+            }));
+            setIsLoggedIn(true);
+          }
+        } catch (authErr) {
+          console.warn('Error reading authenticated users/{uid}:', authErr);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribeAuth();
+    };
   }, []);
 
   // Switch role helper with persona adjustment
@@ -677,6 +714,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const registerOwner = (
     ownerData: {
+      uid?: string;
       name: string;
       phone: string;
       address?: string;
@@ -700,7 +738,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       subscription_price?: number;
     }>
   ) => {
-    const newUserId = `usr_${Date.now()}`;
+    // Primary Identity: Use Firebase Auth UID if provided or authenticated
+    const newUserId = ownerData.uid || auth.currentUser?.uid || `usr_${Date.now()}`;
 
     const getBodyTypePrice = (type?: string): number => {
       const t = (type || 'car').toLowerCase();
@@ -719,9 +758,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const newUser: User = {
       id: newUserId,
+      uid: newUserId,
       name: ownerData.name,
       owner_name: ownerData.name,
       phone: ownerData.phone,
+      phoneNumber: ownerData.phone,
       address: ownerData.address,
       alt_phone: ownerData.alt_phone,
       role: 'owner',
@@ -733,6 +774,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       price: finalPrice,
       subscription_price: finalPrice,
     };
+
+    // 0. PRIMARY IDENTITY: Sync to users/{uid}
+    setDoc(
+      doc(db, 'users', newUserId),
+      {
+        uid: newUserId,
+        id: newUserId,
+        phoneNumber: ownerData.phone,
+        phone: ownerData.phone,
+        name: ownerData.name,
+        role: 'owner',
+        status: 'active',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    ).catch((err) => console.warn('users/{uid} sync notice:', err));
 
     setUser(newUser);
     setRole('owner');
@@ -913,7 +971,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('torque_logged_in');
       localStorage.removeItem('torque_user');
       localStorage.removeItem('torque_vehicles');
+      localStorage.removeItem('torque_owner_name');
+      localStorage.removeItem('torque_owner_id');
+      localStorage.removeItem('torque_washer_id');
+      localStorage.removeItem('torque_washer_name');
     }
+    signOutFirebaseUser().catch((err) => console.warn('Sign out notice:', err));
     setIsLoggedIn(false);
     setUser({
       id: 'usr_guest',

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { findWasherByPhoneInFirestore } from '@/lib/firebaseService';
+import { sendPhoneOtp, formatPhoneE164 } from '@/lib/firebaseAuth';
 
 export default function DedicatedWasherLoginPage() {
   const router = useRouter();
@@ -26,8 +27,9 @@ export default function DedicatedWasherLoginPage() {
 
   const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanPhone = phone.replace(/\D/g, '');
-    if (cleanPhone.length < 10) {
+    const formatted = formatPhoneE164(phone);
+    const cleanDigits = formatted.replace(/\D/g, '');
+    if (cleanDigits.length < 10) {
       setError('Please enter a valid 10-digit mobile number');
       return;
     }
@@ -36,35 +38,20 @@ export default function DedicatedWasherLoginPage() {
     setError('');
     setRole('washer');
 
-    // Check local store first
-    let matched = washers.find(
-      (w) =>
-        w.phone.replace(/\D/g, '').includes(cleanPhone) ||
-        cleanPhone.includes(w.phone.replace(/\D/g, ''))
-    );
-
-    // If not found in local state, lookup from Firebase Firestore
-    if (!matched) {
-      try {
-        matched = (await findWasherByPhoneInFirestore(cleanPhone)) || undefined;
-      } catch (err) {
-        console.warn('Firestore washer lookup notice:', err);
+    try {
+      await sendPhoneOtp(formatted, 'recaptcha-container');
+      router.push(`/auth/verify?role=washer&phone=${encodeURIComponent(formatted)}`);
+    } catch (err: any) {
+      console.error('Washer Phone Auth error:', err);
+      let message = err?.message || 'Failed to send verification SMS.';
+      if (err?.code === 'auth/invalid-phone-number') {
+        message = 'Invalid mobile number format. Please check the digits.';
+      } else if (err?.code === 'auth/too-many-requests') {
+        message = 'Too many requests. Please wait a few moments or try again.';
       }
+      setError(message);
+      setLoading(false);
     }
-
-    if (matched) {
-      setUser({
-        id: matched.id,
-        name: matched.name,
-        phone: matched.phone,
-        role: 'washer',
-        avatar_url: matched.avatar,
-        status: 'active',
-        created_at: new Date().toISOString(),
-      });
-    }
-
-    router.push(`/auth/verify?role=washer&phone=${encodeURIComponent('+91 ' + cleanPhone)}`);
   };
 
   return (
@@ -123,12 +110,15 @@ export default function DedicatedWasherLoginPage() {
               </div>
             </div>
 
+            {/* Invisible reCAPTCHA Mount Node */}
+            <div id="recaptcha-container" className="flex justify-center" />
+
             <button
               type="submit"
               disabled={loading}
               className="w-full py-4 px-4 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(16,185,129,0.25)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50"
             >
-              <span>{loading ? 'Sending OTP...' : 'Sign In to Washer Portal'}</span>
+              <span>{loading ? 'Sending Verification SMS...' : 'Sign In to Washer Portal'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
