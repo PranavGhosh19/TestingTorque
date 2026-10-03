@@ -2,8 +2,11 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Sparkles, Compass, Eye } from 'lucide-react';
 import Navbar from '@/components/Navbar';
+import TorqueLogo from '@/components/brand/TorqueLogo';
+import TorqueEmblem from '@/components/brand/TorqueEmblem';
+import TorqueAppIcon from '@/components/brand/TorqueAppIcon';
 
 export default function AboutPage() {
   return (
@@ -71,6 +74,111 @@ export default function AboutPage() {
           </div>
         </div>
 
+        {/* ================================================================= */}
+        {/* BRAND IDENTITY & DESIGN SYSTEM SPOTLIGHT                         */}
+        {/* ================================================================= */}
+        <div className="p-8 sm:p-12 rounded-[24px] bg-[#11161D] border border-white/[0.08] space-y-10">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-[0.25em] text-[#2DD4A0] block mb-1 font-bold">
+                VISUAL IDENTITY & AERODYNAMICS
+              </span>
+              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
+                The Anatomy of the Torque Care Emblem
+              </h2>
+            </div>
+            <p className="text-xs sm:text-sm text-white/60 max-w-md">
+              Designed as a true automotive performance badge — engineered to belong on steering wheels, fenders, and key fobs rather than a generic SaaS website.
+            </p>
+          </div>
+
+          {/* HERO EMBLEM LOCKUP SHOWCASE */}
+          <div className="p-10 sm:p-14 rounded-[20px] bg-[#0A0D12] border border-white/[0.08] flex items-center justify-center shadow-inner relative overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(#2DD4A0_1px,transparent_1px)] opacity-10 [background-size:24px_24px] pointer-events-none" />
+            <div className="relative z-10 flex items-center justify-center scale-110 sm:scale-125">
+              <TorqueLogo emblemSize={68} />
+            </div>
+          </div>
+
+          {/* 4 CORE DESIGN INGREDIENTS */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="p-6 rounded-[20px] bg-[#161C25] border border-white/[0.06] space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#2DD4A0]" />
+                <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-white">
+                  Shield Emblem
+                </h3>
+              </div>
+              <p className="text-xs text-white/70 leading-relaxed">
+                Car lovers recognize performance badges from steering wheels, fenders, and key fobs. It reads as a luxury automotive brand, not a commodity startup.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-[20px] bg-[#161C25] border border-white/[0.06] space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#2DD4A0]" />
+                <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-white">
+                  Angular &apos;T&apos;
+                </h3>
+              </div>
+              <p className="text-xs text-white/70 leading-relaxed">
+                The chamfered crossbar echoes a fastback roofline. The tapered stem mirrors an aerodynamic blade and front intake grille.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-[20px] bg-[#161C25] border border-white/[0.06] space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#2DD4A0]" />
+                <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-[#2DD4A0]">
+                  Two Mint Slashes
+                </h3>
+              </div>
+              <p className="text-xs text-white/70 leading-relaxed">
+                Headlight and DRL (daytime running light) signatures. When seen at a glance, it evokes a supercar&apos;s face at night. Mint is also the hallmark verified state.
+              </p>
+            </div>
+
+            <div className="p-6 rounded-[20px] bg-[#161C25] border border-white/[0.06] space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#2DD4A0]" />
+                <h3 className="font-mono text-xs font-bold uppercase tracking-wider text-white">
+                  Spec-sheet Wordmark
+                </h3>
+              </div>
+              <p className="text-xs text-white/70 leading-relaxed">
+                <strong className="text-white">TORQUE</strong> is bold and wide-tracked with a slanted mint baseline. <strong className="text-white/60">CARE</strong> is feather-light and grey, like an engineering spec line.
+              </p>
+            </div>
+          </div>
+
+          {/* 3 VARIANT APPLICATIONS (App Icon, On Light, On Mint) */}
+          <div className="space-y-4 pt-2">
+            <span className="text-xs font-mono font-bold uppercase tracking-wider text-white/50 block">
+              Application Environments
+            </span>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* App Icon */}
+              <div className="p-6 rounded-[20px] bg-[#161C25] border border-white/[0.08] flex flex-col items-center justify-center space-y-4">
+                <TorqueAppIcon size={76} variant="dark" />
+                <span className="text-xs font-mono text-white/70 font-bold">App Icon</span>
+              </div>
+
+              {/* On Light */}
+              <div className="p-6 rounded-[20px] bg-slate-100 border border-slate-200 flex flex-col items-center justify-center space-y-4">
+                <TorqueAppIcon size={76} variant="light" />
+                <span className="text-xs font-mono text-slate-800 font-bold">On Light</span>
+              </div>
+
+              {/* On Mint */}
+              <div className="p-6 rounded-[20px] bg-[#2DD4A0] border border-[#2DD4A0]/40 flex flex-col items-center justify-center space-y-4">
+                <TorqueAppIcon size={76} variant="mint" />
+                <span className="text-xs font-mono text-[#0A0D12] font-bold">On Mint</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* BOTTOM CTA BANNER */}
         <div className="p-10 sm:p-12 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-6 relative text-center sm:text-left">
           <div className="space-y-1.5">
@@ -85,7 +193,7 @@ export default function AboutPage() {
           <div className="flex flex-col sm:flex-row items-center gap-3 shrink-0">
             <Link
               href="/auth/signup"
-              className="w-full sm:w-auto px-7 py-3 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] font-bold text-xs shadow-md transition-all active:scale-95"
+              className="w-full sm:w-auto px-7 py-3 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] font-bold text-xs shadow-md transition-all active:scale-95"
             >
               Get Started
             </Link>
@@ -99,6 +207,30 @@ export default function AboutPage() {
           </div>
         </div>
       </div>
+
+      {/* FOOTER */}
+      <footer className="bg-[#05080E] border-t border-white/[0.08] py-14 px-4 sm:px-6 lg:px-8 text-xs text-white/40">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="hover:opacity-95 transition-opacity">
+              <TorqueLogo emblemSize={32} />
+            </Link>
+            <span className="text-white/40 text-[11px] hidden md:inline font-mono">
+              — Verified Society Car Care
+            </span>
+          </div>
+
+          <div className="flex items-center gap-6 text-white/65">
+            <Link href="/how-it-works" className="hover:text-white transition-colors">How it works</Link>
+            <Link href="/for-owners" className="hover:text-white transition-colors">For Societies</Link>
+            <Link href="/for-washers" className="hover:text-white transition-colors">For Washers</Link>
+            <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
+            <Link href="/about" className="hover:text-white transition-colors">About</Link>
+          </div>
+
+          <div>© 2026 Torque Care Technologies Inc. All rights reserved.</div>
+        </div>
+      </footer>
     </div>
   );
 }

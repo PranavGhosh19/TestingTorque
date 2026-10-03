@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import TorqueLogo from '@/components/brand/TorqueLogo';
 import {
   ShieldCheck,
   CheckCircle2,
@@ -754,15 +755,12 @@ export default function HomePage() {
       <footer className="bg-[#05080E] border-t border-white/[0.08] py-14 px-4 sm:px-6 lg:px-8 text-xs text-white/40">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg overflow-hidden border border-white/15 bg-black/60 flex items-center justify-center">
-              <img
-                src="/images/app_icon.jpg"
-                alt="Torque Care"
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <span className="font-bold tracking-[0.2em] text-white uppercase text-xs">TORQUE CARE</span>
-            <span className="text-white/40">— Verified Housing Society Car Care</span>
+            <Link href="/" className="hover:opacity-95 transition-opacity">
+              <TorqueLogo emblemSize={32} />
+            </Link>
+            <span className="text-white/40 text-[11px] hidden md:inline font-mono">
+              — Verified Society Car Care
+            </span>
           </div>
 
           <div className="flex items-center gap-6 text-white/65">

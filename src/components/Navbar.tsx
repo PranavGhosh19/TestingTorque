@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Shield, Menu, X, ArrowRight, Bell, Sparkles, ChevronDown, Car, Lock, CalendarCheck, Wallet, UserCheck } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import TorqueLogo from '@/components/brand/TorqueLogo';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -60,18 +61,9 @@ export default function Navbar() {
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        {/* Brand Logo - Wide-tracked Automotive Aesthetic */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div className="w-8 h-8 rounded-lg overflow-hidden border border-white/15 shadow-md group-hover:scale-105 transition-transform flex items-center justify-center bg-black/60">
-            <img
-              src="/images/app_icon.jpg"
-              alt="Torque Care Icon"
-              className="w-full h-full object-cover"
-            />
-          </div>
-          <span className="text-sm font-bold tracking-[0.24em] text-white uppercase">
-            TORQUE CARE
-          </span>
+        {/* Brand Logo - Performance Shield Emblem & Spec-sheet Wordmark */}
+        <Link href="/" className="flex items-center group transition-transform hover:opacity-95">
+          <TorqueLogo emblemSize={36} />
         </Link>
 
         {/* Washer Portal Desktop Nav (Today, Earnings, Profile) */}
