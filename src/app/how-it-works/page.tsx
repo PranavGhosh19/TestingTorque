@@ -12,12 +12,10 @@ import {
   Home,
   Check,
 } from 'lucide-react';
-import Navbar from '@/components/Navbar';
 
 export default function HowItWorksPage() {
   return (
     <div className="min-h-screen bg-[#0A0D12] text-white selection:bg-[#2DD4A0] selection:text-black">
-      <Navbar />
 
       {/* AMBIENT GLOWS */}
       <div className="fixed top-0 left-1/3 w-[600px] h-[600px] bg-[#2DD4A0]/5 rounded-full blur-[160px] pointer-events-none -z-10" />

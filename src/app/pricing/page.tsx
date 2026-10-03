@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Check, ArrowRight, Home, Car, Sparkles } from 'lucide-react';
-import Navbar from '@/components/Navbar';
 
 interface PricingPlan {
   id: string;
@@ -52,7 +51,6 @@ export default function PricingPage() {
 
   return (
     <div className="w-full min-h-screen bg-[#0A0D12] text-white selection:bg-[#2DD4A0] selection:text-black">
-      <Navbar />
 
       {/* LUXURY AMBIENT GLOWS */}
       <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-[#2DD4A0]/5 rounded-full blur-[160px] pointer-events-none -z-10" />

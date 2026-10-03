@@ -3,14 +3,12 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Mail, Phone, MessageSquare, Check, ArrowRight, ShieldCheck, MapPin } from 'lucide-react';
-import Navbar from '@/components/Navbar';
 
 export default function ContactPage() {
   const [submitted, setSubmitted] = useState(false);
 
   return (
     <div className="min-h-screen bg-[#0A0D12] text-white selection:bg-[#2DD4A0] selection:text-black">
-      <Navbar />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-12 sm:py-16 space-y-10">
         {/* Header */}
