@@ -121,7 +121,7 @@ export default function Navbar() {
                 pathname === '/for-owners' ? 'text-white font-semibold' : ''
               }`}
             >
-              For Societies
+              Car Owners
             </Link>
             <Link
               href="/for-washers"
@@ -301,7 +301,7 @@ export default function Navbar() {
               onClick={() => setMobileMenuOpen(false)}
               className="py-2 hover:text-white"
             >
-              For Owners
+              Car Owners
             </Link>
 
             <Link
