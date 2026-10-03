@@ -1,23 +1,37 @@
 {
   "name": "Torque Care — Your car. Always cared for.",
   "short_name": "Torque Care",
-  "description": "Your car. Always cared for. Verified morning washes, trusted partners, and effortless peace of mind.",
+  "description": "Your car. Always cared for. Verified morning washes, trusted apartment partners, and effortless peace of mind.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#060B19",
-  "theme_color": "#060B19",
+  "background_color": "#0A0D12",
+  "theme_color": "#0A0D12",
   "orientation": "portrait",
+  "categories": ["lifestyle", "automotive", "utilities"],
   "icons": [
     {
-      "src": "/images/app_icon.jpg",
-      "sizes": "512x512",
-      "type": "image/jpeg",
-      "purpose": "any maskable"
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
     },
     {
-      "src": "/images/app_icon.jpg",
-      "sizes": "192x192",
-      "type": "image/jpeg"
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/torque_emblem.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ]
 }

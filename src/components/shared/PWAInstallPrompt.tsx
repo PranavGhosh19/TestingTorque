@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { Download, X, Share, PlusSquare, Smartphone, Check } from 'lucide-react';
+import TorqueAppIcon from '@/components/brand/TorqueAppIcon';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -114,14 +115,7 @@ export default function PWAInstallPrompt() {
       >
         <div className="p-4 rounded-[20px] bg-[#11161D]/95 border border-white/[0.08] text-white backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3.5">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative w-11 h-11 rounded-xl overflow-hidden shadow-md shrink-0 border border-white/10 bg-neutral-900">
-              <Image
-                src="/images/app_icon.jpg"
-                alt="Torque Care"
-                fill
-                className="object-cover"
-              />
-            </div>
+            <TorqueAppIcon size={44} />
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-white tracking-tight truncate">
@@ -173,14 +167,7 @@ export default function PWAInstallPrompt() {
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-sm shrink-0 border border-white/10">
-                <Image
-                  src="/images/app_icon.jpg"
-                  alt="Torque Care Icon"
-                  fill
-                  className="object-cover"
-                />
-              </div>
+              <TorqueAppIcon size={48} />
               <div>
                 <h3 className="font-bold text-base text-white">Install Torque Care</h3>
                 <p className="text-xs text-white/50">Add to your home screen</p>

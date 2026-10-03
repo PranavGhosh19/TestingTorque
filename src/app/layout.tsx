@@ -36,8 +36,14 @@ export const metadata: Metadata = {
   description: "Your car. Always cared for. Verified morning washes, trusted apartment partners, and effortless peace of mind.",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icons/torque_emblem.svg",
-    apple: "/icons/torque_emblem.svg",
+    icon: [
+      { url: "/icons/torque_emblem.svg", type: "image/svg+xml" },
+      { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
   },
   appleWebApp: {
     capable: true,
@@ -58,7 +64,8 @@ export default function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/icons/torque_emblem.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/icons/torque_emblem.svg" />
+        <link rel="icon" href="/icons/icon-192.png" sizes="192x192" type="image/png" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="theme-color" content="#0A0D12" />
