@@ -21,16 +21,16 @@ export default function RoleSwitcher() {
 
   return (
     <div className="fixed bottom-20 sm:bottom-4 right-4 z-50 select-none">
-      <div className="glass-dark text-white rounded-2xl p-2.5 shadow-2xl border border-white/15 max-w-xs transition-all">
+      <div className="bg-[#11161D]/95 backdrop-blur-xl text-white rounded-[20px] p-3 shadow-2xl border border-white/[0.08] max-w-xs transition-all">
         {/* Toggle Bar */}
         <div className="flex items-center justify-between gap-3 px-1 mb-1">
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold tracking-wide text-slate-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>ROLE & TEST CONTROLS</span>
+          <div className="flex items-center gap-2 text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0] animate-pulse" />
+            <span>ROLE CONTROLS</span>
           </div>
           <button
             onClick={() => setCollapsed(!collapsed)}
-            className="text-slate-400 hover:text-white transition-colors p-0.5"
+            className="text-white/40 hover:text-white transition-colors p-0.5"
             title="Collapse / Expand"
           >
             {collapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -38,15 +38,15 @@ export default function RoleSwitcher() {
         </div>
 
         {!collapsed && (
-          <div className="space-y-2 mt-2 pt-2 border-t border-white/10">
+          <div className="space-y-2.5 mt-2 pt-2 border-t border-white/[0.08]">
             {/* Role selector pills */}
-            <div className="grid grid-cols-3 gap-1 bg-white/5 p-1 rounded-xl">
+            <div className="grid grid-cols-3 gap-1 bg-[#161C25] p-1 rounded-full border border-white/[0.08]">
               <button
                 onClick={() => handleSelectRole('owner')}
-                className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-lg text-[11px] font-medium transition-all ${
+                className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-full text-[11px] font-medium transition-all ${
                   role === 'owner'
-                    ? 'bg-blue-600 text-white font-bold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-white text-[#0A0D12] font-bold shadow-sm'
+                    : 'text-white/60 hover:text-white'
                 }`}
               >
                 <Car className="w-3.5 h-3.5 mb-0.5" />
@@ -55,10 +55,10 @@ export default function RoleSwitcher() {
 
               <button
                 onClick={() => handleSelectRole('washer')}
-                className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-lg text-[11px] font-medium transition-all ${
+                className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-full text-[11px] font-medium transition-all ${
                   role === 'washer'
-                    ? 'bg-emerald-600 text-white font-bold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-white text-[#0A0D12] font-bold shadow-sm'
+                    : 'text-white/60 hover:text-white'
                 }`}
               >
                 <Sparkles className="w-3.5 h-3.5 mb-0.5" />
@@ -67,10 +67,10 @@ export default function RoleSwitcher() {
 
               <button
                 onClick={() => handleSelectRole('admin')}
-                className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-lg text-[11px] font-medium transition-all ${
+                className={`flex flex-col items-center justify-center py-1.5 px-2 rounded-full text-[11px] font-medium transition-all ${
                   role === 'admin'
-                    ? 'bg-amber-600 text-white font-bold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-white/5'
+                    ? 'bg-white text-[#0A0D12] font-bold shadow-sm'
+                    : 'text-white/60 hover:text-white'
                 }`}
               >
                 <Cpu className="w-3.5 h-3.5 mb-0.5" />
@@ -79,23 +79,23 @@ export default function RoleSwitcher() {
             </div>
 
             {/* Offline Simulation toggle for Washer PWA */}
-            <div className="flex items-center justify-between px-2 py-1.5 bg-white/5 rounded-xl text-xs">
+            <div className="flex items-center justify-between px-3 py-1.5 bg-[#161C25] rounded-xl border border-white/[0.06] text-xs">
               <div className="flex items-center gap-2">
                 {isOffline ? (
                   <WifiOff className="w-3.5 h-3.5 text-amber-400" />
                 ) : (
-                  <Wifi className="w-3.5 h-3.5 text-emerald-400" />
+                  <Wifi className="w-3.5 h-3.5 text-[#2DD4A0]" />
                 )}
-                <span className="text-[11px] text-slate-200">
-                  {isOffline ? 'Offline Mode (PWA)' : 'Online'}
+                <span className="text-[11px] text-white/70">
+                  {isOffline ? 'Offline Mode (PWA)' : 'Online Sync'}
                 </span>
               </div>
               <button
                 onClick={toggleOffline}
-                className={`px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wider transition-colors ${
+                className={`px-2 py-0.5 rounded-full text-[9px] font-mono font-bold uppercase tracking-wider transition-colors ${
                   isOffline
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                    : 'bg-white/10 text-slate-300 hover:text-white'
+                    : 'bg-white/10 text-white/70 hover:text-white border border-white/10'
                 }`}
               >
                 {isOffline ? 'Go Online' : 'Simulate Cut'}
@@ -106,7 +106,7 @@ export default function RoleSwitcher() {
             {offlineQueueCount > 0 && (
               <button
                 onClick={syncOfflineQueue}
-                className="w-full py-1.5 px-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                className="w-full py-2 px-3 rounded-full bg-[#2DD4A0] hover:bg-[#25b88a] text-[#0A0D12] text-[11px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95"
               >
                 <RefreshCw className="w-3 h-3 animate-spin" />
                 <span>Sync {offlineQueueCount} Offline Washes</span>
@@ -117,9 +117,9 @@ export default function RoleSwitcher() {
             <div className="text-center pt-1">
               <Link
                 href="/"
-                className="text-[10px] text-slate-400 hover:text-slate-200 underline decoration-slate-600"
+                className="text-[10px] text-white/50 hover:text-white transition-colors"
               >
-                View Public Marketing Site →
+                View Public Landing Page →
               </Link>
             </div>
           </div>

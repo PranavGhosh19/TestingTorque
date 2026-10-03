@@ -21,61 +21,61 @@ export default function OwnerVehiclesPage() {
 
   if (!isHydrated || !isLoggedIn) {
     return (
-      <div className="min-h-screen bg-[#F5F7FA] flex items-center justify-center">
+      <div className="min-h-screen bg-[#0A0D12] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-6 h-6 text-blue-600 animate-spin" />
-          <p className="text-xs font-bold text-slate-500 font-mono">Verifying owner session...</p>
+          <RefreshCw className="w-6 h-6 text-[#2DD4A0] animate-spin" />
+          <p className="text-xs font-mono uppercase tracking-widest text-white/50">Verifying garage session...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA] pb-24 md:pb-12">
+    <div className="min-h-screen bg-[#0A0D12] text-white pb-28 md:pb-16 selection:bg-[#2DD4A0] selection:text-black">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200/80 pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
+      <header className="bg-[#0A0D12]/90 backdrop-blur-xl border-b border-white/[0.08] pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between">
           <div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
-              Garage & Subscriptions
+            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
+              Garage & Fleet
             </span>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-[#0B132B] tracking-tight">
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               My Vehicles
             </h1>
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#0B132B] hover:bg-[#162347] text-white text-xs font-bold transition-all shadow-xs"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             <span>Add Vehicle</span>
           </button>
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {vehicles.length === 0 ? (
-          <div className="p-10 text-center bg-white rounded-3xl border border-slate-200/90 shadow-xs space-y-4 max-w-lg mx-auto my-6">
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto text-2xl">
+          <div className="p-10 text-center bg-[#11161D] rounded-[20px] border border-white/[0.08] space-y-4 max-w-lg mx-auto my-6">
+            <div className="w-16 h-16 rounded-2xl bg-[#161C25] text-[#2DD4A0] flex items-center justify-center mx-auto text-2xl border border-white/[0.06]">
               🚗
             </div>
             <div className="space-y-1">
-              <h3 className="text-lg font-black text-[#0B132B]">No Vehicles in Garage</h3>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto leading-relaxed">
-                Your garage is currently reset. Add a vehicle or complete owner onboarding to assign a dedicated washer partner and schedule daily doorstep washes.
+              <h3 className="text-lg font-bold text-white">No Vehicles in Garage</h3>
+              <p className="text-xs text-white/60 max-w-sm mx-auto leading-relaxed">
+                Add a vehicle or onboard your apartment bay to assign a dedicated specialist and schedule daily doorstep washes.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-1">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
               <Link
                 href="/auth/onboarding"
-                className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] font-black text-xs transition-all flex items-center justify-center gap-1.5"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4" />
                 <span>Onboard Vehicle & Plan</span>
               </Link>
               <button
                 onClick={() => setShowAddModal(true)}
-                className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition-colors"
+                className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-[#161C25] hover:bg-white/10 text-white font-bold text-xs border border-white/[0.08] transition-colors"
               >
                 Quick Add Vehicle
               </button>
@@ -86,61 +86,67 @@ export default function OwnerVehiclesPage() {
             {vehicles.map((v) => (
               <div
                 key={v.id}
-                className="premium-card p-5 sm:p-6 bg-white border-slate-200/90 shadow-xs space-y-4 hover:border-slate-300 transition-all"
+                className="p-6 bg-[#11161D] rounded-[20px] border border-white/[0.08] hover:border-white/20 transition-all space-y-4"
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl">
+                    <div className="w-12 h-12 rounded-xl bg-[#161C25] border border-white/[0.06] text-[#2DD4A0] flex items-center justify-center text-xl">
                       🚗
                     </div>
                     <div>
-                      <h3 className="text-base font-extrabold text-[#0B132B]">
+                      <h3 className="text-base font-bold text-white">
                         {v.make} {v.model}
                       </h3>
-                      <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wide">
-                        {v.registration_number}
-                      </span>
+                      {/* IND PLATE BADGE */}
+                      <div className="inline-flex items-center bg-[#E5E7EB] text-[#111827] rounded-sm border border-slate-400 overflow-hidden font-mono text-[11px] font-bold tracking-widest mt-1">
+                        <span className="bg-[#1E3A8A] text-white px-1 text-[8px] font-sans flex flex-col items-center justify-center py-0.5 leading-none">
+                          <span className="text-[6px]">🇮🇳</span>
+                          <span>IND</span>
+                        </span>
+                        <span className="px-2 py-0.5">{v.registration_number}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/70">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-mono font-bold text-[#2DD4A0] bg-[#2DD4A0]/10 px-2.5 py-1 rounded-full border border-[#2DD4A0]/20">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0] animate-pulse" />
                     Active
                   </span>
                 </div>
 
-                <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 text-xs text-slate-600 border border-slate-100">
+                <div className="p-3.5 bg-[#161C25] rounded-xl space-y-2 text-xs text-white/70 border border-white/[0.04]">
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1 text-slate-500">
-                      <MapPin className="w-3.5 h-3.5" /> Parking Bay:
+                    <span className="flex items-center gap-1 text-white/50">
+                      <MapPin className="w-3.5 h-3.5 text-[#2DD4A0]" /> Parking Bay:
                     </span>
-                    <span className="font-semibold text-slate-900">{v.parking_location}</span>
+                    <span className="font-mono font-bold text-white">{v.parking_location}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1 text-slate-500">
-                      <Clock className="w-3.5 h-3.5" /> Preferred Time:
+                    <span className="flex items-center gap-1 text-white/50">
+                      <Clock className="w-3.5 h-3.5 text-[#2DD4A0]" /> Preferred Window:
                     </span>
-                    <span className="font-semibold text-slate-900">{v.preferred_wash_time}</span>
+                    <span className="font-mono text-white/90">{v.preferred_wash_time || '6:00 AM – 7:30 AM'}</span>
                   </div>
-                  <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 font-semibold">
-                    <span className="text-slate-500">This Month:</span>
-                    <span className="text-emerald-700">{v.washes_this_month} washes verified</span>
+                  <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
+                    <span className="text-white/50">This Month:</span>
+                    <span className="text-[#2DD4A0] font-mono font-bold">{v.washes_this_month} washes verified</span>
                   </div>
                 </div>
 
-                <div className="pt-1 flex items-center justify-between">
+                <div className="pt-1">
                   <Link
                     href="/owner/washes/history"
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#0B132B] font-bold text-xs text-center transition-colors"
+                    className="w-full py-2.5 px-4 rounded-full bg-[#161C25] hover:bg-white/10 text-white font-mono text-xs font-bold text-center border border-white/[0.08] transition-colors flex items-center justify-center gap-1.5"
                   >
-                    [ View Vehicle History ]
+                    <span>View Audit History</span>
+                    <ChevronRight className="w-3.5 h-3.5 text-[#2DD4A0]" />
                   </Link>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </main>
 
       <AddVehicleModal
         isOpen={showAddModal}

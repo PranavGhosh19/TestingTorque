@@ -1,46 +1,116 @@
 @import "tailwindcss";
 
 @theme {
+  --color-canvas: #0A0D12;
+  --color-surface: #11161D;
+  --color-elevated: #161C25;
+  --color-mint: #2DD4A0;
+  --color-mint-muted: rgba(45, 212, 160, 0.15);
   --color-navy: #0B132B;
-  --color-navy-dark: #060B19;
-  --color-navy-light: #162347;
+  --color-navy-dark: #0A0D12;
+  --color-navy-light: #161C25;
   --color-softblue: #4F7CFF;
   --color-softblue-hover: #3D6BEB;
   --color-softblue-subtle: #EDF3FF;
   --color-mist: #F5F7FA;
   --color-mist-card: #FFFFFF;
-  --color-success: #21A179;
-  --color-success-light: #E7F7F1;
-  --color-warning: #F4A261;
+  --color-success: #2DD4A0;
+  --color-success-light: rgba(45, 212, 160, 0.15);
+  --color-warning: #F59E0B;
   --color-warning-light: #FEF4EA;
-  --color-danger: #E63946;
+  --color-danger: #EF4444;
   --color-danger-light: #FEECEE;
   --color-darktext: #18212F;
-  --color-mutedtext: #64748B;
-  --color-subtleborder: #E5E9F0;
+  --color-mutedtext: rgba(255, 255, 255, 0.65);
+  --color-subtleborder: rgba(255, 255, 255, 0.08);
   --font-sans: var(--font-manrope), var(--font-inter), system-ui, sans-serif;
 }
 
 :root {
-  --background: #060B19;
-  --foreground: #F8FAFC;
+  --background: #0A0D12;
+  --foreground: #FFFFFF;
   color-scheme: dark;
 }
 
 html {
-  background-color: #060B19 !important;
+  background-color: #0A0D12 !important;
   color-scheme: dark;
   -webkit-text-size-adjust: 100%;
 }
 
 body {
-  background-color: #060B19 !important;
+  background-color: #0A0D12 !important;
   color: var(--foreground);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   min-height: 100%;
   min-height: 100dvh;
+}
+
+/* --- Neo-Futuristic Automotive UI Tokens --- */
+.bg-canvas {
+  background-color: #0A0D12;
+}
+
+.bg-surface {
+  background-color: #11161D;
+}
+
+.bg-elevated {
+  background-color: #161C25;
+}
+
+/* Glassmorphism Cards: Translucent, Softly Bordered, 20px Radius */
+.glass-card-torque {
+  background: rgba(17, 22, 29, 0.72);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+/* Glassmorphism Chips: 12px Radius */
+.glass-chip-torque {
+  background: rgba(17, 22, 29, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.5);
+}
+
+/* Mint Badges */
+.badge-mint-torque {
+  background: rgba(45, 212, 160, 0.15);
+  color: #2DD4A0;
+  border: 1px solid rgba(45, 212, 160, 0.25);
+  border-radius: 9999px;
+}
+
+/* Wide-Tracked Automotive Typography */
+.font-automotive {
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.font-automotive-title {
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  font-weight: 700;
+  line-height: 1.05;
+}
+
+/* Subtle Mint Photonic Glow */
+.glow-mint-subtle {
+  box-shadow: 0 0 35px -8px rgba(45, 212, 160, 0.35);
+}
+
+/* Glowing Neon Floor Ring */
+.glow-ring-halo {
+  box-shadow: 0 0 45px rgba(45, 212, 160, 0.4), inset 0 0 25px rgba(45, 212, 160, 0.25);
 }
 
 /* Glassmorphism & Elevation utilities */

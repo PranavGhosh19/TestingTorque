@@ -212,19 +212,19 @@ export default function WasherDashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#080D1A] text-slate-100 pb-28 md:pb-16 selection:bg-emerald-500 selection:text-white">
-      {/* LUXURY AMBIENT GLOWS */}
-      <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-emerald-600/10 rounded-full blur-[160px] pointer-events-none -z-10" />
-      <div className="fixed bottom-10 right-10 w-[450px] h-[450px] bg-blue-600/10 rounded-full blur-[150px] pointer-events-none -z-10" />
+    <div className="min-h-screen bg-[#0A0D12] text-white pb-28 md:pb-16 selection:bg-[#2DD4A0] selection:text-black">
+      {/* AMBIENT GLOWS */}
+      <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-[#2DD4A0]/5 rounded-full blur-[140px] pointer-events-none -z-10" />
+      <div className="fixed bottom-10 right-10 w-[450px] h-[450px] bg-blue-600/5 rounded-full blur-[150px] pointer-events-none -z-10" />
 
       {/* ============================================================ */}
       {/* 1. TOP OPERATIONAL HEADER: GREETING & RIGHT-ALIGNED DATE     */}
       {/* ============================================================ */}
-      <header className="bg-[#0B132B]/90 backdrop-blur-2xl border-b border-white/10 sticky top-0 z-30 shadow-2xl pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
+      <header className="bg-[#11161D]/90 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-30 shadow-xl pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3.5 sm:py-4 flex flex-row items-center justify-between gap-2.5 sm:gap-4">
           {/* Left: Washer Avatar & Greeting Name */}
           <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
-            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden border-2 border-emerald-400 shrink-0 shadow-lg bg-emerald-950/40">
+            <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl overflow-hidden border border-white/10 shrink-0 shadow-lg bg-neutral-900">
               <Image
                 src={firebaseWasher?.avatar || user?.avatar_url || "/images/washer_amit.jpg"}
                 alt={washerDisplayName}
@@ -234,22 +234,25 @@ export default function WasherDashboardPage() {
               />
             </div>
             <div className="min-w-0">
-              <h1 className="text-base sm:text-xl md:text-2xl font-black text-white tracking-tight truncate" suppressHydrationWarning>
+              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#2DD4A0] block font-bold leading-none mb-1">
+                TORQUE CARE SPECIALIST
+              </span>
+              <h1 className="text-base sm:text-xl md:text-2xl font-bold text-white tracking-tight truncate" suppressHydrationWarning>
                 Hi, {washerFirstName} 👋
               </h1>
             </div>
           </div>
 
-          {/* Right: Present Date Aligned to the Right of Name on All Screen Sizes */}
-          <div className="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-4 py-1.5 sm:py-2.5 rounded-xl sm:rounded-2xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-lg shrink-0">
-            <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 flex items-center justify-center shrink-0">
-              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+          {/* Right: Present Date Aligned to the Right */}
+          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full bg-[#161C25] border border-white/[0.08] shadow-md shrink-0">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2DD4A0]/10 text-[#2DD4A0] flex items-center justify-center shrink-0">
+              <Calendar className="w-3.5 h-3.5" />
             </div>
             <div className="text-right">
-              <span className="text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-emerald-400 block font-bold leading-none mb-0.5">
-                Present Date
+              <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/50 block font-bold leading-none mb-0.5">
+                TODAY
               </span>
-              <span className="text-[11px] sm:text-xs md:text-sm font-black text-white font-mono tracking-tight whitespace-nowrap" suppressHydrationWarning>
+              <span className="text-[11px] sm:text-xs md:text-sm font-bold text-white font-mono tracking-tight whitespace-nowrap" suppressHydrationWarning>
                 {formattedPresentDate}
               </span>
             </div>
@@ -260,41 +263,42 @@ export default function WasherDashboardPage() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-7">
         {/* RESILIENT BASEMENT OFFLINE UPLOAD QUEUE BANNER */}
         {offlineQueueCount > 0 && (
-          <div className="flex items-center justify-between p-3.5 px-4 rounded-2xl bg-amber-500/15 border border-amber-400/40 text-amber-300 text-xs font-semibold backdrop-blur-md shadow-lg animate-pulse">
+          <div className="flex items-center justify-between p-3.5 px-4 rounded-xl bg-amber-500/10 border border-amber-400/30 text-amber-200 text-xs font-semibold backdrop-blur-md shadow-lg">
             <div className="flex items-center gap-2.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping shrink-0" />
+              <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
               <span>
-                📶 <strong>{offlineQueueCount} wash proof{offlineQueueCount > 1 ? 's' : ''}</strong> saved securely on this device (Basement Offline Mode).
+                📶 <strong>{offlineQueueCount} wash proof{offlineQueueCount > 1 ? 's' : ''}</strong> saved securely on device (Basement Offline Mode).
               </span>
             </div>
-            <span className="text-[10px] font-mono font-bold bg-amber-950/80 px-2.5 py-1 rounded-md border border-amber-500/30 text-amber-200 shrink-0">
+            <span className="text-[10px] font-mono font-bold bg-[#11161D] px-2.5 py-1 rounded-full border border-amber-500/30 text-amber-200 shrink-0">
               Auto-syncing to cloud
             </span>
           </div>
         )}
+
         {/* ============================================================ */}
         {/* 2. TOTAL TARGET OVERVIEW CARD                                */}
         {/* ============================================================ */}
-        <section className="p-6 sm:p-7 rounded-3xl bg-linear-to-r from-[#0B132B] via-[#0D183A] to-[#0B132B] border border-white/15 shadow-2xl relative overflow-hidden luxury-sheen">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 border-b border-white/10 pb-5">
+        <section className="p-6 sm:p-7 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl relative overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 border-b border-white/[0.08] pb-5">
             <div>
-              <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> Shift Milestones
+              <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0] flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> SHIFT MILESTONES
               </span>
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight mt-1" suppressHydrationWarning>
-                Total Target: {totalTargetCount} {totalTargetCount === 1 ? 'Vehicle' : 'Vehicles'}
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mt-1" suppressHydrationWarning>
+                Target: {totalTargetCount} {totalTargetCount === 1 ? 'Vehicle' : 'Vehicles'}
               </h2>
-              <p className="text-xs text-slate-300 mt-0.5" suppressHydrationWarning>
+              <p className="text-xs text-white/60 mt-0.5" suppressHydrationWarning>
                 {washerSociety} basement cluster route • Shift: {washerRouteWindow} • Guaranteed ₹35/car payout
               </p>
             </div>
 
-            <div className="text-left sm:text-right bg-white/5 sm:bg-transparent p-3 sm:p-0 rounded-2xl border border-white/10 sm:border-0">
-              <span className="text-[10px] font-mono font-bold uppercase text-slate-400 block">
-                Shift Earnings
+            <div className="text-left sm:text-right bg-[#161C25] sm:bg-transparent p-3 sm:p-0 rounded-xl border border-white/[0.08] sm:border-0">
+              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 block font-bold">
+                SHIFT EARNINGS
               </span>
-              <div className="text-2xl sm:text-3xl font-black text-emerald-400 font-mono" suppressHydrationWarning>
-                ₹{earnedSoFar} <span className="text-xs font-bold text-slate-400 font-sans">/ ₹{totalExpectedPayout}</span>
+              <div className="text-2xl sm:text-3xl font-black text-[#2DD4A0] font-mono" suppressHydrationWarning>
+                ₹{earnedSoFar} <span className="text-xs font-bold text-white/40 font-sans">/ ₹{totalExpectedPayout}</span>
               </div>
             </div>
           </div>
@@ -302,41 +306,41 @@ export default function WasherDashboardPage() {
           {/* Progress Bar & Breakdown */}
           <div className="pt-5 space-y-3">
             <div className="flex items-center justify-between text-xs font-mono">
-              <span className="text-slate-300 font-medium">Shift Progress</span>
-              <span className="text-emerald-400 font-extrabold">{progressPercent}% Completed</span>
+              <span className="text-white/60 font-medium">Shift Progress</span>
+              <span className="text-[#2DD4A0] font-bold">{progressPercent}% Completed</span>
             </div>
 
-            <div className="w-full h-3 rounded-full bg-white/10 overflow-hidden p-0.5 border border-white/15">
+            <div className="w-full h-2.5 rounded-full bg-[#161C25] overflow-hidden p-0.5 border border-white/[0.08]">
               <div
-                className="h-full bg-linear-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-700 shadow-[0_0_12px_rgba(52,211,153,0.6)]"
+                className="h-full bg-[#2DD4A0] rounded-full transition-all duration-700 shadow-[0_0_12px_rgba(45,212,160,0.6)]"
                 style={{ width: `${progressPercent}%` }}
               />
             </div>
 
             <div className="grid grid-cols-3 gap-3 pt-2 text-center text-xs">
-              <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-400/30">
-                <span className="text-xl font-black text-emerald-300 font-mono block">
+              <div className="p-3.5 rounded-xl bg-[#161C25] border border-white/[0.08]">
+                <span className="text-xl font-bold text-[#2DD4A0] font-mono block">
                   {completedCount}
                 </span>
-                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">
+                <span className="text-[10px] font-semibold text-white/60 uppercase tracking-wide">
                   Proof Uploaded
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-blue-500/10 border border-blue-400/30">
-                <span className="text-xl font-black text-blue-300 font-mono block">
+              <div className="p-3.5 rounded-xl bg-[#161C25] border border-white/[0.08]">
+                <span className="text-xl font-bold text-white font-mono block">
                   {pendingCount}
                 </span>
-                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">
+                <span className="text-[10px] font-semibold text-white/60 uppercase tracking-wide">
                   Pending Washes
                 </span>
               </div>
 
-              <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-400/30">
-                <span className="text-xl font-black text-amber-300 font-mono block">
+              <div className="p-3.5 rounded-xl bg-[#161C25] border border-white/[0.08]">
+                <span className="text-xl font-bold text-amber-300 font-mono block">
                   {unavailableCount}
                 </span>
-                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wide">
+                <span className="text-[10px] font-semibold text-white/60 uppercase tracking-wide">
                   Protected Bays
                 </span>
               </div>
@@ -348,16 +352,16 @@ export default function WasherDashboardPage() {
         {/* 3. SOCIETY WISE DROPDOWN & VEHICLE LIST                       */}
         {/* ============================================================ */}
         <section className="space-y-4">
-          <div className="p-5 sm:p-6 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl space-y-4">
+          <div className="p-5 sm:p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="space-y-1">
-                <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5" /> Route Management & Search
+                <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0] flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5" /> ROUTE MANAGEMENT
                 </span>
-                <h3 className="text-lg sm:text-xl font-black text-white">
+                <h3 className="text-lg sm:text-xl font-bold text-white">
                   Find Assigned Vehicles
                 </h3>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-white/60">
                   Search by vehicle number plate or filter by society to view parking bays and upload morning proof photos.
                 </p>
               </div>
@@ -367,7 +371,7 @@ export default function WasherDashboardPage() {
                 <select
                   value={selectedSociety}
                   onChange={(e) => setSelectedSociety(e.target.value)}
-                  className="w-full appearance-none px-4 py-3.5 pr-10 rounded-2xl bg-[#0B132B] border border-emerald-400/40 text-xs font-black text-white focus:outline-hidden focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20 shadow-xl cursor-pointer"
+                  className="w-full appearance-none px-4 py-3 pr-10 rounded-full bg-[#161C25] border border-white/[0.08] text-xs font-bold text-white focus:outline-hidden focus:border-[#2DD4A0] shadow-md cursor-pointer"
                 >
                   <option value="all">
                     🏢 All Assigned Societies ({displayRouteStops.length} Cars)
@@ -383,26 +387,26 @@ export default function WasherDashboardPage() {
                     );
                   })}
                 </select>
-                <ChevronDown className="w-4 h-4 text-emerald-400 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <ChevronDown className="w-4 h-4 text-[#2DD4A0] absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
 
             {/* SEARCH INPUT BY NUMBER PLATE */}
-            <div className="relative pt-3 border-t border-white/10">
+            <div className="relative pt-3 border-t border-white/[0.08]">
               <div className="relative flex items-center">
-                <Search className="w-4 h-4 text-emerald-400 absolute left-4 pointer-events-none" />
+                <Search className="w-4 h-4 text-[#2DD4A0] absolute left-4 pointer-events-none" />
                 <input
                   type="text"
                   value={searchPlate}
                   onChange={(e) => setSearchPlate(e.target.value)}
                   placeholder="Search by car number plate (e.g. DL 01 AB 4291, 4291, HR 26)..."
-                  className="w-full pl-11 pr-24 sm:pr-28 py-3.5 rounded-2xl bg-[#0B132B]/90 border border-white/15 hover:border-white/25 focus:border-emerald-400/80 focus:ring-2 focus:ring-emerald-400/20 text-xs sm:text-sm font-mono font-semibold text-white placeholder:text-slate-500 placeholder:font-sans transition-all shadow-inner outline-hidden"
+                  className="w-full pl-11 pr-24 sm:pr-28 py-3 rounded-full bg-[#161C25] border border-white/[0.08] focus:border-[#2DD4A0] text-xs sm:text-sm font-mono font-semibold text-white placeholder:text-white/40 placeholder:font-sans transition-all outline-hidden"
                 />
                 {searchPlate && (
                   <button
                     type="button"
                     onClick={() => setSearchPlate('')}
-                    className="absolute right-3 px-2.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    className="absolute right-3 px-2.5 py-1 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                     title="Clear search"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -416,11 +420,11 @@ export default function WasherDashboardPage() {
           {/* ============================================================ */}
           {/* 4. CAR ROWS: CAR NUMBER & UPLOAD PROOF BUTTON ON THE RIGHT   */}
           {/* ============================================================ */}
-          <div className="space-y-3.5">
-            <div className="flex items-center justify-between px-2 text-xs font-mono font-bold text-slate-400 uppercase tracking-wider flex-wrap gap-2">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between px-2 text-[10px] font-mono font-bold text-white/50 uppercase tracking-[0.2em] flex-wrap gap-2">
               <span>
                 {searchPlate ? (
-                  <span className="text-emerald-300">
+                  <span className="text-[#2DD4A0]">
                     Search Results for &ldquo;{searchPlate}&rdquo; ({filteredStops.length} matching)
                   </span>
                 ) : selectedSociety === 'all' ? (
@@ -433,14 +437,14 @@ export default function WasherDashboardPage() {
             </div>
 
             {filteredStops.length === 0 ? (
-              <div className="p-8 sm:p-10 rounded-3xl border border-white/10 bg-white/5 backdrop-blur-xl text-center space-y-3 shadow-xl">
-                <div className="w-12 h-12 rounded-2xl bg-white/10 text-slate-400 flex items-center justify-center mx-auto">
-                  {searchPlate ? <Search className="w-6 h-6 text-slate-400" /> : <Car className="w-6 h-6 text-slate-400" />}
+              <div className="p-8 sm:p-10 rounded-[20px] border border-white/[0.08] bg-[#11161D] text-center space-y-3 shadow-xl">
+                <div className="w-12 h-12 rounded-xl bg-[#161C25] text-white/50 flex items-center justify-center mx-auto">
+                  {searchPlate ? <Search className="w-5 h-5 text-white/50" /> : <Car className="w-5 h-5 text-white/50" />}
                 </div>
                 <h3 className="text-base font-bold text-white">
                   {searchPlate ? `No vehicles found matching "${searchPlate}"` : 'No vehicles scheduled yet'}
                 </h3>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                <p className="text-xs text-white/60 max-w-sm mx-auto">
                   {searchPlate
                     ? 'Double check the registration number plate or clear the search to view all morning schedule cars.'
                     : `Vehicles assigned to your shift route in ${washerSociety} will appear here with bay numbers and owner details.`}
@@ -449,7 +453,7 @@ export default function WasherDashboardPage() {
                   <button
                     type="button"
                     onClick={() => setSearchPlate('')}
-                    className="px-4 py-2 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-xs font-bold border border-emerald-400/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
+                    className="px-4 py-2 rounded-full bg-[#2DD4A0]/10 hover:bg-[#2DD4A0]/20 text-[#2DD4A0] text-xs font-bold border border-[#2DD4A0]/30 transition-all cursor-pointer inline-flex items-center gap-1.5"
                   >
                     <X className="w-3.5 h-3.5" /> Clear Search Filter
                   </button>
@@ -464,28 +468,28 @@ export default function WasherDashboardPage() {
               return (
                 <div
                   key={stop.stop_number}
-                  className={`p-4 sm:p-5 rounded-3xl border backdrop-blur-xl shadow-xl flex ${
+                  className={`p-4 sm:p-5 rounded-[20px] border shadow-xl flex ${
                     isCompleted
-                      ? 'flex-row items-center justify-between gap-3 bg-white/5 border-white/10 hover:border-white/20'
+                      ? 'flex-row items-center justify-between gap-3 bg-[#11161D] border-white/[0.08]'
                       : isUnavailable
-                      ? 'flex-col sm:flex-row sm:items-center justify-between gap-4 bg-amber-500/10 border-amber-400/30'
-                      : 'flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white/5 border-white/10 hover:border-white/20'
+                      ? 'flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#11161D] border-amber-400/30'
+                      : 'flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#11161D] border-white/[0.08] hover:border-white/20'
                   } transition-all`}
                 >
-                  {/* LEFT SIDE: GREEN TICK, NUMBER PLATE, CAR BRAND (COMPLETED) OR PENDING STOP DETAILS */}
+                  {/* LEFT SIDE: GREEN TICK, NUMBER PLATE, CAR BRAND */}
                   {isCompleted ? (
                     <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
                       {/* Green Tick */}
-                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 bg-emerald-400 text-slate-950 shadow-[0_0_12px_rgba(52,211,153,0.5)]">
+                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 bg-[#2DD4A0] text-[#0A0D12] shadow-[0_0_12px_rgba(45,212,160,0.5)]">
                         ✓
                       </div>
 
-                      {/* Number Plate & Brand Below */}
+                      {/* Number Plate & Brand */}
                       <div className="flex flex-col items-start gap-0.5 sm:gap-1 min-w-0">
-                        <span className="text-sm sm:text-base md:text-lg font-black text-white font-mono tracking-wider bg-white/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg border border-white/15">
+                        <span className="text-sm sm:text-base font-bold text-white font-mono tracking-wider bg-[#161C25] px-2.5 py-0.5 rounded-lg border border-white/[0.08]">
                           {stop.registration_number}
                         </span>
-                        <span className="text-xs sm:text-sm font-bold text-slate-300 truncate">
+                        <span className="text-xs sm:text-sm font-medium text-white/70 truncate">
                           {stop.vehicle_name}
                         </span>
                       </div>
@@ -494,51 +498,51 @@ export default function WasherDashboardPage() {
                     <div className="flex items-start sm:items-center gap-3.5">
                       {/* Stop Number Badge */}
                       <div
-                        className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black text-sm shrink-0 shadow-md ${
+                        className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 shadow-md ${
                           isUnavailable
-                            ? 'bg-amber-400 text-slate-950'
-                            : 'bg-white/10 text-white border border-white/15'
+                            ? 'bg-amber-400 text-[#0A0D12]'
+                            : 'bg-[#161C25] text-white border border-white/[0.08]'
                         }`}
                       >
                         {`#${stop.stop_number}`}
                       </div>
 
                       <div className="space-y-1.5">
-                        {/* Number Plate & Status (if unavailable) */}
+                        {/* Number Plate & Status */}
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-base sm:text-lg font-black text-white font-mono tracking-wider bg-white/10 px-2.5 py-0.5 rounded-lg border border-white/15">
+                          <span className="text-base sm:text-lg font-bold text-white font-mono tracking-wider bg-[#161C25] px-2.5 py-0.5 rounded-lg border border-white/[0.08]">
                             {stop.registration_number}
                           </span>
 
                           {isUnavailable && (
-                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
-                              <AlertTriangle className="w-3 h-3" /> Vehicle Unavailable (Protected)
+                            <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> Vehicle Unavailable
                             </span>
                           )}
                         </div>
 
                         {/* Car Model Name Below Number Plate */}
-                        <div className="text-xs sm:text-sm font-bold text-slate-300">
+                        <div className="text-xs sm:text-sm font-semibold text-white/70">
                           {stop.vehicle_name}
                         </div>
 
                         {/* Location & Time details */}
-                        <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-                          <span className="flex items-center gap-1 text-emerald-300 font-semibold">
-                            <MapPin className="w-3.5 h-3.5 text-emerald-400" />
+                        <div className="flex items-center gap-3 text-xs text-white/50 flex-wrap font-mono">
+                          <span className="flex items-center gap-1 text-[#2DD4A0] font-sans font-semibold">
+                            <MapPin className="w-3.5 h-3.5 text-[#2DD4A0]" />
                             {stop.parking_location}
                           </span>
                           <span>•</span>
-                          <span className="flex items-center gap-1 font-mono text-slate-300">
-                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span className="flex items-center gap-1 text-white/70">
+                            <Clock className="w-3.5 h-3.5 text-white/40" />
                             {stop.scheduled_time}
                           </span>
                           <span>•</span>
-                          <span className="text-slate-400">
-                            Owner: <span className="text-white">{stop.owner_name}</span>
+                          <span className="text-white/60 font-sans">
+                            Owner: <strong className="text-white font-bold">{stop.owner_name}</strong>
                           </span>
                           <span>•</span>
-                          <span className="text-emerald-400 font-bold font-mono">
+                          <span className="text-[#2DD4A0] font-bold">
                             +₹{stop.payout_amount}
                           </span>
                         </div>
@@ -548,21 +552,20 @@ export default function WasherDashboardPage() {
 
                   {/* RIGHT SIDE: VIEW PROOF OR UPLOAD ACTIONS */}
                   <div className={`flex items-center gap-2.5 shrink-0 ${isCompleted ? 'self-center' : 'self-end sm:self-center'}`}>
-                    {/* If proof is already completed */}
                     {isCompleted ? (
                       <button
                         type="button"
                         onClick={() => setViewingProofStop(stop)}
-                        className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-400/30 text-emerald-300 text-xs font-black flex items-center gap-2 transition-all cursor-pointer shadow-xs active:scale-95 whitespace-nowrap"
+                        className="px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 border border-white/[0.08] text-[#2DD4A0] text-xs font-bold flex items-center gap-2 transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                       >
-                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        <CheckCircle2 className="w-4 h-4 text-[#2DD4A0]" />
                         <span>View Proof Photo</span>
                       </button>
                     ) : isUnavailable ? (
                       <button
                         type="button"
                         onClick={() => handleOpenUnavailable(stop)}
-                        className="px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
+                        className="px-4 py-2 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs font-bold flex items-center gap-2 transition-all cursor-pointer"
                       >
                         <ShieldCheck className="w-4 h-4 text-amber-400" />
                         <span>Bay Empty Proof</span>
@@ -573,20 +576,20 @@ export default function WasherDashboardPage() {
                         <button
                           type="button"
                           onClick={() => handleOpenUnavailable(stop)}
-                          className="px-3 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/15 text-slate-400 hover:text-amber-300 text-xs font-bold transition-all cursor-pointer"
+                          className="px-3.5 py-2.5 rounded-full bg-[#161C25] hover:bg-white/10 border border-white/[0.08] text-white/60 hover:text-amber-300 text-xs font-medium transition-all cursor-pointer"
                           title="If vehicle is not parked at assigned bay"
                         >
                           <AlertTriangle className="w-3.5 h-3.5" />
-                          <span className="hidden sm:inline">No Car?</span>
+                          <span className="hidden sm:inline ml-1">No Car?</span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => handleOpenUploadProof(stop)}
-                          className="px-5 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                          className="px-5 py-2.5 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] font-bold text-xs flex items-center gap-2 shadow-md transition-all active:scale-95 cursor-pointer"
                         >
                           <Camera className="w-4 h-4" />
-                          <span>Upload Wash Proof</span>
+                          <span>Upload Proof</span>
                         </button>
                       </div>
                     )}
@@ -601,33 +604,33 @@ export default function WasherDashboardPage() {
         {/* 5. EARNINGS WALLET SHORTCUT                                  */}
         {/* ============================================================ */}
         <div className="pt-2">
-          <div className="p-5 sm:p-6 rounded-3xl bg-linear-to-r from-emerald-950/40 via-[#0B132B] to-[#0B132B] border border-emerald-500/30 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+          <div className="p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-400/30 flex items-center justify-center shrink-0">
+              <div className="w-12 h-12 rounded-xl bg-[#161C25] text-[#2DD4A0] border border-white/[0.08] flex items-center justify-center shrink-0">
                 <Wallet className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 block">
-                  Available For Withdrawal
+                <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0] block">
+                  AVAILABLE FOR WITHDRAWAL
                 </span>
                 <div className="text-2xl font-black text-white font-mono mt-0.5" suppressHydrationWarning>
                   ₹{availableForWithdrawal}
-                  <span className="text-xs text-slate-400 font-sans font-normal ml-2">
+                  <span className="text-xs text-white/50 font-sans font-normal ml-2">
                     (Weekly Total: ₹{weeklyTotal})
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-400 mt-1 flex items-center gap-1.5 flex-wrap">
-                  <Landmark className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Settling to: <strong className="text-white">{washerBankAccount}</strong></span>
+                <div className="text-[11px] text-white/50 mt-1 flex items-center gap-1.5 flex-wrap">
+                  <Landmark className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                  <span>Settling to: <strong className="text-white font-mono">{washerBankAccount}</strong></span>
                   <span>•</span>
-                  <span className="font-mono text-emerald-300">IFSC: {washerIfsc}</span>
+                  <span className="font-mono text-[#2DD4A0]">IFSC: {washerIfsc}</span>
                 </div>
               </div>
             </div>
 
             <Link
               href="/washer/earnings"
-              className="px-6 py-3 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 text-xs font-black shadow-md transition-all active:scale-95 text-center shrink-0"
+              className="px-6 py-2.5 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] text-xs font-bold shadow-md transition-all active:scale-95 text-center shrink-0"
             >
               Withdraw Now →
             </Link>
@@ -639,18 +642,18 @@ export default function WasherDashboardPage() {
       {/* MODAL 1: VIEW PROOF PHOTO MODAL                              */}
       {/* ============================================================ */}
       {viewingProofStop && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
-          <div className="w-full max-w-lg bg-[#0B132B] border border-white/20 rounded-3xl shadow-2xl overflow-hidden relative text-white">
-            <div className="p-5 border-b border-white/10 flex items-center justify-between bg-white/5">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-[#11161D] border border-white/[0.08] rounded-[20px] shadow-2xl overflow-hidden relative text-white">
+            <div className="p-5 border-b border-white/[0.08] flex items-center justify-between bg-[#161C25]/50">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-emerald-400 text-slate-950 font-black flex items-center justify-center text-xs">
+                <div className="w-8 h-8 rounded-lg bg-[#2DD4A0] text-[#0A0D12] font-black flex items-center justify-center text-xs">
                   ✓
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white">
+                  <h3 className="text-sm sm:text-base font-bold text-white">
                     Verified Wash Proof: {viewingProofStop.registration_number}
                   </h3>
-                  <p className="text-xs text-slate-400 font-mono">
+                  <p className="text-xs text-white/50 font-mono">
                     {viewingProofStop.vehicle_name} • {viewingProofStop.parking_location}
                   </p>
                 </div>
@@ -658,51 +661,51 @@ export default function WasherDashboardPage() {
               <button
                 type="button"
                 onClick={() => setViewingProofStop(null)}
-                className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                className="p-1.5 rounded-full bg-[#161C25] hover:bg-white/10 text-white/50 hover:text-white transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="p-5 space-y-4">
-              <div className="relative aspect-video w-full rounded-2xl overflow-hidden border border-white/15 bg-black">
+              <div className="relative aspect-video w-full rounded-[16px] overflow-hidden border border-white/[0.08] bg-black">
                 <Image
                   src={viewingProofStop.proof_photo || '/images/honda_city_after.jpg'}
                   alt="Verified Wash Proof"
                   fill
                   className="object-cover"
                 />
-                <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-black/75 backdrop-blur-md border border-white/15 text-[11px] font-mono text-slate-200 flex items-center justify-between">
+                <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-[#0A0D12]/80 backdrop-blur-md border border-white/[0.08] text-[11px] font-mono text-white flex items-center justify-between">
                   <span>GPS Bay Verified: {viewingProofStop.parking_location}</span>
-                  <span className="text-emerald-400 font-bold">Passed ✓</span>
+                  <span className="text-[#2DD4A0] font-bold">Passed ✓</span>
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-xs space-y-2">
-                <div className="flex justify-between text-slate-300">
+              <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.06] text-xs space-y-2">
+                <div className="flex justify-between text-white/60">
                   <span>Car Owner:</span>
                   <span className="text-white font-bold">{viewingProofStop.owner_name}</span>
                 </div>
-                <div className="flex justify-between text-slate-300">
+                <div className="flex justify-between text-white/60">
                   <span>Bay Location:</span>
-                  <span className="text-emerald-300 font-bold">{viewingProofStop.parking_location}</span>
+                  <span className="text-[#2DD4A0] font-bold">{viewingProofStop.parking_location}</span>
                 </div>
-                <div className="flex justify-between text-slate-300">
+                <div className="flex justify-between text-white/60">
                   <span>Completed Time:</span>
-                  <span className="text-slate-200 font-mono">{viewingProofStop.scheduled_time}</span>
+                  <span className="text-white font-mono">{viewingProofStop.scheduled_time}</span>
                 </div>
-                <div className="flex justify-between text-slate-300">
+                <div className="flex justify-between text-white/60">
                   <span>Payout Protected:</span>
-                  <span className="text-emerald-400 font-bold font-mono">+₹{viewingProofStop.payout_amount}</span>
+                  <span className="text-[#2DD4A0] font-bold font-mono">+₹{viewingProofStop.payout_amount}</span>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 border-t border-white/10 bg-white/5 flex justify-end">
+            <div className="p-4 border-t border-white/[0.08] bg-[#161C25]/50 flex justify-end">
               <button
                 type="button"
                 onClick={() => setViewingProofStop(null)}
-                className="px-5 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#080D1A] font-black text-xs"
+                className="px-6 py-2 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] font-bold text-xs transition-all"
               >
                 Close
               </button>

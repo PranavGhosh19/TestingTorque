@@ -15,7 +15,7 @@ export default function WasherBottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/80 px-2 py-2 md:hidden">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0A0D12]/95 backdrop-blur-xl border-t border-white/[0.08] px-2 py-2 md:hidden">
       <div className="grid grid-cols-3 max-w-md mx-auto">
         {links.map((link) => {
           const Icon = link.icon;
@@ -25,19 +25,19 @@ export default function WasherBottomNav() {
               key={link.href}
               href={link.href}
               className={`flex flex-col items-center justify-center py-1 transition-colors ${
-                isActive ? 'text-emerald-700' : 'text-slate-400 hover:text-slate-600'
+                isActive ? 'text-white' : 'text-white/40 hover:text-white/70'
               }`}
             >
               <div
-                className={`p-1 rounded-xl transition-all ${
-                  isActive ? 'bg-emerald-50 text-emerald-700' : ''
+                className={`p-1.5 rounded-xl transition-all ${
+                  isActive ? 'bg-[#2DD4A0]/10 text-[#2DD4A0] border border-[#2DD4A0]/30 shadow-[0_0_15px_rgba(45,212,160,0.2)]' : ''
                 }`}
               >
                 <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : 'stroke-2'}`} />
               </div>
               <span
                 className={`text-[10px] mt-0.5 tracking-tight ${
-                  isActive ? 'font-bold text-emerald-800' : 'font-medium'
+                  isActive ? 'font-bold text-white' : 'font-medium'
                 }`}
               >
                 {link.label}

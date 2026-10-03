@@ -88,42 +88,47 @@ export default function SignatureProofCard({
   return (
     <>
       <div
-        className={`relative rounded-3xl bg-[#080D1A] text-white p-5 sm:p-6 overflow-hidden border border-white/10 shadow-[0_20px_50px_-15px_rgba(0,0,0,0.7)] specular-border luxury-sheen ${className}`}
+        className={`relative rounded-[20px] bg-[#11161D] text-white p-5 sm:p-6 overflow-hidden border border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.7)] ${className}`}
       >
         {/* Subtle ambient lighting */}
-        <div className="absolute -top-24 -right-24 w-60 h-60 bg-blue-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -top-24 -right-24 w-60 h-60 bg-[#2DD4A0]/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
         {/* Top Bar: Vehicle Name on Left, Status Badge on Right */}
-        <div className="relative z-10 flex items-center justify-between mb-3.5">
-          <h2 suppressHydrationWarning className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            {vehicleName}
-          </h2>
+        <div className="relative z-10 flex items-center justify-between mb-4">
+          <div>
+            <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 block mb-0.5">
+              Assigned Vehicle
+            </span>
+            <h2 suppressHydrationWarning className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              {vehicleName}
+            </h2>
+          </div>
 
           {/* Condition: if present date proof is submitted before 10am then mark Washed Today */}
           {isWashedToday ? (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-400/30 text-emerald-400 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
-              <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 text-[#2DD4A0] text-xs sm:text-sm font-bold tracking-wide shadow-sm">
+              <ShieldCheck className="w-4 h-4 text-[#2DD4A0]" />
               <span>Washed Today</span>
             </div>
           ) : isToday && hasProof && !isBefore10AM ? (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
               <Clock className="w-4 h-4 text-amber-400" />
               <span>Completed ({time})</span>
             </div>
           ) : isToday && wash?.status === 'in_progress' ? (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
               <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
               <span>Wash In Progress</span>
             </div>
           ) : isSunday ? (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-500/15 border border-white/20 text-slate-300 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
-              <Sparkles className="w-4 h-4 text-slate-400" />
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/70 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
+              <Sparkles className="w-4 h-4 text-white/50" />
               <span>Sunday Rest Day</span>
             </div>
           ) : (
-            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs sm:text-sm font-bold tracking-wide shadow-xs">
-              <Clock className="w-4 h-4 text-blue-400" />
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/15 text-white/80 text-xs sm:text-sm font-semibold tracking-wide shadow-sm">
+              <Clock className="w-4 h-4 text-[#2DD4A0]" />
               <span>Scheduled (By 10 AM)</span>
             </div>
           )}
@@ -131,7 +136,7 @@ export default function SignatureProofCard({
 
         {/* Clean Inspection Photo Showcase / Awaiting Care State */}
         {hasProof && afterPhoto ? (
-          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-slate-950 border border-white/15 group shadow-2xl">
+          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-slate-950 border border-white/10 group shadow-2xl">
             <Image
               src={afterPhoto}
               alt="Verified Clean Inspection"
@@ -145,11 +150,11 @@ export default function SignatureProofCard({
             <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
 
             {/* Top Left: Single Clean Information Pill */}
-            <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-xs text-white shadow-lg">
-              <span className={`w-2 h-2 rounded-full ${isWashedToday ? 'bg-emerald-400' : 'bg-amber-400'}`} />
-              <span className="font-semibold text-slate-100">{parkingLocation}</span>
+            <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-xs text-white shadow-lg">
+              <span className={`w-2 h-2 rounded-full ${isWashedToday ? 'bg-[#2DD4A0]' : 'bg-amber-400'}`} />
+              <span className="font-semibold text-white/90">{parkingLocation}</span>
               <span className="text-white/40">•</span>
-              <span className="text-slate-300 font-mono text-[11px]">{time} IST</span>
+              <span className="text-white/70 font-mono text-[11px]">{time} IST</span>
             </div>
 
             {/* Top Right: Tap to zoom */}
@@ -162,20 +167,20 @@ export default function SignatureProofCard({
             </button>
           </div>
         ) : (
-          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-linear-to-b from-slate-900 via-[#0B132B] to-[#080D1A] border border-white/15 p-6 flex flex-col items-center justify-center text-center shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-400/20 flex items-center justify-center text-blue-400 mb-3.5 shadow-lg">
+          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-[#161C25] border border-white/[0.08] p-6 flex flex-col items-center justify-center text-center shadow-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 flex items-center justify-center text-[#2DD4A0] mb-3.5 shadow-lg">
               <Clock className="w-7 h-7 animate-pulse" />
             </div>
-            <div className="text-base font-extrabold text-white">
+            <div className="text-base font-bold text-white uppercase tracking-wide">
               {isSunday ? 'Sunday Rest Day' : 'Morning Doorstep Wash Scheduled'}
             </div>
-            <p suppressHydrationWarning className="text-xs text-slate-300 max-w-sm mt-1 leading-relaxed">
+            <p suppressHydrationWarning className="text-xs text-white/65 max-w-sm mt-1 leading-relaxed">
               {isSunday
                 ? 'Under your 6-day Mon–Sat plan, Sunday is a scheduled rest day.'
                 : `Assigned partner ${washerName} will wash your car in the morning bay window. Verified photo proof will be posted here before 10:00 AM.`}
             </p>
-            <div className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-[11px] font-mono text-slate-300">
-              <MapPin className="w-3 h-3 text-blue-400" />
+            <div className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] font-mono text-white/70">
+              <MapPin className="w-3 h-3 text-[#2DD4A0]" />
               <span>{parkingLocation}</span>
               <span className="text-white/30">•</span>
               <span>Preferred: {currentVehicle?.preferred_wash_time || '07:30 AM'}</span>
@@ -184,19 +189,20 @@ export default function SignatureProofCard({
         )}
 
         {/* Below the Image: Car Number Plate */}
-        <div className="relative z-10 mt-3 flex items-center justify-between">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-slate-100 font-mono text-xs sm:text-sm font-extrabold tracking-wider shadow-sm">
-            <span className="text-[10px] font-sans font-bold text-blue-400 border-r border-white/20 pr-1.5">IND</span>
+        <div className="relative z-10 mt-3.5 flex items-center justify-between">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#161C25] border border-white/[0.12] text-white font-mono text-xs sm:text-sm font-bold tracking-wider shadow-sm">
+            <span className="text-[10px] font-sans font-bold text-[#2DD4A0] border-r border-white/20 pr-1.5">IND</span>
             <span>{regNumber}</span>
           </div>
-          <span className="text-xs text-slate-400 font-medium">Daily Bay Care</span>
+          <span className="text-xs text-white/50 font-medium font-mono uppercase text-[11px] tracking-wider">
+            Daily Society Care
+          </span>
         </div>
 
-
         {/* Footer: Washer Details & Action */}
-        <div className="relative z-10 mt-4 pt-3.5 border-t border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="relative z-10 mt-4 pt-3.5 border-t border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-emerald-400/50 shadow-md shrink-0">
+            <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-[#2DD4A0]/60 shadow-md shrink-0">
               <Image
                 src={washerAvatar}
                 alt={washerName}
@@ -209,12 +215,12 @@ export default function SignatureProofCard({
                 <span className="text-xs font-bold text-white tracking-tight">
                   {washerName}
                 </span>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-amber-400/20 text-amber-300 border border-amber-400/30">
                   ★ 4.9
                 </span>
               </div>
-              <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                <MapPin className="w-3 h-3 text-emerald-400" />
+              <p className="text-[11px] text-white/60 flex items-center gap-1 mt-0.5">
+                <MapPin className="w-3 h-3 text-[#2DD4A0]" />
                 Green Valley • Bay D-14 (Basement 1)
               </p>
             </div>
@@ -223,7 +229,7 @@ export default function SignatureProofCard({
           {showFullProofBtn && (
             <button
               onClick={() => setShowModal(true)}
-              className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-[#080D1A] text-xs font-bold transition-all shadow-[0_4px_15px_rgba(255,255,255,0.15)] active:scale-[0.98]"
+              className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] text-xs font-bold transition-all shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98]"
             >
               <span>View Full Certificate</span>
               <ChevronRight className="w-3.5 h-3.5" />
@@ -235,23 +241,23 @@ export default function SignatureProofCard({
       {/* Full Proof Certificate Modal */}
       <AnimatePresence>
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
               transition={{ duration: 0.2 }}
-              className="bg-[#0B132B] text-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border border-white/15 max-h-[90vh] flex flex-col"
+              className="bg-[#11161D] text-white rounded-[20px] max-w-lg w-full overflow-hidden shadow-2xl border border-white/[0.12] max-h-[90vh] flex flex-col"
             >
               {/* Modal Header */}
-              <div className="p-5 border-b border-white/10 flex items-center justify-between bg-white/5">
+              <div className="p-5 border-b border-white/[0.08] flex items-center justify-between bg-[#161C25]">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-400 bg-emerald-500/20 px-2.5 py-0.5 rounded-full border border-emerald-400/30 uppercase tracking-wider">
+                    <span className="inline-flex items-center gap-1 text-[10px] font-extrabold text-[#2DD4A0] bg-[#2DD4A0]/15 px-2.5 py-0.5 rounded-full border border-[#2DD4A0]/30 uppercase tracking-wider">
                       <ShieldCheck className="w-3 h-3" /> 100% Verified Care Certificate
                     </span>
                   </div>
-                  <h3 className="text-lg font-black text-white mt-1">
+                  <h3 className="text-lg font-bold text-white mt-1">
                     {vehicleName} — Clean Inspection
                   </h3>
                 </div>

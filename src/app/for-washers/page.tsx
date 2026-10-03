@@ -2,286 +2,293 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Sparkles, MapPin, IndianRupee, Calendar, Users, Zap, ArrowRight, Check, CheckCircle2, ShieldCheck, AlertTriangle, Gift } from 'lucide-react';
+import {
+  Sparkles,
+  MapPin,
+  IndianRupee,
+  Calendar,
+  Users,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  ShieldCheck,
+  Gift,
+} from 'lucide-react';
+import Navbar from '@/components/Navbar';
 
 export default function ForWashersPage() {
   const washerBenefits = [
     {
-      title: 'Get Steady Customers',
+      title: 'Steady Society Customers',
       icon: Users,
-      color: 'text-emerald-600 bg-emerald-50',
       description:
-        'No more knocking on doors or begging for monthly payments. Torque Care assigns verified society subscribers directly to your digital route.',
+        'No more knocking on doors or awkward monthly collections. Torque Care assigns verified apartment subscribers directly to your digital route.',
     },
     {
-      title: 'Concentrated Routes',
+      title: 'Concentrated Basement Routes',
       icon: MapPin,
-      color: 'text-blue-600 bg-blue-50',
       description:
-        'All your cars are in the same basement or adjacent towers. Finish up to 35 vehicles in under 3.5 hours with zero cross-city travel.',
+        'All your vehicles are in the same basement or adjacent parking towers. Complete up to 35 vehicles in under 3.5 hours with zero cross-city travel.',
     },
     {
-      title: 'Direct Weekly Payouts',
+      title: 'Weekly Digital Payouts',
       icon: IndianRupee,
-      color: 'text-teal-600 bg-teal-50',
       description:
-        'Earn ₹12 to ₹21 per completed wash (Hatchback/Sedan ₹12, Compact/Mid SUV ₹16, Luxury/7-Seater+ ₹21). Withdraw your earnings anytime directly to your bank account with instant IMPS settlement.',
+        'Earn ₹12 to ₹21 per completed wash. Withdraw your earnings anytime directly to your bank account with instant IMPS settlement.',
     },
     {
       title: 'Flexible Leave Protection',
       icon: Calendar,
-      color: 'text-amber-600 bg-amber-50',
       description:
-        'Need time off? Request leave with 1-tap in the app and your partner network automatically covers your route without losing your customer base.',
+        'Need time off? Request leave with 1-tap in the app and your society partner team automatically covers your bays without losing your customers.',
     },
     {
-      title: 'Backup Network Community',
+      title: 'Trained Peer Community',
       icon: Users,
-      color: 'text-indigo-600 bg-indigo-50',
       description:
         'Work alongside verified peers in your society. Cover each other’s shifts, earn extra bonuses, and build respect in the community.',
     },
     {
       title: '100% Sunday Payments Bonus',
       icon: Gift,
-      color: 'text-rose-600 bg-rose-50',
       description:
-        'Now a bonus payment for Washers: All Sunday payments are for Washers. Torque Care takes zero platform fee on Sundays — 100% of every Sunday wash payment goes directly into your pocket.',
+        'Torque Care takes zero platform fees on Sundays — 100% of every Sunday morning wash payment goes directly into your pocket as a bonus.',
     },
     {
       title: 'Payout Protection on Missing Cars',
       icon: ShieldCheck,
-      color: 'text-emerald-600 bg-emerald-50',
       description:
-        "Reached the assigned parking bay but the vehicle is missing? Tap 'VEHICLE NOT AVAILABLE' and snap a photo of the empty bay. Washer: Present ✓, Payout: Protected ✓. Never counted as a missed wash.",
+        "Reached the assigned bay but the car is missing? Snap an empty bay photo. Marked Present ✓, Payout: Protected ✓. Never counted as a missed wash.",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-[#F5F7FA] py-12 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto space-y-16">
-      {/* Hero Header */}
-      <div className="text-center max-w-2xl mx-auto space-y-3">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-linear-to-r from-amber-500/20 via-rose-500/20 to-amber-500/20 border border-amber-500/40 text-amber-900 text-xs font-black shadow-xs">
-          <Gift className="w-4 h-4 text-amber-600 animate-bounce" />
-          <span>BONUS ANNOUNCEMENT: ALL SUNDAY PAYMENTS ARE FOR WASHERS</span>
-        </div>
+    <div className="w-full min-h-screen bg-[#0A0D12] text-white selection:bg-[#2DD4A0] selection:text-black">
+      <Navbar />
 
-        <div>
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-            Service Partner Network
-          </span>
-        </div>
+      {/* AMBIENT GLOWS */}
+      <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-[#2DD4A0]/5 rounded-full blur-[160px] pointer-events-none -z-10" />
+      <div className="fixed bottom-10 right-10 w-[500px] h-[500px] bg-blue-600/5 rounded-full blur-[150px] pointer-events-none -z-10" />
 
-        <h1 className="text-3xl sm:text-5xl font-extrabold text-[#0B132B] tracking-tight">
-          More customers. <br />
-          <span className="text-emerald-600">Less chasing.</span>
-        </h1>
-        <p className="text-sm text-slate-600">
-          Transform irregular local car cleaning into a predictable, tech-enabled enterprise with automated routes, protected payouts, and 100% Sunday bonus earnings.
-        </p>
-      </div>
-
-      {/* Benefits Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {washerBenefits.map((b, i) => {
-          const Icon = b.icon;
-          return (
-            <div
-              key={i}
-              className="premium-card p-6 bg-white border-slate-200 space-y-3 shadow-xs"
-            >
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${b.color}`}>
-                <Icon className="w-6 h-6" />
-              </div>
-              <h2 className="text-lg font-bold text-[#0B132B]">{b.title}</h2>
-              <p className="text-xs text-slate-600 leading-relaxed">{b.description}</p>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* SUNDAY BONUS PAYMENTS: 100% FOR WASHERS */}
-      <div className="p-8 sm:p-10 rounded-3xl bg-linear-to-br from-rose-950 via-[#0B132B] to-[#080D1A] text-white border-2 border-rose-500/40 shadow-2xl relative overflow-hidden space-y-6">
-        <div className="absolute top-0 right-0 w-80 h-80 bg-rose-500/15 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
-          <div className="space-y-3 max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-rose-500/20 border border-rose-400/40 text-rose-300 text-[11px] font-mono font-black uppercase tracking-wider">
-              <Gift className="w-3.5 h-3.5 text-rose-400" />
-              100% Partner Retention
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              Now a bonus payment for Washers: <br />
-              <span className="text-transparent bg-clip-text bg-linear-to-r from-rose-400 via-amber-300 to-rose-300">
-                All Sunday payments are for Washers.
-              </span>
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
-              Torque Care takes zero platform fees or commission on Sundays. 100% of every rupee car owners pay for Sunday morning washes is transferred straight to you as an instant bonus.
-            </p>
-          </div>
-
-          {/* Direct Math Bento */}
-          <div className="grid grid-cols-3 gap-3 shrink-0">
-            <div className="p-4 rounded-2xl bg-white/10 border border-white/15 text-center min-w-[95px]">
-              <span className="text-[10px] uppercase font-bold text-slate-400 block">Owner Pays</span>
-              <span className="text-xl font-black text-white mt-1 block">₹50</span>
-              <span className="text-[9px] text-slate-400">per car</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-white/10 border border-white/15 text-center min-w-[95px]">
-              <span className="text-[10px] uppercase font-bold text-rose-400 block">Torque Fee</span>
-              <span className="text-xl font-black text-emerald-400 mt-1 block">₹0</span>
-              <span className="text-[9px] text-emerald-400">0% Cut</span>
-            </div>
-            <div className="p-4 rounded-2xl bg-rose-500/20 border border-rose-400/50 text-center min-w-[105px]">
-              <span className="text-[10px] uppercase font-bold text-rose-300 block">You Receive</span>
-              <span className="text-xl font-black text-amber-300 mt-1 block">₹50</span>
-              <span className="text-[9px] text-amber-300 font-bold">100% Bonus ✓</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Sunday Perks Row */}
-        <div className="pt-4 border-t border-white/10 grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs relative z-10">
-          <div className="flex items-center gap-2 text-slate-200">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span><strong>₹750 extra cash</strong> in ~1.5 hrs (15 cars)</span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-200">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span><strong>+₹3,000 to ₹4,000/month</strong> bonus earnings</span>
-          </div>
-          <div className="flex items-center gap-2 text-slate-200">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span><strong>Instant IMPS payout</strong> directly to bank</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Fair Partner Protection: Vehicle Unavailable Rule */}
-      <div className="p-8 bg-[#0B132B] text-white rounded-3xl space-y-6 border border-slate-800 shadow-xl">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="space-y-2">
-            <span className="text-[11px] font-black uppercase tracking-wider text-amber-400 bg-amber-950/60 px-3 py-1 rounded-full border border-amber-500/30">
-              Partner Payout Guarantee
+      {/* FULL-WIDTH RESPONSIVE INNER CONTAINER */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20 sm:pt-32 sm:pb-28 space-y-16 sm:space-y-20">
+        {/* HERO HEADER */}
+        <div className="text-center max-w-3xl mx-auto">
+          {/* Announcement Pill */}
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#161C25] border border-white/[0.08] shadow-md text-xs font-semibold text-white/70 mb-8">
+            <Gift className="w-3.5 h-3.5 text-[#2DD4A0]" />
+            <span className="tracking-[0.2em] uppercase font-mono text-[10px] text-[#2DD4A0]">
+              100% SUNDAY PAYMENTS BONUS TO SPECIALISTS
             </span>
-            <h3 className="text-2xl font-black text-white">
-              Customer / Vehicle Unavailable? Your Payout is Protected.
-            </h3>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
-              If you reach the assigned parking bay during the scheduled window, but the owner isn&apos;t available and the vehicle isn&apos;t at the assigned bay, you still get paid:
-            </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="p-3 bg-white/10 rounded-2xl border border-white/10 text-center min-w-[110px]">
-              <span className="text-[10px] text-slate-400 uppercase font-bold block">Washer</span>
-              <span className="text-sm font-bold text-emerald-400 flex items-center justify-center gap-1 mt-0.5">
-                Present ✓
-              </span>
-            </div>
-            <div className="p-3 bg-white/10 rounded-2xl border border-white/10 text-center min-w-[110px]">
-              <span className="text-[10px] text-slate-400 uppercase font-bold block">Service</span>
-              <span className="text-sm font-bold text-slate-300 block mt-0.5">
-                Not possible
-              </span>
-            </div>
-            <div className="p-3 bg-white/10 rounded-2xl border border-white/10 text-center min-w-[130px]">
-              <span className="text-[10px] text-slate-400 uppercase font-bold block">Payout</span>
-              <span className="text-sm font-bold text-emerald-400 flex items-center justify-center gap-1 mt-0.5">
-                Protected ✓
-              </span>
-            </div>
-          </div>
-        </div>
+          <h1 className="text-4xl sm:text-6xl font-bold text-white tracking-tight leading-[1.1] mb-6">
+            More customers. Less chasing.
+          </h1>
 
-        <div className="p-4 bg-white/5 rounded-2xl border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold">
-            <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-            <span>It should not be classified as a missed wash by the washer.</span>
-          </div>
-          <div className="text-slate-400 font-mono text-[11px]">
-            How to verify: Tap &apos;VEHICLE NOT AVAILABLE&apos; → Live camera opens → Snap photo of assigned bay.
-          </div>
-        </div>
-      </div>
-
-      {/* Washer Earning Calculator Preview */}
-      <div className="premium-card p-8 bg-white border-slate-200 rounded-3xl space-y-6">
-        <div className="max-w-xl">
-          <span className="text-xs font-bold uppercase tracking-wider text-emerald-600">
-            Earning Potential
-          </span>
-          <h3 className="text-2xl font-extrabold text-[#0B132B] mt-1">
-            Expected Monthly Earnings
-          </h3>
-          <p className="text-xs text-slate-500 mt-1">
-            Based on a single 3-hour morning route in a typical 500-apartment society + 100% Sunday payments bonus.
+          <p className="text-base sm:text-lg text-white/60 max-w-2xl mx-auto leading-relaxed">
+            Transform local car cleaning into a predictable, tech-enabled profession with automated basement routes, protected payouts, and respect in the community.
           </p>
         </div>
 
-        {/* Transparent Rates Table */}
-        <div className="overflow-x-auto rounded-2xl border border-slate-200">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 font-mono border-b border-slate-200">
-              <tr>
-                <th className="py-3 px-4 font-semibold">Vehicle</th>
-                <th className="py-3 px-4 font-semibold">Customer (Monthly)</th>
-                <th className="py-3 px-4 font-semibold text-right">Washer earns per completed wash</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              <tr className="hover:bg-slate-50/60 transition-colors">
-                <td className="py-3 px-4 text-[#0B132B] font-semibold">Hatchback / Sedan</td>
-                <td className="py-3 px-4 text-slate-600">₹599</td>
-                <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700">₹12</td>
-              </tr>
-              <tr className="hover:bg-slate-50/60 transition-colors">
-                <td className="py-3 px-4 text-[#0B132B] font-semibold">Compact / Mid SUV</td>
-                <td className="py-3 px-4 text-slate-600">₹649</td>
-                <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700">₹16</td>
-              </tr>
-              <tr className="hover:bg-slate-50/60 transition-colors">
-                <td className="py-3 px-4 text-[#0B132B] font-semibold">Luxury / 7-Seater+</td>
-                <td className="py-3 px-4 text-slate-600">₹799</td>
-                <td className="py-3 px-4 text-right font-mono font-bold text-emerald-700">₹21</td>
-              </tr>
-            </tbody>
-          </table>
+        {/* Benefits Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {washerBenefits.map((b, i) => {
+            const Icon = b.icon;
+            return (
+              <div
+                key={i}
+                className="p-8 rounded-[20px] bg-[#11161D] border border-white/[0.08] hover:border-white/20 shadow-xl space-y-4 transition-all relative flex flex-col justify-between"
+              >
+                <div className="space-y-4">
+                  <div className="w-12 h-12 rounded-xl bg-[#161C25] border border-white/[0.08] flex items-center justify-center text-[#2DD4A0]">
+                    <Icon className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-xl font-bold text-white tracking-tight">{b.title}</h3>
+                  <p className="text-xs sm:text-sm text-white/60 leading-relaxed">{b.description}</p>
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200">
-            <span className="text-xs text-slate-500 font-medium">Daily Route (Mon-Sat)</span>
-            <div className="text-2xl font-extrabold text-[#0B132B] mt-1">30 Cars</div>
-            <span className="text-[11px] text-slate-400">~3 hours / morning</span>
+        {/* SUNDAY BONUS PAYMENTS CARD */}
+        <div className="p-8 sm:p-10 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl relative overflow-hidden space-y-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+            <div className="space-y-2.5 max-w-2xl">
+              <div className="inline-flex items-center gap-2 px-3 py-0.5 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/30 text-[#2DD4A0] text-[10px] font-mono font-bold uppercase tracking-wider">
+                <Gift className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                100% PARTNER RETENTION
+              </div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
+                Bonus Payment: All Sunday Payments Are For Specialists
+              </h2>
+              <p className="text-xs sm:text-sm text-white/60 leading-relaxed font-normal">
+                Torque Care takes zero platform fees or commission on Sundays. 100% of every rupee car owners pay for Sunday morning washes is transferred straight to you as an instant bonus.
+              </p>
+            </div>
+
+            {/* Direct Math Bento */}
+            <div className="grid grid-cols-3 gap-3 shrink-0">
+              <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.06] text-center min-w-[95px]">
+                <span className="text-[10px] uppercase font-bold text-white/50 block">Owner Pays</span>
+                <span className="text-xl font-bold text-white mt-1 block">₹50</span>
+                <span className="text-[9px] text-white/40">per car</span>
+              </div>
+              <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.06] text-center min-w-[95px]">
+                <span className="text-[10px] uppercase font-bold text-white/50 block">Torque Fee</span>
+                <span className="text-xl font-bold text-[#2DD4A0] mt-1 block">₹0</span>
+                <span className="text-[9px] text-[#2DD4A0]">0% Cut</span>
+              </div>
+              <div className="p-4 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/30 text-center min-w-[105px]">
+                <span className="text-[10px] uppercase font-bold text-[#2DD4A0] block">You Receive</span>
+                <span className="text-xl font-black text-white mt-1 block">₹50</span>
+                <span className="text-[9px] text-[#2DD4A0] font-bold">100% Bonus ✓</span>
+              </div>
+            </div>
           </div>
 
-          <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200">
-            <span className="text-xs text-rose-700 font-semibold flex items-center justify-center gap-1">
-              <Gift className="w-3.5 h-3.5 text-rose-600" />
-              Sunday Bonus (100%)
+          {/* Sunday Perks Row */}
+          <div className="pt-4 border-t border-white/[0.08] grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs relative z-10">
+            <div className="flex items-center gap-2 text-white/80">
+              <CheckCircle2 className="w-4 h-4 text-[#2DD4A0] shrink-0" />
+              <span><strong>₹750 extra cash</strong> in ~1.5 hrs (15 cars)</span>
+            </div>
+            <div className="flex items-center gap-2 text-white/80">
+              <CheckCircle2 className="w-4 h-4 text-[#2DD4A0] shrink-0" />
+              <span><strong>+₹3,000 to ₹4,000/month</strong> bonus earnings</span>
+            </div>
+            <div className="flex items-center gap-2 text-white/80">
+              <CheckCircle2 className="w-4 h-4 text-[#2DD4A0] shrink-0" />
+              <span><strong>Instant IMPS payout</strong> directly to bank</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Fair Partner Protection: Vehicle Unavailable Rule */}
+        <div className="p-8 bg-[#11161D] text-white rounded-[20px] space-y-6 border border-white/[0.08] shadow-xl">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-2">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300 bg-amber-500/10 px-3 py-0.5 rounded-full border border-amber-400/20">
+                PARTNER PAYOUT GUARANTEE
+              </span>
+              <h3 className="text-2xl font-bold text-white">
+                Vehicle Unavailable? Your Payout is Protected.
+              </h3>
+              <p className="text-xs sm:text-sm text-white/60 max-w-2xl leading-relaxed">
+                If you reach the assigned parking bay during the scheduled window, but the vehicle isn&apos;t at the bay, you still get paid:
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-[#161C25] rounded-xl border border-white/[0.06] text-center min-w-[110px]">
+                <span className="text-[10px] text-white/50 uppercase font-bold block">Specialist</span>
+                <span className="text-sm font-bold text-[#2DD4A0] flex items-center justify-center gap-1 mt-0.5">
+                  Present ✓
+                </span>
+              </div>
+              <div className="p-3 bg-[#161C25] rounded-xl border border-white/[0.06] text-center min-w-[110px]">
+                <span className="text-[10px] text-white/50 uppercase font-bold block">Service</span>
+                <span className="text-sm font-bold text-white/80 block mt-0.5">
+                  Not possible
+                </span>
+              </div>
+              <div className="p-3 bg-[#161C25] rounded-xl border border-white/[0.06] text-center min-w-[130px]">
+                <span className="text-[10px] text-white/50 uppercase font-bold block">Payout</span>
+                <span className="text-sm font-bold text-[#2DD4A0] flex items-center justify-center gap-1 mt-0.5">
+                  Protected ✓
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="p-4 bg-[#161C25] rounded-xl border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-[#2DD4A0] font-bold">
+              <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
+              <span>Never classified as a missed wash by the specialist.</span>
+            </div>
+            <div className="text-white/40 font-mono text-[11px]">
+              Tap &apos;VEHICLE NOT AVAILABLE&apos; → Snap photo of assigned empty bay.
+            </div>
+          </div>
+        </div>
+
+        {/* Specialist Earning Potential */}
+        <div className="p-8 sm:p-10 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl space-y-6">
+          <div className="max-w-xl space-y-1">
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#2DD4A0] block font-bold">
+              EARNING POTENTIAL
             </span>
-            <div className="text-2xl font-extrabold text-rose-800 mt-1">+₹3,000</div>
-            <span className="text-[11px] text-rose-600">All Sunday payments for you</span>
+            <h3 className="text-2xl font-bold text-white">
+              Expected Monthly Earnings
+            </h3>
+            <p className="text-xs text-white/60">
+              Based on a single 3-hour morning route in a typical 500-apartment society + 100% Sunday payments bonus.
+            </p>
           </div>
 
-          <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-200">
-            <span className="text-xs text-emerald-700 font-semibold">Total Monthly Take-Home</span>
-            <div className="text-2xl font-extrabold text-emerald-900 mt-1">₹21,500+</div>
-            <span className="text-[11px] text-emerald-600">100% on-time transfer</span>
+          {/* Rates Table */}
+          <div className="overflow-x-auto rounded-xl border border-white/[0.08]">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#161C25] text-white/50 font-mono border-b border-white/[0.08]">
+                <tr>
+                  <th className="py-3 px-4 font-semibold">Vehicle</th>
+                  <th className="py-3 px-4 font-semibold">Customer (Monthly)</th>
+                  <th className="py-3 px-4 font-semibold text-right">Specialist earns per completed wash</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.06] font-medium text-white/80">
+                <tr className="hover:bg-white/[0.02] transition-colors">
+                  <td className="py-3 px-4 text-white font-semibold">Hatchback / Sedan</td>
+                  <td className="py-3 px-4 text-white/60">₹599</td>
+                  <td className="py-3 px-4 text-right font-mono font-bold text-[#2DD4A0]">₹12</td>
+                </tr>
+                <tr className="hover:bg-white/[0.02] transition-colors">
+                  <td className="py-3 px-4 text-white font-semibold">Compact / Mid SUV</td>
+                  <td className="py-3 px-4 text-white/60">₹649</td>
+                  <td className="py-3 px-4 text-right font-mono font-bold text-[#2DD4A0]">₹16</td>
+                </tr>
+                <tr className="hover:bg-white/[0.02] transition-colors">
+                  <td className="py-3 px-4 text-white font-semibold">Luxury / 7-Seater+</td>
+                  <td className="py-3 px-4 text-white/60">₹799</td>
+                  <td className="py-3 px-4 text-right font-mono font-bold text-[#2DD4A0]">₹21</td>
+                </tr>
+              </tbody>
+            </table>
           </div>
-        </div>
 
-        <div className="pt-2 text-center">
-          <Link
-            href="/washer/login"
-            className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm transition-all"
-          >
-            <span>Washer Partner Login & Onboarding</span>
-            <ArrowRight className="w-4 h-4" />
-          </Link>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
+            <div className="p-4 bg-[#161C25] rounded-xl border border-white/[0.06]">
+              <span className="text-xs text-white/50 font-medium">Daily Route (Mon-Sat)</span>
+              <div className="text-2xl font-bold text-white mt-1">30 Cars</div>
+              <span className="text-[11px] text-white/40 font-mono">~3 hours / morning</span>
+            </div>
+
+            <div className="p-4 bg-[#161C25] rounded-xl border border-white/[0.06]">
+              <span className="text-xs text-[#2DD4A0] font-semibold flex items-center justify-center gap-1">
+                <Gift className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                Sunday Bonus (100%)
+              </span>
+              <div className="text-2xl font-bold text-white mt-1">+₹3,000</div>
+              <span className="text-[11px] text-white/40">All Sunday payments for you</span>
+            </div>
+
+            <div className="p-4 bg-[#161C25] rounded-xl border border-white/[0.06]">
+              <span className="text-xs text-[#2DD4A0] font-semibold">Total Monthly Take-Home</span>
+              <div className="text-2xl font-bold text-[#2DD4A0] font-mono mt-1">₹21,500+</div>
+              <span className="text-[11px] text-white/40 font-mono">100% on-time transfer</span>
+            </div>
+          </div>
+
+          <div className="pt-2 text-center">
+            <Link
+              href="/washer/login"
+              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] font-bold text-sm shadow-md transition-all active:scale-95"
+            >
+              <span>Partner Login & Onboarding</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </div>
     </div>

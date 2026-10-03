@@ -20,8 +20,8 @@ const inter = Inter({
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#060B19" },
-    { media: "(prefers-color-scheme: dark)", color: "#060B19" },
+    { media: "(prefers-color-scheme: light)", color: "#0A0D12" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A0D12" },
   ],
   colorScheme: "dark",
   viewportFit: "cover",
@@ -54,16 +54,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${manrope.variable} ${inter.variable} h-full bg-[#060B19] antialiased`}>
+    <html lang="en" className={`${manrope.variable} ${inter.variable} h-full bg-[#0A0D12] antialiased`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
         <link rel="icon" href="/images/app_icon.jpg" />
         <link rel="apple-touch-icon" href="/images/app_icon.jpg" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="theme-color" content="#060B19" />
+        <meta name="theme-color" content="#0A0D12" />
       </head>
-      <body className="min-h-full flex flex-col bg-[#060B19] text-white">
+      <body className="min-h-full flex flex-col bg-[#0A0D12] text-white">
         <StoreProvider>
           <Navbar />
           <main className="flex-1">{children}</main>

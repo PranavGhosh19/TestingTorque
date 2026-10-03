@@ -112,9 +112,9 @@ export default function PWAInstallPrompt() {
         aria-label="Install App"
         className="fixed bottom-20 md:bottom-6 left-3 right-3 sm:left-auto sm:right-6 sm:max-w-md z-50 animate-in slide-in-from-bottom-5 duration-300"
       >
-        <div className="p-4 rounded-3xl bg-[#0B132B]/95 border border-emerald-500/30 text-white backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3.5">
+        <div className="p-4 rounded-[20px] bg-[#11161D]/95 border border-white/[0.08] text-white backdrop-blur-xl shadow-2xl flex items-center justify-between gap-3.5">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="relative w-11 h-11 rounded-2xl overflow-hidden shadow-md shrink-0 border border-white/15 bg-slate-900">
+            <div className="relative w-11 h-11 rounded-xl overflow-hidden shadow-md shrink-0 border border-white/10 bg-neutral-900">
               <Image
                 src="/images/app_icon.jpg"
                 alt="Torque Care"
@@ -124,14 +124,14 @@ export default function PWAInstallPrompt() {
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-black text-white tracking-tight truncate">
+                <span className="text-xs font-bold text-white tracking-tight truncate">
                   Torque Care
                 </span>
-                <span className="text-[9px] font-mono font-bold bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 px-1.5 py-0.2 rounded-full uppercase">
+                <span className="text-[9px] font-mono font-bold bg-[#2DD4A0]/10 text-[#2DD4A0] border border-[#2DD4A0]/30 px-2 py-0.5 rounded-full uppercase">
                   PWA
                 </span>
               </div>
-              <p className="text-[11px] text-slate-300 truncate">
+              <p className="text-[11px] text-white/60 truncate">
                 Install for instant photo alerts & offline routes
               </p>
             </div>
@@ -141,7 +141,7 @@ export default function PWAInstallPrompt() {
             <button
               type="button"
               onClick={handleInstallClick}
-              className="px-3.5 py-2 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer whitespace-nowrap"
+              className="px-4 py-2 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] font-bold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all cursor-pointer whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5 stroke-[2.5]" />
               <span>Install</span>
@@ -151,7 +151,7 @@ export default function PWAInstallPrompt() {
               type="button"
               onClick={handleDismiss}
               aria-label="Dismiss banner"
-              className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              className="p-1.5 rounded-full hover:bg-white/10 text-white/40 hover:text-white transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -162,18 +162,18 @@ export default function PWAInstallPrompt() {
       {/* iOS / Fallback Installation Guide Modal */}
       {showIOSGuide && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-          <div className="w-full max-w-sm bg-[#0B132B] border border-white/20 rounded-3xl p-6 shadow-2xl space-y-5 text-white relative">
+          <div className="w-full max-w-sm bg-[#11161D] border border-white/[0.08] rounded-[20px] p-6 shadow-2xl space-y-5 text-white relative">
             <button
               type="button"
               onClick={() => setShowIOSGuide(false)}
-              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+              className="absolute top-4 right-4 p-2 text-white/40 hover:text-white rounded-full hover:bg-white/10 transition-colors cursor-pointer"
               aria-label="Close guide"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center gap-3">
-              <div className="relative w-12 h-12 rounded-2xl overflow-hidden shadow-sm shrink-0 border border-white/15">
+              <div className="relative w-12 h-12 rounded-xl overflow-hidden shadow-sm shrink-0 border border-white/10">
                 <Image
                   src="/images/app_icon.jpg"
                   alt="Torque Care Icon"
@@ -182,26 +182,26 @@ export default function PWAInstallPrompt() {
                 />
               </div>
               <div>
-                <h3 className="font-black text-base text-white">Install Torque Care</h3>
-                <p className="text-xs text-slate-400">Add to your home screen</p>
+                <h3 className="font-bold text-base text-white">Install Torque Care</h3>
+                <p className="text-xs text-white/50">Add to your home screen</p>
               </div>
             </div>
 
-            <div className="space-y-3 text-xs bg-white/5 p-4 rounded-2xl border border-white/10">
+            <div className="space-y-3 text-xs bg-[#161C25] p-4 rounded-xl border border-white/[0.06]">
               {isIOS ? (
                 <>
-                  <div className="font-bold text-emerald-300 flex items-center gap-1.5">
-                    <Smartphone className="w-4 h-4 text-emerald-400" />
+                  <div className="font-bold text-[#2DD4A0] flex items-center gap-1.5">
+                    <Smartphone className="w-4 h-4 text-[#2DD4A0]" />
                     <span>Safari on iPhone / iPad:</span>
                   </div>
-                  <ol className="list-decimal list-inside space-y-2 text-slate-300 pl-1">
+                  <ol className="list-decimal list-inside space-y-2 text-white/70 pl-1">
                     <li>
                       Tap the <strong className="text-white">Share</strong> icon{' '}
                       <Share className="w-3.5 h-3.5 inline text-blue-400" /> in the bottom toolbar
                     </li>
                     <li>
                       Scroll down and select <strong className="text-white">Add to Home Screen</strong>{' '}
-                      <PlusSquare className="w-3.5 h-3.5 inline text-emerald-400" />
+                      <PlusSquare className="w-3.5 h-3.5 inline text-[#2DD4A0]" />
                     </li>
                     <li>
                       Tap <strong className="text-white">Add</strong> in top-right corner
@@ -210,11 +210,11 @@ export default function PWAInstallPrompt() {
                 </>
               ) : (
                 <>
-                  <div className="font-bold text-emerald-300 flex items-center gap-1.5">
-                    <Smartphone className="w-4 h-4 text-emerald-400" />
+                  <div className="font-bold text-[#2DD4A0] flex items-center gap-1.5">
+                    <Smartphone className="w-4 h-4 text-[#2DD4A0]" />
                     <span>Chrome / Browser on Mobile:</span>
                   </div>
-                  <ol className="list-decimal list-inside space-y-2 text-slate-300 pl-1">
+                  <ol className="list-decimal list-inside space-y-2 text-white/70 pl-1">
                     <li>
                       Tap the browser menu (<strong className="text-white">⋮</strong>)
                     </li>
@@ -234,7 +234,7 @@ export default function PWAInstallPrompt() {
                 setShowIOSGuide(false);
                 setIsVisible(false);
               }}
-              className="w-full py-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs shadow-md transition-all cursor-pointer"
+              className="w-full py-2.5 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] font-bold text-xs shadow-md transition-all cursor-pointer active:scale-95"
             >
               Got It
             </button>
