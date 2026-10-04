@@ -1617,8 +1617,16 @@ export async function fetchWashersFromDirectory(
           kyc: data.kyc || 'Verified Partner',
           aadhaarVerified: true,
           phoneVerified: true,
+          absentThisMonth: 0,
+          absentDates: [],
+          leaveReason: '',
+          backupWasherName: 'None',
+          monthlyPayoutsGone: 0,
+          pendingPayoutDue: 0,
+          sundayBonusEarned: 0,
+          disbursements: [],
           isFirebaseLive: true,
-        } as WasherPartner);
+        } as unknown as WasherPartner);
       });
     } catch (err: any) {
       console.warn('Notice querying Washers collection:', err?.message || err);
@@ -1660,8 +1668,16 @@ export async function fetchWashersFromDirectory(
           kyc: 'Verified Partner',
           aadhaarVerified: true,
           phoneVerified: true,
+          absentThisMonth: 0,
+          absentDates: [],
+          leaveReason: '',
+          backupWasherName: 'None',
+          monthlyPayoutsGone: 0,
+          pendingPayoutDue: 0,
+          sundayBonusEarned: 0,
+          disbursements: [],
           isFirebaseLive: true,
-        } as WasherPartner);
+        } as unknown as WasherPartner);
       });
     } catch (err2: any) {
       console.warn('Notice querying washer_directory collection:', err2?.message || err2);
