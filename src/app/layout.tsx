@@ -3,7 +3,6 @@ import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import Navbar from "@/components/Navbar";
-import RoleSwitcher from "@/components/RoleSwitcher";
 import PWAInstallPrompt from "@/components/shared/PWAInstallPrompt";
 
 const manrope = Manrope({
@@ -74,7 +73,6 @@ export default function RootLayout({
         <StoreProvider>
           <Navbar />
           <main className="flex-1">{children}</main>
-          <RoleSwitcher />
           <PWAInstallPrompt />
         </StoreProvider>
         <Script

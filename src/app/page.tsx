@@ -31,7 +31,15 @@ import {
   ThumbsUp,
   RefreshCw,
   Sliders,
-  ChevronDown
+  ChevronDown,
+  User,
+  UserCheck,
+  UserPlus,
+  Banknote,
+  IndianRupee,
+  EyeOff,
+  PhoneCall,
+  Smartphone
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 
@@ -312,13 +320,7 @@ export default function HomePage() {
               </div>
 
               {/* Feature Checklist */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4 border-t border-white/[0.08] text-xs text-white/80">
-                <div className="flex items-start gap-2.5">
-                  <div className="w-5 h-5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] flex items-center justify-center shrink-0 mt-0.5">
-                    <Check className="w-3 h-3 stroke-[3]" />
-                  </div>
-                  <span>Every morning by 7:30 AM</span>
-                </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/[0.08] text-xs text-white/80">
                 <div className="flex items-start gap-2.5">
                   <div className="w-5 h-5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] flex items-center justify-center shrink-0 mt-0.5">
                     <Check className="w-3 h-3 stroke-[3]" />
@@ -335,7 +337,7 @@ export default function HomePage() {
                   <div className="w-5 h-5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] flex items-center justify-center shrink-0 mt-0.5">
                     <Check className="w-3 h-3 stroke-[3]" />
                   </div>
-                  <span>Washer peer-backup (0 missed days)</span>
+                  <span>Washer peer-backup</span>
                 </div>
               </div>
             </div>
@@ -351,11 +353,12 @@ export default function HomePage() {
                 </div>
                 
                 <div className="pt-2">
-                  <div className="flex items-baseline gap-2">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-[#2DD4A0]">Starting @</span>
                     <span className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-mono">₹599</span>
                     <span className="text-sm font-medium text-white/65">/ month</span>
                   </div>
-                  <p className="text-xs text-white/40 mt-1">Billed monthly • Pause or cancel anytime</p>
+                  <p className="text-xs text-white/40 mt-1">Billed monthly</p>
                 </div>
 
                 <div className="p-4 rounded-xl bg-[#11161D] border border-white/[0.08] text-xs text-white/65 space-y-2">
@@ -573,74 +576,232 @@ export default function HomePage() {
           
           <div className="text-center max-w-2xl mx-auto mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white uppercase font-automotive-title mb-4">
-              Traditional Cleaners vs Torque Care
+              Traditional Car Care vs Torque Care
             </h2>
             <p className="text-sm text-white/65">
-              Why leading housing societies are replacing informal cleaners with certified Torque Care.
+              Why leading housing societies and car owners are replacing informal cleaners with certified Torque Care.
             </p>
           </div>
 
-          <div className="rounded-[20px] bg-[#161C25] border border-white/[0.08] overflow-hidden shadow-2xl">
-            <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08]">
-              
-              {/* Traditional Cleaner */}
-              <div className="p-8 sm:p-10 space-y-6 bg-red-950/[0.08]">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-red-400 uppercase tracking-wider font-mono">Traditional Informal Washers</span>
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-red-500/10 text-red-400 border border-red-500/20">Outdated</span>
+          <div className="rounded-[24px] bg-[#161C25] border border-white/[0.1] overflow-hidden shadow-2xl">
+            {/* Split Top Header */}
+            <div className="relative grid grid-cols-1 md:grid-cols-2">
+              {/* Left Header */}
+              <div className="bg-[#0D1825] py-5 px-6 sm:px-8 flex items-center gap-4 border-b md:border-b-0 border-white/[0.08]">
+                <div className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/10 flex items-center justify-center text-white shrink-0">
+                  <Car className="w-5 h-5" />
                 </div>
-
-                <div className="space-y-4 text-xs text-white/65">
-                  <div className="flex items-start gap-3">
-                    <span className="text-red-400 font-bold">✕</span>
-                    <span>Single bucket used for 15 cars, spreading abrasive grit.</span>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-red-400 font-bold">✕</span>
-                    <span>Dry-wipe cotton rags creating permanent swirl marks and paint dulling.</span>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-red-400 font-bold">✕</span>
-                    <span>Random unannounced absences with zero backup coverage.</span>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-red-400 font-bold">✕</span>
-                    <span>No proof of service — you pay monthly regardless of missed days.</span>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <span className="text-red-400 font-bold">✕</span>
-                    <span>Unvetted strangers wandering around society parking basements.</span>
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-slate-400 font-semibold">Comparison</div>
+                  <div className="text-base sm:text-lg font-black text-white uppercase tracking-wider font-automotive-title">
+                    Traditional Car Care
                   </div>
                 </div>
               </div>
 
-              {/* Torque Care */}
-              <div className="p-8 sm:p-10 space-y-6 bg-[#2DD4A0]/[0.03]">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-bold text-[#2DD4A0] uppercase tracking-wider font-mono">Torque Care Society Standard</span>
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30 font-bold">Verified</span>
+              {/* Center VS Badge (visible on md+) */}
+              <div className="hidden md:flex absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-full bg-[#0A101D] border-2 border-white/20 items-center justify-center shadow-2xl">
+                <span className="text-[11px] font-black text-white tracking-widest">VS</span>
+              </div>
+
+              {/* Right Header */}
+              <div className="bg-gradient-to-r from-[#008975] to-[#2DD4A0] py-5 px-6 sm:px-8 flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-black/20 border border-white/20 flex items-center justify-center text-white shrink-0">
+                  <Smartphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-[10px] font-mono uppercase tracking-widest text-black/75 font-bold">Digital Standard</div>
+                  <div className="text-base sm:text-lg font-black text-white uppercase tracking-wider font-automotive-title drop-shadow-sm">
+                    Torque Care Digital Car Wash
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Comparison Rows */}
+            <div className="divide-y divide-white/[0.08]">
+              {/* Row 1 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                  <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
+                    <User className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                      Unreliable availability
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
+                      If the car wash guy is not available, you&apos;re left stranded.
+                    </p>
+                  </div>
                 </div>
 
-                <div className="space-y-4 text-xs text-white/80">
-                  <div className="flex items-start gap-3">
-                    <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                    <span>Individual microfiber towels per vehicle; zero cross-contamination.</span>
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                  <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
+                    <UserCheck className="w-5 h-5" />
                   </div>
-                  <div className="flex items-start gap-3">
-                    <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                    <span>Ceramic-friendly polymer polish that protects clearcoat and adds gloss.</span>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-[#2DD4A0] sm:text-white tracking-tight">
+                      Verified &amp; trained professionals
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/75 leading-relaxed">
+                      Professional, background-checked Torque crew.
+                    </p>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                    <span>Washer peer-backup system guarantees 100% attendance 365 days.</span>
+                </div>
+              </div>
+
+              {/* Row 2 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                  <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
+                    <Users className="w-5 h-5" />
                   </div>
-                  <div className="flex items-start gap-3">
-                    <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                    <span>Timestamped daily photo certificate delivered directly to your phone.</span>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                      No backup support
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
+                      No one else to take over if he&apos;s absent.
+                    </p>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                    <span>Police-verified, uniformed staff with digital society gate integration.</span>
+                </div>
+
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                  <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
+                    <UserPlus className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-[#2DD4A0] sm:text-white tracking-tight">
+                      Trusted alternate support
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/75 leading-relaxed">
+                      If your guy is unavailable, we appoint a trusted Torque pro.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 3 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                  <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
+                    <Banknote className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                      Cash-based &amp; manual
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
+                      Hard to track payments and service history.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                  <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
+                    <IndianRupee className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-[#2DD4A0] sm:text-white tracking-tight">
+                      Digital payments &amp; carry forward
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/75 leading-relaxed">
+                      No cash hassles. Missed days carry forward.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 4 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                  <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
+                    <EyeOff className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                      No proof of service
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
+                      You have to trust, with no visual confirmation.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                  <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
+                    <Camera className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-[#2DD4A0] sm:text-white tracking-tight">
+                      Photo proof with timestamps
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/75 leading-relaxed">
+                      Daily updates, always.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 5 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                  <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
+                    <PhoneCall className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                      Constant follow-ups
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
+                      Calls, messages, complaints and frustration.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                  <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-[#2DD4A0] sm:text-white tracking-tight">
+                      Zero follow-ups
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/75 leading-relaxed">
+                      We handle it all. You just enjoy a clean car.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Row 6 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                  <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
+                    <Star className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-white tracking-tight">
+                      Inconsistent quality
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
+                      Depends on the individual and your luck.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                  <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1 min-w-0">
+                    <h4 className="text-sm sm:text-base font-bold text-[#2DD4A0] sm:text-white tracking-tight">
+                      Consistent, professional quality
+                    </h4>
+                    <p className="text-xs sm:text-sm text-white/75 leading-relaxed">
+                      Same high standards, every time.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -649,69 +810,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ========================================================================= */}
-      {/* 6. DIGNIFIED EMPLOYMENT FOR WASHERS */}
-      {/* ========================================================================= */}
-      <section className="py-24 sm:py-32 bg-[#0A0D12]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
-            <div className="lg:col-span-6 space-y-6">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] font-mono uppercase tracking-widest text-[#2DD4A0]">
-                Fair Work Ecosystem
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white uppercase font-automotive-title">
-                Respect, fair pay, and dignity for our washers.
-              </h2>
-              <p className="text-sm text-white/65 leading-relaxed">
-                Informal washers are often underpaid, unequipped, and treated with disregard. Torque Care transforms car washing into professional, dignified employment with guaranteed monthly income, health coverage, and ergonomic high-grade tools.
-              </p>
-              
-              <div className="grid grid-cols-2 gap-4 pt-2 text-xs">
-                <div className="p-4 rounded-xl bg-[#11161D] border border-white/[0.08]">
-                  <div className="text-lg font-bold text-white font-mono">100%</div>
-                  <div className="text-white/65 mt-0.5">Fixed on-time bank transfers</div>
-                </div>
-                <div className="p-4 rounded-xl bg-[#11161D] border border-white/[0.08]">
-                  <div className="text-lg font-bold text-white font-mono">₹18,000+</div>
-                  <div className="text-white/65 mt-0.5">Monthly earning potential</div>
-                </div>
-              </div>
 
-              <div>
-                <Link
-                  href="/for-washers"
-                  className="inline-flex items-center gap-2 text-xs font-bold text-[#2DD4A0] hover:underline"
-                >
-                  <span>Read how we recruit, train and support our partners →</span>
-                </Link>
-              </div>
-            </div>
-
-            <div className="lg:col-span-6">
-              <div className="relative aspect-16/10 rounded-[20px] overflow-hidden border border-white/[0.12] shadow-2xl">
-                <Image
-                  src="/images/washer_amit.jpg"
-                  alt="Torque Care Professional Partner"
-                  fill
-                  sizes="(max-width: 1024px) 100vw, 50vw"
-                  className="object-cover"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent" />
-                <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between text-xs">
-                  <div>
-                    <div className="font-bold text-white text-sm">Amit Kumar</div>
-                    <div className="text-white/65 text-[11px]">Senior Care Lead • Green Valley Residency (4.9★)</div>
-                  </div>
-                  <span className="px-3 py-1 rounded-full bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/30 font-mono text-[10px] font-bold">
-                    CERTIFIED
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* ========================================================================= */}
       {/* 7. FINAL CINEMATIC CALL TO ACTION BANNER */}

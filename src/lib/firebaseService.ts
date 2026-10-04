@@ -13,7 +13,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
-import { db, storage } from './firebase';
+import { db, storage, auth } from './firebase';
 import { User, Vehicle, WashRecord, RouteStop } from './types';
 import { WasherPartner } from './washerPartners';
 import { isWashFromToday, getTodayISTDate } from './washUtils';
@@ -94,23 +94,6 @@ export async function syncOwnerToFirestore(
 
     const subscriptionPrice = owner.price || (owner as any).subscription_price || calculatedTotal;
 
-    // 0. PRIMARY IDENTITY: users/{ownerId}
-    const userRef = doc(db, 'users', ownerId);
-    await setDoc(
-      userRef,
-      {
-        uid: ownerId,
-        id: ownerId,
-        phoneNumber: owner.phone,
-        phone: owner.phone,
-        name: owner.name,
-        role: 'owner',
-        status: owner.status || 'active',
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-
     // 1. CAR OWNER: Car_Owners/{ownerId}
     const carOwnerRef = doc(db, 'Car_Owners', ownerId);
     const carOwnerPayload = {
@@ -119,6 +102,7 @@ export async function syncOwnerToFirestore(
       phone: owner.phone,
       altPhone: owner.alt_phone || null,
       address: owner.address || null,
+      society: owner.society || (owner as any).society_name || null,
       role: 'owner',
       status: owner.status || 'active',
       planId: defaultPlanName,
@@ -242,13 +226,31 @@ export async function syncWasherToFirestore(
     const phoneWithCountry = cleanPhone.length >= 10 ? `+91 ${cleanPhone.slice(-10)}` : washer.phone;
     const phoneRaw = cleanPhone.slice(-10);
 
+    const currentAdminUid =
+      auth?.currentUser?.uid ||
+      (typeof window !== 'undefined' ? localStorage.getItem('torque_admin_uid') : null);
+    const createdBy =
+      auth?.currentUser?.uid ||
+      washer.createdBy ||
+      currentAdminUid ||
+      'ADMIN_UID';
+
+    const societiesList =
+      washer.societies && Array.isArray(washer.societies) && washer.societies.length > 0
+        ? washer.societies
+        : washer.society
+        ? washer.society.split(',').map((s) => s.trim()).filter(Boolean)
+        : ['Green Valley Residency'];
+
     const washerPayload = {
       id: washer.id,
       washerId: washer.id,
       name: washer.name,
       phone: phoneWithCountry,
       phone_raw: phoneRaw,
-      society: washer.society || 'Green Valley Residency',
+      createdBy: createdBy,
+      society: washer.society || societiesList.join(', '),
+      societies: societiesList,
       assignedCarsPerDay: washer.assignedCarsPerDay || 30,
       assigned_cars_per_day: washer.assignedCarsPerDay || 30,
       routeWindow: washer.routeWindow || '06:30 AM - 09:30 AM',
@@ -281,37 +283,44 @@ export async function syncWasherToFirestore(
       updated_at: serverTimestamp(),
     };
 
-    // Write to users/{washer.id} as primary identity
-    const userRef = doc(db, 'users', washer.id);
-    await setDoc(
-      userRef,
-      {
-        uid: washer.id,
-        id: washer.id,
-        phoneNumber: phoneWithCountry,
-        phone: phoneWithCountry,
-        name: washer.name,
-        role: 'washer',
-        status: washer.status || 'Active on Route',
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-
-    // Write to Washers collection
+    // 1. Washers belong EXCLUSIVELY to the Washers collection (Private operational data)
     const washerRef = doc(db, 'Washers', washer.id);
     await setDoc(washerRef, washerPayload, { merge: true });
 
+    // 2. Public sanitized discovery document specifically for /auth/signup discovery: washer_directory/{washerId}
+    const isDismissed = washer.status === 'Dismissed';
+    const directoryPayload = {
+      washerId: washer.id,
+      id: washer.id,
+      name: washer.name,
+      photoURL: washer.avatar || '/images/washer_amit.jpg',
+      avatar: washer.avatar || '/images/washer_amit.jpg',
+      societies: societiesList,
+      society: washer.society || societiesList.join(', '),
+      status: isDismissed ? 'dismissed' : 'active',
+      availableForSignup: !isDismissed,
+      rating: String(washer.rating || '5.0'),
+      reviewsCount: Number(washer.reviewsCount || 1),
+      routeWindow: washer.routeWindow || '06:30 AM - 09:30 AM',
+      completionRate: washer.completionRate || '100%',
+      createdBy: createdBy,
+      updatedAt: serverTimestamp(),
+    };
+
+    const directoryRef = doc(db, 'washer_directory', washer.id);
+    await setDoc(directoryRef, directoryPayload, { merge: true });
+
     return { success: true };
   } catch (error: any) {
-    console.warn('Firebase syncWasherToFirestore notice:', error?.message || error);
+    console.error('Firebase syncWasherToFirestore error:', error?.message || error);
     return { success: false, error: error?.message || 'Sync failed' };
   }
 }
 
 /**
  * Dismisses a washer partner from active service:
- * Updates Washers/{washerId} and users/{washerId} status to 'Dismissed'
+ * - Updates Washers/{washerId} status to 'Dismissed'
+ * - Updates washer_directory/{washerId} status to 'dismissed' and availableForSignup to false
  */
 export async function dismissWasherInFirestore(
   washerId: string,
@@ -330,16 +339,21 @@ export async function dismissWasherInFirestore(
       { merge: true }
     );
 
-    const userRef = doc(db, 'users', washerId);
-    await setDoc(
-      userRef,
-      {
-        status: 'dismissed',
-        dismissalReason: reason,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    // Also update washer_directory
+    try {
+      const directoryRef = doc(db, 'washer_directory', washerId);
+      await setDoc(
+        directoryRef,
+        {
+          status: 'dismissed',
+          availableForSignup: false,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (dirErr) {
+      // safe ignore
+    }
 
     return { success: true };
   } catch (error: any) {
@@ -349,7 +363,9 @@ export async function dismissWasherInFirestore(
 }
 
 /**
- * Reinstates a previously dismissed washer partner back to active duty
+ * Reinstates a previously dismissed washer partner back to active duty:
+ * - Updates Washers/{washerId} status to 'Active on Route'
+ * - Updates washer_directory/{washerId} status to 'active' and availableForSignup to true
  */
 export async function reinstateWasherInFirestore(
   washerId: string
@@ -367,15 +383,21 @@ export async function reinstateWasherInFirestore(
       { merge: true }
     );
 
-    const userRef = doc(db, 'users', washerId);
-    await setDoc(
-      userRef,
-      {
-        status: 'active',
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    // Also update washer_directory
+    try {
+      const directoryRef = doc(db, 'washer_directory', washerId);
+      await setDoc(
+        directoryRef,
+        {
+          status: 'active',
+          availableForSignup: true,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (dirErr) {
+      // safe ignore
+    }
 
     return { success: true };
   } catch (error: any) {
@@ -418,64 +440,78 @@ export async function appointWasherToVehicleInFirestore(
 }
 
 /**
- * Records user login by updating users/{uid} and Car_Owners or Washers document.
+ * Records user login by role:
+ * - Admin: area_managers/{uid}
+ * - Washer: Washers/{uid}
+ * - Owner: Car_Owners/{uid}
+ * Admins are strictly prohibited from being written to Car_Owners.
  */
 export async function recordUserLogin(
   user: User,
   method: string = 'otp'
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // 0. Primary identity document: users/{user.id}
-    const userRef = doc(db, 'users', user.id);
-    await setDoc(
-      userRef,
-      {
-        uid: user.id,
-        id: user.id,
-        phoneNumber: user.phone,
-        phone: user.phone,
-        name: user.name,
-        role: user.role || 'owner',
-        lastLoginAt: serverTimestamp(),
-        last_login_at: serverTimestamp(),
-        login_method: method,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    if (user.role === 'admin') {
+      // 1. Admin belongs EXCLUSIVELY to area_managers collection
+      const managerRef = doc(db, 'area_managers', user.id);
+      await setDoc(
+        managerRef,
+        {
+          id: user.id,
+          lastLoginAt: serverTimestamp(),
+          loginMethod: method,
+          updated_at: new Date().toISOString(),
+        },
+        { merge: true }
+      );
+
+      // Clean up any stray admin document accidentally created in Car_Owners
+      try {
+        const strayOwnerRef = doc(db, 'Car_Owners', user.id);
+        const straySnap = await getDoc(strayOwnerRef);
+        if (straySnap.exists()) {
+          await deleteDoc(strayOwnerRef);
+          console.log('Cleaned up stray admin record from Car_Owners:', user.id);
+        }
+      } catch (cleanErr) {
+        // Safe ignore
+      }
+
+      return { success: true };
+    }
 
     if (user.role === 'washer') {
+      // 2. Washers belong EXCLUSIVELY to Washers collection
       const washerRef = doc(db, 'Washers', user.id);
       await setDoc(
         washerRef,
         {
           id: user.id,
-          name: user.name,
-          phone: user.phone,
-          role: 'washer',
           last_login_at: serverTimestamp(),
           login_method: method,
           updated_at: serverTimestamp(),
         },
         { merge: true }
       );
-    } else {
-      const ownerRef = doc(db, 'Car_Owners', user.id);
-      await setDoc(
-        ownerRef,
-        {
-          ownerId: user.id,
-          name: user.name,
-          phone: user.phone,
-          role: 'owner',
-          last_login_at: serverTimestamp(),
-          lastLoginAt: serverTimestamp(),
-          login_method: method,
-          updatedAt: serverTimestamp(),
-        },
-        { merge: true }
-      );
+      return { success: true };
     }
+
+    // 3. Car Owners strictly belong to Car_Owners collection
+    const ownerRef = doc(db, 'Car_Owners', user.id);
+    await setDoc(
+      ownerRef,
+      {
+        ownerId: user.id,
+        name: user.name,
+        phone: user.phone,
+        role: 'owner',
+        last_login_at: serverTimestamp(),
+        lastLoginAt: serverTimestamp(),
+        login_method: method,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
 
     return { success: true };
   } catch (error: any) {
@@ -507,31 +543,7 @@ export async function findUserByPhoneInFirestore(phone: string): Promise<User | 
     const cleanPhone = phone.replace(/\D/g, '');
     const last10 = cleanPhone.slice(-10);
 
-    // 0. Check primary users collection
-    const usersRef = collection(db, 'users');
-    const qUser1 = query(usersRef, where('phoneNumber', '==', phone));
-    let sUser = await getDocs(qUser1);
-    if (sUser.empty && last10) {
-      sUser = await getDocs(query(usersRef, where('phoneNumber', '==', `+91${last10}`)));
-    }
-    if (sUser.empty && last10) {
-      sUser = await getDocs(query(usersRef, where('phone', '==', phone)));
-    }
-    if (!sUser.empty) {
-      const uData = sUser.docs[0].data();
-      const uid = sUser.docs[0].id;
-      return {
-        id: uid,
-        name: uData.name || 'Vehicle Owner',
-        owner_name: uData.name || 'Vehicle Owner',
-        phone: uData.phoneNumber || uData.phone || phone,
-        role: uData.role || 'owner',
-        status: uData.status || 'active',
-        created_at: uData.createdAt || new Date().toISOString(),
-      };
-    }
-
-    // 1. Check Car_Owners
+    // 1. Check Car_Owners directly (Primary customer collection)
     const ownersRef = collection(db, 'Car_Owners');
     const qOwner1 = query(ownersRef, where('phone', '==', phone));
     const sOwner1 = await getDocs(qOwner1);
@@ -1488,29 +1500,48 @@ export async function resetOwnerFirestoreData(
 
 /**
  * Fetches all active washers from the Washers collection.
+ * When called by an Area Manager, queries by createdBy == adminUid to align with Firestore Security Rules.
  */
-export async function fetchAllWashersFromFirestore(): Promise<WasherPartner[]> {
+export async function fetchAllWashersFromFirestore(adminUid?: string): Promise<WasherPartner[]> {
   try {
     const washersMap = new Map<string, WasherPartner>();
-
     const washersRef = collection(db, 'Washers');
-    const snap = await getDocs(washersRef);
+
+    let snap;
+    if (adminUid) {
+      // Query washers for specific Area Manager
+      const q = query(washersRef, where('createdBy', '==', adminUid));
+      snap = await getDocs(q);
+    } else {
+      // Fetch all verified active washers across all routes
+      snap = await getDocs(washersRef);
+    }
     snap.forEach((docSnap) => {
+      if (docSnap.id === 'wsh_amit') return; // Skip dummy mock partner
       if (!washersMap.has(docSnap.id)) {
         const data = docSnap.data();
+        const parsedSocieties: string[] =
+          data.societies && Array.isArray(data.societies) && data.societies.length > 0
+            ? data.societies
+            : typeof data.society === 'string' && data.society.trim()
+            ? data.society.split(',').map((s: string) => s.trim()).filter(Boolean)
+            : [];
+
         washersMap.set(docSnap.id, {
           id: docSnap.id,
           name: data.name || 'Washer Partner',
           phone: data.phone || '',
           avatar: data.avatar || data.avatar_url || '/images/washer_amit.jpg',
-          rating: String(data.rating || '4.9'),
-          reviewsCount: Number(data.reviewsCount || data.reviews_count || 120),
-          society: data.society || 'Green Valley Residency',
-          assignedCarsPerDay: Number(data.assignedCarsPerDay || data.assigned_cars_per_day || 34),
+          rating: String(data.rating || '5.0'),
+          reviewsCount: Number(data.reviewsCount || data.reviews_count || 0),
+          society: data.society || (parsedSocieties.length > 0 ? parsedSocieties.join(', ') : 'Assigned Route'),
+          societies: parsedSocieties,
+          createdBy: data.createdBy || null,
+          assignedCarsPerDay: Number(data.assignedCarsPerDay || data.assigned_cars_per_day || 0),
           routeWindow: data.routeWindow || data.route_window || '06:30 AM - 09:30 AM',
           avgTimePerCar: data.avgTimePerCar || data.avg_time_per_car || '5.5 mins',
-          completionRate: data.completionRate || data.completion_rate || '99.5%',
-          totalLifetimeWashes: Number(data.totalLifetimeWashes || data.total_lifetime_washes || 1200),
+          completionRate: data.completionRate || data.completion_rate || '100%',
+          totalLifetimeWashes: Number(data.totalLifetimeWashes || data.total_lifetime_washes || 0),
           status: (data.status as any) || 'Active on Route',
           kyc: data.kyc || 'Verified (Aadhaar & Police Clear)',
           aadhaarNumber: data.aadhaarNumber || data.aadhaar_number,
@@ -1522,10 +1553,10 @@ export async function fetchAllWashersFromFirestore(): Promise<WasherPartner[]> {
           absentThisMonth: Number(data.absentThisMonth || 0),
           absentDates: data.absentDates || [],
           leaveReason: data.leaveReason || '',
-          backupWasherName: data.backupWasherName || 'Rajesh Sharma',
-          monthlyPayoutsGone: Number(data.monthlyPayoutsGone || 48000),
-          pendingPayoutDue: Number(data.pendingPayoutDue || 2800),
-          sundayBonusEarned: Number(data.sundayBonusEarned || 1200),
+          backupWasherName: data.backupWasherName || 'None',
+          monthlyPayoutsGone: Number(data.monthlyPayoutsGone || 0),
+          pendingPayoutDue: Number(data.pendingPayoutDue || 0),
+          sundayBonusEarned: Number(data.sundayBonusEarned || 0),
           disbursements: data.disbursements || [],
           created_at: data.created_at || (data.updated_at ? new Date().toISOString() : undefined),
         });
@@ -1538,3 +1569,186 @@ export async function fetchAllWashersFromFirestore(): Promise<WasherPartner[]> {
     return [];
   }
 }
+
+/**
+ * Step 4 Customer Discovery Query for /auth/signup:
+ * Queries the public sanitized washer_directory collection.
+ *
+ * Query conditions:
+ * - collection(db, "washer_directory")
+ * - where("societies", "array-contains", selectedSociety)
+ * - where("status", "==", "active")
+ * - where("availableForSignup", "==", true)
+ */
+export async function fetchWashersFromDirectory(
+  selectedSociety?: string
+): Promise<WasherPartner[]> {
+  try {
+    const directoryRef = collection(db, 'washer_directory');
+    let q;
+    if (selectedSociety && selectedSociety.trim()) {
+      q = query(
+        directoryRef,
+        where('societies', 'array-contains', selectedSociety.trim()),
+        where('status', '==', 'active'),
+        where('availableForSignup', '==', true)
+      );
+    } else {
+      q = query(
+        directoryRef,
+        where('status', '==', 'active'),
+        where('availableForSignup', '==', true)
+      );
+    }
+
+    const snap = await getDocs(q);
+    const directoryWashers: WasherPartner[] = [];
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      const parsedSocieties: string[] =
+        data.societies && Array.isArray(data.societies) && data.societies.length > 0
+          ? data.societies
+          : typeof data.society === 'string' && data.society.trim()
+          ? data.society.split(',').map((s: string) => s.trim()).filter(Boolean)
+          : [];
+
+      directoryWashers.push({
+        id: docSnap.id,
+        name: data.name || 'Washer Partner',
+        phone: '', // Private - not exposed in directory
+        avatar: data.photoURL || data.avatar || '/images/washer_amit.jpg',
+        rating: String(data.rating || '5.0'),
+        reviewsCount: Number(data.reviewsCount || 0),
+        society: data.society || (parsedSocieties.length > 0 ? parsedSocieties.join(', ') : 'Assigned Route'),
+        societies: parsedSocieties,
+        createdBy: data.createdBy || null,
+        routeWindow: data.routeWindow || '06:30 AM - 09:30 AM',
+        avgTimePerCar: '5.5 mins',
+        completionRate: data.completionRate || '100%',
+        status: 'Active on Route',
+        kyc: 'Verified Partner',
+        aadhaarVerified: true,
+        phoneVerified: true,
+      } as WasherPartner);
+    });
+
+    return directoryWashers;
+  } catch (error: any) {
+    console.warn('fetchWashersFromDirectory notice:', error?.message || error);
+    return [];
+  }
+}
+
+/**
+ * ===============================================================
+ * AREA MANAGERS COLLECTION
+ * ===============================================================
+ */
+export interface AreaManagerRecord {
+  id?: string;
+  fullName: string;
+  phoneNumber: string;
+  aadhaarNumber: string;
+  aadhaarPhotoUrl?: string | null;
+  role: 'Area Manager';
+  updatedAt?: string;
+  createdAt?: string;
+  email?: string;
+}
+
+export async function saveAreaManagerToFirestore(data: AreaManagerRecord): Promise<{ success: boolean; id: string; error?: string }> {
+  try {
+    const currentAuthUid = auth?.currentUser?.uid;
+    const docId = currentAuthUid || data.id || (typeof window !== 'undefined' ? localStorage.getItem('torque_admin_uid') : null);
+    if (!docId) {
+      return { success: false, id: '', error: 'Missing authenticated Admin UID. Please log in again.' };
+    }
+    const ref = doc(db, 'area_managers', docId);
+    await setDoc(ref, {
+      fullName: data.fullName,
+      full_name: data.fullName,
+      phoneNumber: data.phoneNumber,
+      phone_number: data.phoneNumber,
+      aadhaarNumber: data.aadhaarNumber,
+      aadhaar_number: data.aadhaarNumber,
+      aadhaarPhotoUrl: data.aadhaarPhotoUrl || null,
+      aadhaar_photo_url: data.aadhaarPhotoUrl || null,
+      role: 'Area Manager',
+      email: data.email || null,
+      updated_at: new Date().toISOString(),
+      created_at: data.createdAt || new Date().toISOString(),
+    }, { merge: true });
+
+    // Ensure any stray admin document accidentally created in Car_Owners is erased
+    try {
+      const strayOwnerRef = doc(db, 'Car_Owners', docId);
+      const straySnap = await getDoc(strayOwnerRef);
+      if (straySnap.exists()) {
+        await deleteDoc(strayOwnerRef);
+        console.log('Cleaned up stray admin document from Car_Owners:', docId);
+      }
+    } catch (cleanErr) {
+      // Safe ignore
+    }
+
+    return { success: true, id: docId };
+  } catch (error: any) {
+    console.error('Error saving area manager to Firestore:', error);
+    return { success: false, id: data.id || '', error: error?.message || 'Failed to save to Firestore' };
+  }
+}
+
+export async function fetchAreaManagerFromFirestore(managerId?: string): Promise<AreaManagerRecord | null> {
+  try {
+    if (!managerId) return null;
+    const ref = doc(db, 'area_managers', managerId);
+    const snap = await getDoc(ref);
+    if (snap.exists()) {
+      const d = snap.data();
+      return {
+        id: snap.id,
+        fullName: d.fullName || d.full_name || '',
+        phoneNumber: d.phoneNumber || d.phone_number || '',
+        aadhaarNumber: d.aadhaarNumber || d.aadhaar_number || '',
+        aadhaarPhotoUrl: d.aadhaarPhotoUrl || d.aadhaar_photo_url || null,
+        role: 'Area Manager',
+        email: d.email || '',
+        updatedAt: d.updated_at,
+        createdAt: d.created_at,
+      };
+    }
+    return null;
+  } catch (error) {
+    console.warn('fetchAreaManagerFromFirestore notice:', error);
+    return null;
+  }
+}
+
+export async function fetchAreaManagerByEmail(email: string): Promise<AreaManagerRecord | null> {
+  try {
+    if (!email) return null;
+    const colRef = collection(db, 'area_managers');
+    const q = query(colRef, where('email', '==', email.toLowerCase().trim()));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const docSnap = snap.docs[0];
+      const d = docSnap.data();
+      return {
+        id: docSnap.id,
+        fullName: d.fullName || d.full_name || '',
+        phoneNumber: d.phoneNumber || d.phone_number || '',
+        aadhaarNumber: d.aadhaarNumber || d.aadhaar_number || '',
+        aadhaarPhotoUrl: d.aadhaarPhotoUrl || d.aadhaar_photo_url || null,
+        role: 'Area Manager',
+        email: d.email || '',
+        updatedAt: d.updated_at,
+        createdAt: d.created_at,
+      };
+    }
+    return null;
+  } catch (err) {
+    console.warn('fetchAreaManagerByEmail notice:', err);
+    return null;
+  }
+}
+

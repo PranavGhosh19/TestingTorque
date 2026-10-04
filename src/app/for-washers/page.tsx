@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Sparkles,
   MapPin,
@@ -108,6 +109,65 @@ export default function ForWashersPage() {
               </div>
             );
           })}
+        </div>
+
+        {/* FAIR WORK ECOSYSTEM & DIGNIFIED EMPLOYMENT */}
+        <div className="p-8 sm:p-12 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl relative overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-12 items-center">
+            <div className="lg:col-span-6 space-y-6">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.05] border border-white/10 text-[11px] font-mono uppercase tracking-widest text-[#2DD4A0]">
+                Fair Work Ecosystem
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white uppercase font-automotive-title">
+                Respect, fair pay, and dignity for our washers.
+              </h2>
+              <p className="text-sm text-white/65 leading-relaxed">
+                Informal washers are often underpaid, unequipped, and treated with disregard. Torque Care transforms car washing into professional, dignified employment with guaranteed monthly income, health coverage, and ergonomic high-grade tools.
+              </p>
+              
+              <div className="grid grid-cols-2 gap-4 pt-2 text-xs">
+                <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08]">
+                  <div className="text-lg font-bold text-white font-mono">100%</div>
+                  <div className="text-white/65 mt-0.5">Fixed on-time bank transfers</div>
+                </div>
+                <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08]">
+                  <div className="text-lg font-bold text-white font-mono">₹18,000+</div>
+                  <div className="text-white/65 mt-0.5">Monthly earning potential</div>
+                </div>
+              </div>
+
+              <div>
+                <Link
+                  href="/washer/login"
+                  className="inline-flex items-center gap-2 text-xs font-bold text-[#2DD4A0] hover:underline"
+                >
+                  <span>Join our certified partner network or sign in →</span>
+                </Link>
+              </div>
+            </div>
+
+            <div className="lg:col-span-6">
+              <div className="relative aspect-16/10 rounded-[20px] overflow-hidden border border-white/[0.12] shadow-2xl">
+                <Image
+                  src="/images/washer_amit.jpg"
+                  alt="Torque Care Professional Partner"
+                  fill
+                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6 flex items-center justify-between text-xs">
+                  <div>
+                    <div className="font-bold text-white text-sm">Amit Kumar</div>
+                    <div className="text-white/65 text-[11px]">Senior Care Lead • Green Valley Residency (4.9★)</div>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/30 font-mono text-[10px] font-bold">
+                    CERTIFIED
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* SUNDAY BONUS PAYMENTS CARD */}

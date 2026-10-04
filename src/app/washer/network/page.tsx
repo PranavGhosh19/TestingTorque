@@ -41,6 +41,10 @@ export default function WasherNetworkPage() {
           </span>
         </div>
 
+        <div className="p-3 bg-slate-100 rounded-xl border border-slate-200 text-[11px] text-slate-600 flex items-center justify-between">
+          <span>Read-only peer visibility • Washers have no management or administrative control over other washers.</span>
+        </div>
+
         <div className="space-y-3">
           {peers.map((p, i) => (
             <div

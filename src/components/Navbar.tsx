@@ -124,12 +124,12 @@ export default function Navbar() {
               Car Owners
             </Link>
             <Link
-              href="/for-washers"
+              href="/pricing"
               className={`hover:text-white transition-colors ${
-                pathname === '/for-washers' ? 'text-white font-semibold' : ''
+                pathname === '/pricing' ? 'text-white font-semibold' : ''
               }`}
             >
-              For Washers
+              Pricing
             </Link>
             <Link
               href="/about"

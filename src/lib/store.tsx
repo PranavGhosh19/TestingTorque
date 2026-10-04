@@ -52,6 +52,7 @@ interface StoreContextType {
       name: string;
       phone: string;
       address?: string;
+      society?: string;
       alt_phone?: string;
       selectedPlan?: string;
       selectedWasherId?: string;
@@ -80,7 +81,8 @@ interface StoreContextType {
   onboardWasher: (washerData: {
     name: string;
     phone: string;
-    society: string;
+    society?: string;
+    societies?: string[];
     assignedCarsPerDay?: number;
     routeWindow?: string;
     aadhaarNumber: string;
@@ -88,6 +90,7 @@ interface StoreContextType {
     bankAccount?: string;
     ifscCode?: string;
     address?: string;
+    createdBy?: string;
   }) => WasherPartner;
   dismissWasher: (washerId: string, reason?: string) => Promise<boolean>;
   reinstateWasher: (washerId: string) => Promise<boolean>;
@@ -150,6 +153,9 @@ export const demoOwnerUser: User = {
   role: 'owner',
   status: 'active',
   created_at: '2026-01-15T00:00:00Z',
+  selected_plan: 'HOME BASIC',
+  price: 599,
+  subscription_price: 599,
 };
 
 const initialVehicles: Vehicle[] = [];
@@ -171,6 +177,9 @@ export const demoVehicles: Vehicle[] = [
     society_name: 'Green Valley Residency',
     subscription_status: 'active',
     washes_this_month: 22,
+    selected_plan: 'HOME BASIC',
+    price: 599,
+    subscription_price: 599,
   },
   {
     id: 'veh_creta_1',
@@ -188,6 +197,9 @@ export const demoVehicles: Vehicle[] = [
     society_name: 'Green Valley Residency',
     subscription_status: 'active',
     washes_this_month: 20,
+    selected_plan: 'HOME BASIC',
+    price: 649,
+    subscription_price: 649,
   },
 ];
 
@@ -607,12 +619,23 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         const savedWashers = localStorage.getItem('torque_washers');
         if (savedWashers) {
           const parsed = JSON.parse(savedWashers);
-          if (Array.isArray(parsed)) setWashers(parsed);
+          if (Array.isArray(parsed)) {
+            const clean = parsed.filter((w) => w && w.id !== 'wsh_amit');
+            setWashers(clean);
+          }
         }
         const savedVehicles = localStorage.getItem('torque_vehicles');
         if (savedVehicles) {
           const parsed = JSON.parse(savedVehicles);
-          if (Array.isArray(parsed)) setVehicles(parsed);
+          if (Array.isArray(parsed)) {
+            const normalized = parsed.map((v) => ({
+              ...v,
+              selected_plan: v.selected_plan || 'HOME BASIC',
+              price: v.price || (v.type === 'luxury' ? 799 : v.type === 'suv' ? 649 : v.type === 'bike' ? 399 : 599),
+              subscription_price: v.subscription_price || (v.type === 'luxury' ? 799 : v.type === 'suv' ? 649 : v.type === 'bike' ? 399 : 599),
+            }));
+            setVehicles(normalized);
+          }
         }
       }
     } catch (e) {
@@ -626,25 +649,62 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (firebaseUser) {
         const uid = firebaseUser.uid;
         try {
-          const userDoc = await getDoc(doc(db, 'users', uid));
-          if (userDoc.exists()) {
-            const data = userDoc.data();
-            const resolvedRole = (data.role || 'owner') as UserRole;
-            setRoleState(resolvedRole);
+          // Check role-based collections: Car_Owners, area_managers, Washers
+          const ownerDoc = await getDoc(doc(db, 'Car_Owners', uid));
+          if (ownerDoc.exists()) {
+            const data = ownerDoc.data();
+            setRoleState('owner');
             setUser((prev) => ({
               ...prev,
               id: uid,
               uid: uid,
-              phone: firebaseUser.phoneNumber || data.phoneNumber || data.phone || prev.phone,
-              name: data.name || prev.name,
-              owner_name: data.name || prev.name,
-              role: resolvedRole,
+              phone: firebaseUser.phoneNumber || data.phone || prev.phone,
+              name: data.name || data.owner_name || prev.name,
+              owner_name: data.name || data.owner_name || prev.name,
+              role: 'owner',
               status: 'active',
             }));
             setIsLoggedIn(true);
+            return;
+          }
+
+          const adminDoc = await getDoc(doc(db, 'area_managers', uid));
+          if (adminDoc.exists()) {
+            const data = adminDoc.data();
+            setRoleState('admin');
+            setUser((prev) => ({
+              ...prev,
+              id: uid,
+              uid: uid,
+              phone: data.phoneNumber || data.phone_number || prev.phone,
+              name: data.fullName || data.full_name || prev.name,
+              owner_name: data.fullName || data.full_name || prev.name,
+              role: 'admin',
+              status: 'active',
+            }));
+            setIsLoggedIn(true);
+            return;
+          }
+
+          const washerDoc = await getDoc(doc(db, 'Washers', uid));
+          if (washerDoc.exists()) {
+            const data = washerDoc.data();
+            setRoleState('washer');
+            setUser((prev) => ({
+              ...prev,
+              id: uid,
+              uid: uid,
+              phone: data.phone || prev.phone,
+              name: data.name || prev.name,
+              owner_name: data.name || prev.name,
+              role: 'washer',
+              status: 'active',
+            }));
+            setIsLoggedIn(true);
+            return;
           }
         } catch (authErr) {
-          console.warn('Error reading authenticated users/{uid}:', authErr);
+          console.warn('Error reading role document for authenticated user:', authErr);
         }
       }
     });
@@ -707,6 +767,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const addVehicle = (
     newVeh: Omit<Vehicle, 'id' | 'owner_id' | 'owner_name' | 'washes_this_month' | 'subscription_status'>
   ) => {
+    const defaultPrice =
+      newVeh.type === 'luxury' ? 799 : newVeh.type === 'suv' ? 649 : newVeh.type === 'bike' ? 399 : 599;
     const created: Vehicle = {
       ...newVeh,
       id: `veh_${Date.now()}`,
@@ -714,6 +776,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       owner_name: user.name,
       subscription_status: 'active',
       washes_this_month: 0,
+      selected_plan: newVeh.selected_plan || user.selected_plan || 'HOME BASIC',
+      price: newVeh.price || defaultPrice,
+      subscription_price: newVeh.subscription_price || defaultPrice,
     };
     setVehicles((prev) => [created, ...prev]);
 
@@ -741,6 +806,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       name: string;
       phone: string;
       address?: string;
+      society?: string;
       alt_phone?: string;
       selectedPlan?: string;
       selectedWasherId?: string;
@@ -761,8 +827,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       subscription_price?: number;
     }>
   ) => {
-    // Primary Identity: Use Firebase Auth UID if provided or authenticated
-    const newUserId = ownerData.uid || auth.currentUser?.uid || `usr_${Date.now()}`;
+    // Primary Identity: Phone number is the primary UID
+    const cleanPhoneDigits = (ownerData.phone || '').replace(/\D/g, '');
+    const phonePrimaryUid = cleanPhoneDigits.length >= 10
+      ? `+91${cleanPhoneDigits.slice(-10)}`
+      : (ownerData.phone || ownerData.uid || auth.currentUser?.uid || `usr_${Date.now()}`);
+    const newUserId = phonePrimaryUid;
 
     const getBodyTypePrice = (type?: string): number => {
       const t = (type || 'car').toLowerCase();
@@ -787,6 +857,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       phone: ownerData.phone,
       phoneNumber: ownerData.phone,
       address: ownerData.address,
+      society: ownerData.society,
       alt_phone: ownerData.alt_phone,
       role: 'owner',
       status: 'active',
@@ -797,23 +868,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       price: finalPrice,
       subscription_price: finalPrice,
     };
-
-    // 0. PRIMARY IDENTITY: Sync to users/{uid}
-    setDoc(
-      doc(db, 'users', newUserId),
-      {
-        uid: newUserId,
-        id: newUserId,
-        phoneNumber: ownerData.phone,
-        phone: ownerData.phone,
-        name: ownerData.name,
-        role: 'owner',
-        status: 'active',
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    ).catch((err: any) => console.warn('users/{uid} sync notice:', err));
 
     setUser(newUser);
     setRole('owner');
@@ -833,7 +887,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         parking_floor: 'Basement 1',
         preferred_wash_time: v.preferred_wash_time || '07:30 AM',
         society_id: 'soc_green_valley',
-        society_name: v.society_name || 'Green Valley Residency',
+        society_name: v.society_name || ownerData.society || 'Green Valley Residency',
         subscription_status: 'active',
         washes_this_month: 0,
         selected_plan: ownerData.selectedPlan || 'HOME BASIC',
@@ -851,6 +905,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('torque_owner_reset');
       localStorage.setItem('torque_logged_in', 'true');
       localStorage.setItem('torque_owner_name', ownerData.name);
+      localStorage.setItem('torque_owner_id', newUserId);
+      localStorage.setItem('torque_owner_phone', newUser.phone);
       localStorage.setItem('torque_subscription_price', String(finalPrice));
       if (ownerData.selectedWasherName) {
         localStorage.setItem('torque_assigned_washer_name', ownerData.selectedWasherName);
@@ -1036,7 +1092,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const onboardWasher = (washerData: {
     name: string;
     phone: string;
-    society: string;
+    society?: string;
+    societies?: string[];
     assignedCarsPerDay?: number;
     routeWindow?: string;
     aadhaarNumber: string;
@@ -1044,11 +1101,20 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     bankAccount?: string;
     ifscCode?: string;
     address?: string;
+    createdBy?: string;
   }): WasherPartner => {
     const newId = `wsh_${Date.now()}`;
     const cleanPhone = washerData.phone.startsWith('+91')
       ? washerData.phone
       : `+91 ${washerData.phone.replace(/^\+91\s*/, '')}`;
+
+    const assignedSocietiesList: string[] =
+      washerData.societies && washerData.societies.length > 0
+        ? washerData.societies
+        : washerData.society
+        ? washerData.society.split(',').map((s) => s.trim()).filter(Boolean)
+        : ['Green Valley Residency'];
+    const joinedSocietiesStr = assignedSocietiesList.join(', ');
 
     const newPartner: WasherPartner = {
       id: newId,
@@ -1057,7 +1123,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       avatar: '/images/washer_amit.jpg',
       rating: '5.0',
       reviewsCount: 1,
-      society: washerData.society || 'Green Valley Residency',
+      society: joinedSocietiesStr,
+      societies: assignedSocietiesList,
       assignedCarsPerDay: washerData.assignedCarsPerDay || 30,
       routeWindow: washerData.routeWindow || '06:30 AM - 09:30 AM',
       avgTimePerCar: '5.5 mins',
@@ -1080,6 +1147,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       pendingPayoutDue: 0,
       sundayBonusEarned: 0,
       disbursements: [],
+      created_at: new Date().toISOString(),
+      createdBy: washerData.createdBy || user?.id || 'admin-lead-1',
     };
 
     setWashers((prev) => [newPartner, ...prev]);

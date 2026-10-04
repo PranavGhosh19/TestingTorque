@@ -17,10 +17,50 @@ import {
   BarChart3,
   RefreshCw,
   Sparkles,
+  ShieldAlert,
 } from 'lucide-react';
+import { useStore } from '@/lib/store';
 
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const { user, role, washers } = useStore();
+
+  const currentAdminId = user?.uid || user?.id || '';
+  const myWashersCount = washers.filter((w) => w.id !== 'wsh_amit' && (!w.createdBy || w.createdBy === currentAdminId)).length;
+
+  if (role === 'washer') {
+    return (
+      <aside className="w-64 bg-[#0B132B] text-white shrink-0 hidden lg:flex flex-col border-r border-white/10 min-h-screen p-6 justify-between">
+        <div className="space-y-4">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 flex items-center justify-center">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-base font-extrabold tracking-tight">
+                Torque<span className="text-blue-400">Care</span>
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">
+                Access Restricted
+              </span>
+            </div>
+          </div>
+          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs space-y-2">
+            <p className="font-bold">Washer Role Active</p>
+            <p className="text-[11px] text-amber-300/80 leading-relaxed">
+              Washers do not have control over washers or operations. Please use your washer route portal.
+            </p>
+            <Link
+              href="/washer/dashboard"
+              className="inline-block mt-2 px-3 py-1.5 bg-amber-400 text-slate-950 font-bold text-xs rounded-xl hover:bg-amber-300 transition-colors"
+            >
+              Go to Washer Route
+            </Link>
+          </div>
+        </div>
+      </aside>
+    );
+  }
 
   const navGroups = [
     {
@@ -41,7 +81,12 @@ export default function AdminSidebar() {
     {
       title: 'Washers',
       items: [
-        { href: '/admin/washers', label: 'Washer Network', icon: Sparkles },
+        {
+          href: '/admin/washers',
+          label: 'Washer Network',
+          icon: Sparkles,
+          badge: `${myWashersCount} Mine`,
+        },
         { href: '/admin/payouts', label: 'Disbursements', icon: Wallet },
       ],
     },
@@ -87,34 +132,31 @@ export default function AdminSidebar() {
             {group.items.map((item) => {
               const Icon = item.icon;
               const isActive = pathname === item.href;
+              const badge = (item as any).badge;
               return (
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
                     isActive
                       ? 'bg-blue-600 text-white shadow-xs'
                       : 'text-slate-300 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <Icon className="w-4 h-4 shrink-0" />
-                  <span>{item.label}</span>
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-4 h-4 shrink-0" />
+                    <span>{item.label}</span>
+                  </div>
+                  {badge && (
+                    <span className="text-[9px] font-mono font-bold bg-white/10 px-1.5 py-0.5 rounded-md text-emerald-300 border border-white/10">
+                      {badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
           </div>
         ))}
-      </div>
-
-      {/* Footer / Ops Status */}
-      <div className="p-4 border-t border-white/10 text-xs text-slate-400 space-y-1">
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-emerald-400 font-semibold text-[11px]">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            Cluster Node: Delhi-NCR
-          </span>
-        </div>
-        <div className="text-[10px] text-slate-500">v2.4 Production Engine</div>
       </div>
     </aside>
   );

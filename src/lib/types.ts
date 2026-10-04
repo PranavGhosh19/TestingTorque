@@ -11,6 +11,7 @@ export interface User {
   owner_name?: string;
   email?: string;
   address?: string;
+  society?: string;
   alt_phone?: string;
   role: UserRole;
   avatar_url?: string;

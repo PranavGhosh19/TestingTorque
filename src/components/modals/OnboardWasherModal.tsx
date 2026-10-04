@@ -18,9 +18,12 @@ import {
   AlertCircle,
   ArrowRight,
   FileCheck,
+  Plus,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { WasherPartner } from '@/lib/washerPartners';
+import { auth } from '@/lib/firebase';
+import { syncWasherToFirestore } from '@/lib/firebaseService';
 
 interface OnboardWasherModalProps {
   isOpen: boolean;
@@ -33,17 +36,60 @@ export default function OnboardWasherModal({
   onClose,
   onSuccess,
 }: OnboardWasherModalProps) {
-  const { onboardWasher, verifyPhoneNumber } = useStore();
+  const { onboardWasher, verifyPhoneNumber, societies: storeSocieties, user } = useStore();
+  const currentAdminId =
+    auth.currentUser?.uid ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_admin_uid') : null) ||
+    user?.uid ||
+    user?.id ||
+    'admin-lead-1';
+
+  const defaultSocieties = [
+    'Green Valley Residency',
+    'Palm Residency',
+    'Sunrise Heights',
+    'Silver Oak Towers',
+  ];
+  const availableSocietiesList = Array.from(
+    new Set([
+      ...defaultSocieties,
+      ...(storeSocieties || []).map((s) => s.name),
+    ])
+  );
 
   // Form State
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [society, setSociety] = useState('Green Valley Residency');
-  const [assignedCars, setAssignedCars] = useState(32);
+  const [selectedSocieties, setSelectedSocieties] = useState<string[]>(['Green Valley Residency']);
+  const [customSocietyInput, setCustomSocietyInput] = useState('');
   const [routeWindow, setRouteWindow] = useState('06:30 AM - 09:30 AM');
   const [bankAccount, setBankAccount] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [address, setAddress] = useState('');
+
+  const handleToggleSociety = (socName: string) => {
+    setSelectedSocieties((prev) => {
+      if (prev.includes(socName)) {
+        return prev.filter((s) => s !== socName);
+      } else {
+        return [...prev, socName];
+      }
+    });
+  };
+
+  const handleRemoveSociety = (socName: string) => {
+    setSelectedSocieties((prev) => prev.filter((s) => s !== socName));
+  };
+
+  const handleAddCustomSociety = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const clean = customSocietyInput.trim();
+    if (!clean) return;
+    if (!selectedSocieties.includes(clean)) {
+      setSelectedSocieties((prev) => [...prev, clean]);
+    }
+    setCustomSocietyInput('');
+  };
 
   // Aadhaar State
   const [aadhaarRaw, setAadhaarRaw] = useState('');
@@ -127,7 +173,7 @@ export default function OnboardWasherModal({
   };
 
   // Submit Partner Onboarding
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
       setErrorMessage('Partner name is required');
@@ -142,15 +188,21 @@ export default function OnboardWasherModal({
       return;
     }
 
+    if (selectedSocieties.length === 0) {
+      setErrorMessage('Please assign at least 1 society to this washer partner');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage('');
 
-    setTimeout(() => {
+    try {
       const newPartner = onboardWasher({
         name,
         phone: phone.trim(),
-        society,
-        assignedCarsPerDay: assignedCars,
+        society: selectedSocieties.join(', '),
+        societies: selectedSocieties,
+        createdBy: currentAdminId,
         routeWindow,
         aadhaarNumber: formattedAadhaar,
         aadhaarPhotoUrl: aadhaarPhotoUrl || undefined,
@@ -159,10 +211,20 @@ export default function OnboardWasherModal({
         address,
       });
 
+      // Synchronously write directly into Firestore Washers collection
+      const syncResult = await syncWasherToFirestore(newPartner);
+      if (!syncResult.success) {
+        console.warn('Firestore washer sync notice:', syncResult.error);
+      }
+
       setIsSubmitting(false);
       if (onSuccess) onSuccess(newPartner);
       onClose();
-    }, 600);
+    } catch (err: any) {
+      console.error('Error during washer onboarding:', err);
+      setIsSubmitting(false);
+      setErrorMessage(err?.message || 'Failed to onboard washer. Please try again.');
+    }
   };
 
   return (
@@ -403,56 +465,137 @@ export default function OnboardWasherModal({
 
             {/* SECTION 3: Route & Capacity Assignment */}
             <div className="space-y-4 pt-2 border-t border-slate-100">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                <Building2 className="w-3.5 h-3.5 text-emerald-500" />
-                <span>3. Society Route & Daily Capacity</span>
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>3. Society Route & Daily Capacity</span>
+                </h3>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  {selectedSocieties.length} {selectedSocieties.length === 1 ? 'Society' : 'Societies'} Assigned
+                </span>
+              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">
-                    Assigned Society *
+              {/* Multi-Society Cluster Assignment */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-700 block">
+                    Assigned Societies * (Select one or more)
                   </label>
-                  <select
-                    value={society}
-                    onChange={(e) => setSociety(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
+                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/80">
+                    Washer can work across &gt; 1 society
+                  </span>
+                </div>
+
+                {/* Selected Societies Chips */}
+                <div className="p-3 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-2">
+                  <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Currently Assigned Route Clusters ({selectedSocieties.length}):
+                  </div>
+                  <div className="flex flex-wrap gap-2 min-h-[32px] items-center">
+                    {selectedSocieties.length === 0 ? (
+                      <span className="text-rose-600 text-xs font-semibold">
+                        ⚠️ No society selected. Please pick at least one society below.
+                      </span>
+                    ) : (
+                      selectedSocieties.map((soc) => (
+                        <span
+                          key={soc}
+                          className="inline-flex items-center gap-1.5 bg-[#0B132B] text-white font-bold text-xs pl-3 pr-2 py-1.5 rounded-xl shadow-xs animate-in zoom-in-95"
+                        >
+                          <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                          <span>{soc}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveSociety(soc)}
+                            className="hover:bg-white/20 text-slate-300 hover:text-white rounded-md p-0.5 ml-1 transition-colors cursor-pointer"
+                            title={`Remove ${soc}`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Society Selector Pills */}
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-semibold text-slate-500">
+                    Click to add or remove societies for this washer&apos;s daily route:
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {availableSocietiesList.map((socName) => {
+                      const isSelected = selectedSocieties.includes(socName);
+                      return (
+                        <button
+                          key={socName}
+                          type="button"
+                          onClick={() => handleToggleSociety(socName)}
+                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
+                            isSelected
+                              ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-2xs ring-1 ring-emerald-500/20'
+                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                          }`}
+                        >
+                          <span className="truncate">{socName}</span>
+                          {isSelected ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 ml-1" />
+                          ) : (
+                            <Plus className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Add Custom / Other Society */}
+                <div className="flex gap-2 pt-0.5">
+                  <div className="relative flex-1">
+                    <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={customSocietyInput}
+                      onChange={(e) => setCustomSocietyInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleAddCustomSociety();
+                        }
+                      }}
+                      placeholder="Add another society name (e.g. DLF Cyber City)..."
+                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddCustomSociety}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
                   >
-                    <option value="Green Valley Residency">Green Valley Residency</option>
-                    <option value="Palm Residency">Palm Residency</option>
-                    <option value="Sunrise Heights">Sunrise Heights</option>
-                    <option value="Silver Oak Towers">Silver Oak Towers</option>
-                  </select>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Add Society</span>
+                  </button>
                 </div>
+              </div>
 
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">
-                    Daily Cars Target
-                  </label>
-                  <input
-                    type="number"
-                    min={10}
-                    max={45}
-                    value={assignedCars}
-                    onChange={(e) => setAssignedCars(Number(e.target.value))}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">
-                    Shift Window
-                  </label>
-                  <select
-                    value={routeWindow}
-                    onChange={(e) => setRouteWindow(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
-                  >
-                    <option value="06:00 AM - 09:00 AM">06:00 AM - 09:00 AM</option>
-                    <option value="06:30 AM - 09:30 AM">06:30 AM - 09:30 AM</option>
-                    <option value="07:00 AM - 10:00 AM">07:00 AM - 10:00 AM</option>
-                  </select>
-                </div>
+              {/* Shift Window */}
+              <div className="pt-1">
+                <label className="font-bold text-slate-700 block mb-1">
+                  Shift Window
+                </label>
+                <select
+                  value={routeWindow}
+                  onChange={(e) => setRouteWindow(e.target.value)}
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none cursor-pointer"
+                >
+                  <option value="06:00 AM - 09:00 AM">06:00 AM - 09:00 AM</option>
+                  <option value="06:30 AM - 09:30 AM">06:30 AM - 09:30 AM</option>
+                  <option value="07:00 AM - 10:00 AM">07:00 AM - 10:00 AM</option>
+                  <option value="06:00 AM - 10:30 AM (Multi-Society)">06:00 AM - 10:30 AM (Multi-Society)</option>
+                </select>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Peak morning servicing timeframe.
+                </p>
               </div>
             </div>
 

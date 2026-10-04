@@ -247,12 +247,12 @@ export async function syncAuthUserToFirestore(
 ): Promise<{ uid: string; name: string; role: string; phoneNumber: string }> {
   const uid = user.uid;
   const phoneNumber = user.phoneNumber || profileData.phone || '';
-  const userRef = doc(db, 'users', uid);
+  const ownerRef = doc(db, 'Car_Owners', uid);
 
   // Read existing doc if present to preserve fields
   let existingData: any = {};
   try {
-    const snap = await getDoc(userRef);
+    const snap = await getDoc(ownerRef);
     if (snap.exists()) {
       existingData = snap.data();
     }
@@ -263,10 +263,9 @@ export async function syncAuthUserToFirestore(
   const finalRole = profileData.role || existingData.role || 'owner';
   const finalName = profileData.name || existingData.name || 'Vehicle Owner';
 
-  const userDocPayload = {
-    uid: uid,
+  const ownerDocPayload = {
+    ownerId: uid,
     id: uid,
-    phoneNumber: phoneNumber || existingData.phoneNumber || '',
     phone: phoneNumber || existingData.phone || '',
     name: finalName,
     role: finalRole,
@@ -275,23 +274,23 @@ export async function syncAuthUserToFirestore(
     ...(!existingData.createdAt ? { createdAt: serverTimestamp() } : {}),
   };
 
-  await setDoc(userRef, userDocPayload, { merge: true });
+  await setDoc(ownerRef, ownerDocPayload, { merge: true });
 
   return {
     uid,
     name: finalName,
     role: finalRole,
-    phoneNumber: phoneNumber || existingData.phoneNumber || '',
+    phoneNumber: phoneNumber || existingData.phone || '',
   };
 }
 
 /**
- * Fetches user profile from users/{uid} in Firestore
+ * Fetches customer profile from Car_Owners/{uid} in Firestore
  */
 export async function fetchUserFromFirestore(uid: string): Promise<any | null> {
   try {
-    const userRef = doc(db, 'users', uid);
-    const snap = await getDoc(userRef);
+    const ownerRef = doc(db, 'Car_Owners', uid);
+    const snap = await getDoc(ownerRef);
     if (snap.exists()) {
       return snap.data();
     }

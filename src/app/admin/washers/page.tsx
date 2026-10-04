@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
@@ -24,32 +24,96 @@ import {
   Clock,
   Layers,
   Activity,
+  Building2,
+  Lock,
+  ShieldAlert,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
 import { useStore } from '@/lib/store';
 import { WasherPartner } from '@/lib/washerPartners';
+import { fetchAllWashersFromFirestore } from '@/lib/firebaseService';
 import OnboardWasherModal from '@/components/modals/OnboardWasherModal';
 import AppointWasherModal from '@/components/modals/AppointWasherModal';
 import DismissWasherModal from '@/components/modals/DismissWasherModal';
 
 export default function AdminWashersPage() {
-  const { washers, routeStops, reinstateWasher } = useStore();
+  const { washers, routeStops, reinstateWasher, user, role } = useStore();
+  const currentAdminId =
+    user?.uid ||
+    user?.id ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_admin_uid') : null) ||
+    'admin-lead-1';
+
+  const [firestoreWashers, setFirestoreWashers] = useState<WasherPartner[]>([]);
+  const [isLoadingFirestore, setIsLoadingFirestore] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadWashers = async () => {
+      try {
+        setIsLoadingFirestore(true);
+        const remoteWashers = await fetchAllWashersFromFirestore(currentAdminId);
+        if (isMounted && remoteWashers.length > 0) {
+          setFirestoreWashers(remoteWashers.filter((w) => w.id !== 'wsh_amit'));
+        }
+      } catch (err) {
+        console.warn('Error fetching washers from Firestore:', err);
+      } finally {
+        if (isMounted) setIsLoadingFirestore(false);
+      }
+    };
+    loadWashers();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false);
   const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
   const [appointPreselectedWasherId, setAppointPreselectedWasherId] = useState<string | undefined>();
   const [isDismissModalOpen, setIsDismissModalOpen] = useState(false);
   const [washerForDismissal, setWasherForDismissal] = useState<WasherPartner | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'all' | 'active' | 'dismissed'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'mine' | 'active' | 'dismissed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Combined real washers (no dummy Amit Kumar)
+  const combinedWashers = useMemo(() => {
+    const map = new Map<string, WasherPartner>();
+    // First from store
+    washers.forEach((w) => {
+      if (w.id !== 'wsh_amit') map.set(w.id, w);
+    });
+    // Then merge from firestore
+    firestoreWashers.forEach((w) => {
+      if (w.id !== 'wsh_amit' && !map.has(w.id)) {
+        map.set(w.id, w);
+      }
+    });
+    return Array.from(map.values());
+  }, [washers, firestoreWashers]);
+
+  // Admin scoped washers: washers created/onboarded by this admin
+  const adminWashers = useMemo(() => {
+    return combinedWashers.filter((w) => {
+      if (w.id === 'wsh_amit') return false;
+      if (!w.createdBy) return true;
+      return (
+        w.createdBy === currentAdminId ||
+        (user?.uid && w.createdBy === user.uid) ||
+        (user?.id && w.createdBy === user.id)
+      );
+    });
+  }, [combinedWashers, currentAdminId, user?.uid, user?.id]);
+
   // Counts
-  const activeCount = useMemo(() => washers.filter((w) => w.status !== 'Dismissed').length, [washers]);
-  const dismissedCount = useMemo(() => washers.filter((w) => w.status === 'Dismissed').length, [washers]);
+  const myCount = adminWashers.length;
+  const activeCount = useMemo(() => adminWashers.filter((w) => w.status !== 'Dismissed').length, [adminWashers]);
+  const dismissedCount = useMemo(() => adminWashers.filter((w) => w.status === 'Dismissed').length, [adminWashers]);
 
   // Filtered list
   const filteredWashers = useMemo(() => {
-    return washers.filter((w) => {
+    return adminWashers.filter((w) => {
       // Tab filter
       if (activeTab === 'active' && w.status === 'Dismissed') return false;
       if (activeTab === 'dismissed' && w.status !== 'Dismissed') return false;
@@ -60,11 +124,37 @@ export default function AdminWashersPage() {
       return (
         w.name.toLowerCase().includes(q) ||
         w.society.toLowerCase().includes(q) ||
+        (w.societies && w.societies.some((s) => s.toLowerCase().includes(q))) ||
         w.phone.toLowerCase().includes(q) ||
         (w.aadhaarNumber && w.aadhaarNumber.includes(q))
       );
     });
-  }, [washers, activeTab, searchQuery]);
+  }, [adminWashers, activeTab, searchQuery]);
+
+  if (role === 'washer') {
+    return (
+      <div className="flex min-h-screen bg-[#F5F7FA]">
+        <AdminSidebar />
+        <main className="flex-1 p-8 flex items-center justify-center">
+          <div className="max-w-md p-8 bg-white border border-amber-300 rounded-3xl text-center space-y-4 shadow-lg">
+            <div className="w-14 h-14 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mx-auto">
+              <Lock className="w-7 h-7" />
+            </div>
+            <h1 className="text-xl font-bold text-slate-900">Access Restricted: Washers</h1>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Washers do not have administrative control over other washers. Your daily route and assigned cars are located in the Washer Portal.
+            </p>
+            <Link
+              href="/washer/dashboard"
+              className="inline-block px-5 py-2.5 bg-[#0B132B] text-white font-bold text-xs rounded-xl"
+            >
+              Go to My Washer Dashboard
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const handleOpenAppoint = (e: React.MouseEvent, washerId?: string) => {
     e.preventDefault();
@@ -132,6 +222,14 @@ export default function AdminWashersPage() {
           </div>
         </div>
 
+        {/* Ownership Scope Notice */}
+        <div className="p-3.5 bg-blue-50/80 border border-blue-200/90 rounded-2xl flex items-center gap-2.5 text-xs text-blue-900">
+          <Lock className="w-4 h-4 text-blue-600 shrink-0" />
+          <span>
+            <strong>Admin Scoped Access:</strong> Admins have control only over washers they created. Washers do not have control over other washers.
+          </span>
+        </div>
+
         {/* Filter Tabs & Search Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-2xs">
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
@@ -144,11 +242,11 @@ export default function AdminWashersPage() {
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
-              <span>All Partners</span>
+              <span>Onboarded Partners</span>
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                 activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
               }`}>
-                {washers.length}
+                {adminWashers.length}
               </span>
             </button>
 
@@ -245,6 +343,7 @@ export default function AdminWashersPage() {
               const inProgressStop = stops.find((s) => s.status === 'current');
               const completionPercent = totalStops > 0 ? Math.round((completedStops / totalStops) * 100) : 0;
               const isDismissed = w.status === 'Dismissed';
+              const isCreatedByMe = !w.createdBy || w.createdBy === currentAdminId;
 
               return (
                 <div
@@ -262,15 +361,19 @@ export default function AdminWashersPage() {
                         href={`/admin/washers/${w.id}`}
                         className="flex items-center gap-3.5 group/link cursor-pointer"
                       >
-                        <div className={`relative w-14 h-14 rounded-2xl overflow-hidden border-2 shadow-xs shrink-0 ${
-                          isDismissed ? 'border-red-400 grayscale' : 'border-emerald-500/80'
+                        <div className={`relative w-14 h-14 rounded-2xl overflow-hidden border-2 shadow-xs shrink-0 flex items-center justify-center font-extrabold text-base ${
+                          isDismissed ? 'border-red-400 bg-red-100 text-red-700' : 'border-emerald-500/80 bg-blue-600 text-white'
                         }`}>
-                          <Image
-                            src={w.avatar}
-                            alt={w.name}
-                            fill
-                            className="object-cover"
-                          />
+                          {w.avatar && !w.avatar.includes('washer_amit') ? (
+                            <Image
+                              src={w.avatar}
+                              alt={w.name}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <span>{w.name.charAt(0).toUpperCase()}</span>
+                          )}
                         </div>
                         <div>
                           <h2 className="text-base font-extrabold text-[#0B132B] group-hover/link:text-emerald-700 transition-colors flex items-center gap-1.5">
@@ -283,6 +386,18 @@ export default function AdminWashersPage() {
                             </span>
                             <span className="text-slate-400 font-normal">({w.reviewsCount} reviews)</span>
                           </div>
+                          {w.created_at && (
+                            <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1 mt-1">
+                              <Calendar className="w-3 h-3 text-blue-600" />
+                              <span>
+                                Onboarded: {new Date(w.created_at).toLocaleDateString('en-IN', {
+                                  day: 'numeric',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </Link>
 
@@ -296,11 +411,25 @@ export default function AdminWashersPage() {
                             {w.status}
                           </span>
                         )}
-                        {w.aadhaarVerified && (
-                          <span className="text-[9px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200 inline-block">
-                            UIDAI Aadhaar ✓
-                          </span>
-                        )}
+                        <span
+                          className={`text-[9px] font-bold px-2 py-0.5 rounded-full border inline-flex items-center gap-1 ${
+                            isCreatedByMe
+                              ? 'text-emerald-700 bg-emerald-50 border-emerald-200'
+                              : 'text-slate-500 bg-slate-100 border-slate-200'
+                          }`}
+                        >
+                          {isCreatedByMe ? (
+                            <>
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Your Washer</span>
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-3 h-3 text-slate-400" />
+                              <span>Created by {w.createdBy}</span>
+                            </>
+                          )}
+                        </span>
                       </div>
                     </div>
 
@@ -341,7 +470,7 @@ export default function AdminWashersPage() {
                           />
                         </div>
 
-                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-0.5 gap-2 flex-wrap">
                           {inProgressStop ? (
                             <span className="text-amber-700 font-semibold flex items-center gap-1">
                               <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
@@ -354,20 +483,37 @@ export default function AdminWashersPage() {
                           ) : (
                             <span>Window: {w.routeWindow}</span>
                           )}
-                          <span className="font-mono text-slate-600">{w.society}</span>
+                          <div className="flex items-center gap-1 flex-wrap justify-end">
+                            {(w.societies || (w.society ? w.society.split(',').map((s) => s.trim()) : ['Green Valley Residency'])).map((soc, idx) => (
+                              <span
+                                key={idx}
+                                className="inline-flex items-center gap-1 font-mono text-[10px] bg-white text-slate-700 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-2xs"
+                              >
+                                <Building2 className="w-2.5 h-2.5 text-emerald-600" />
+                                <span>{soc}</span>
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="p-3 rounded-2xl bg-slate-100 border border-slate-200 text-xs text-slate-500 flex items-center justify-between">
+                      <div className="p-3 rounded-2xl bg-slate-100 border border-slate-200 text-xs text-slate-500 flex items-center justify-between flex-wrap gap-2">
                         <span>Route suspended</span>
-                        <span className="font-mono">Formerly: {w.society}</span>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className="text-[10px] text-slate-400">Formerly:</span>
+                          {(w.societies || (w.society ? w.society.split(',').map((s) => s.trim()) : ['Green Valley Residency'])).map((soc, idx) => (
+                            <span key={idx} className="font-mono text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-md">
+                              {soc}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     )}
 
                     {/* Quick Metrics */}
                     <div className="grid grid-cols-3 gap-2 text-center">
                       <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                        <div className="text-[10px] text-slate-500 font-medium">Daily Target</div>
+                        <div className="text-[10px] text-slate-500 font-medium">Assigned Cars</div>
                         <div className="text-sm font-black text-slate-900 mt-0.5 font-mono">
                           {w.assignedCarsPerDay} Cars
                         </div>
@@ -392,17 +538,42 @@ export default function AdminWashersPage() {
 
                     {/* Cluster & Verification details */}
                     <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 text-xs text-slate-600">
-                      <div className="flex justify-between">
+                      {w.created_at && (
+                        <div className="flex justify-between items-center pb-1.5 border-b border-slate-200/70">
+                          <span className="text-slate-500 flex items-center gap-1.5 font-medium">
+                            <Calendar className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Created / Onboarded:</span>
+                          </span>
+                          <span className="font-bold text-slate-800">
+                            {new Date(w.created_at).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center">
                         <span className="text-slate-500">Aadhaar Card:</span>
                         <span className="font-mono font-bold text-slate-800">
-                          {w.aadhaarNumber ? `•••• •••• ${w.aadhaarNumber.slice(-4)}` : 'Verified on File'}
+                          {w.aadhaarNumber ? `•••• •••• ${w.aadhaarNumber.replace(/\D/g, '').slice(-4)}` : 'Verified on File'}
                         </span>
                       </div>
-                      <div className="flex justify-between">
+                      <div className="flex justify-between items-center">
                         <span className="text-slate-500">Phone Verification:</span>
                         <span className="text-emerald-700 font-semibold flex items-center gap-1">
                           <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                           {w.phone}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500">Assigned Societies:</span>
+                        <span className="font-semibold text-slate-800 text-right max-w-[65%] truncate">
+                          {w.societies && w.societies.length > 0
+                            ? w.societies.join(', ')
+                            : w.society || 'Green Valley Residency'}
                         </span>
                       </div>
                     </div>
@@ -419,37 +590,44 @@ export default function AdminWashersPage() {
                     </Link>
 
                     <div className="flex items-center gap-2">
-                      {!isDismissed ? (
-                        <>
+                      {isCreatedByMe ? (
+                        !isDismissed ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenAppoint(e, w.id)}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center gap-1 border border-emerald-200 cursor-pointer transition-colors"
+                              title="Appoint vehicles to this washer"
+                            >
+                              <Car className="w-3.5 h-3.5 text-emerald-700" />
+                              <span>Appoint Cars</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenDismiss(e, w)}
+                              className="px-2.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center gap-1 border border-red-200 cursor-pointer transition-colors"
+                              title="Dismiss washer partner"
+                            >
+                              <UserX className="w-3.5 h-3.5 text-red-600" />
+                              <span>Dismiss</span>
+                            </button>
+                          </>
+                        ) : (
                           <button
                             type="button"
-                            onClick={(e) => handleOpenAppoint(e, w.id)}
-                            className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs flex items-center gap-1 border border-emerald-200 cursor-pointer transition-colors"
-                            title="Appoint vehicles to this washer"
+                            onClick={(e) => handleReinstate(e, w.id)}
+                            className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center gap-1.5 border border-blue-200 cursor-pointer transition-colors shadow-2xs"
+                            title="Reinstate washer partner"
                           >
-                            <Car className="w-3.5 h-3.5 text-emerald-700" />
-                            <span>Appoint Cars</span>
+                            <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Reinstate Partner</span>
                           </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleOpenDismiss(e, w)}
-                            className="px-2.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs flex items-center gap-1 border border-red-200 cursor-pointer transition-colors"
-                            title="Dismiss washer partner"
-                          >
-                            <UserX className="w-3.5 h-3.5 text-red-600" />
-                            <span>Dismiss</span>
-                          </button>
-                        </>
+                        )
                       ) : (
-                        <button
-                          type="button"
-                          onClick={(e) => handleReinstate(e, w.id)}
-                          className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center gap-1.5 border border-blue-200 cursor-pointer transition-colors shadow-2xs"
-                          title="Reinstate washer partner"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Reinstate Partner</span>
-                        </button>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200/80 text-slate-500 text-xs">
+                          <Lock className="w-3 h-3 text-slate-400" />
+                          <span>Control restricted to creator ({w.createdBy})</span>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -464,6 +642,9 @@ export default function AdminWashersPage() {
       <OnboardWasherModal
         isOpen={isOnboardModalOpen}
         onClose={() => setIsOnboardModalOpen(false)}
+        onSuccess={(newPartner) => {
+          setFirestoreWashers((prev) => [newPartner, ...prev.filter((p) => p.id !== newPartner.id)]);
+        }}
       />
 
       {/* Appoint Washer Modal */}

@@ -34,6 +34,7 @@ import {
   Check,
   Eye,
   UserCheck,
+  Lock,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
 import { washerPartners, getWasherById } from '@/lib/washerPartners';
@@ -43,9 +44,16 @@ import DismissWasherModal from '@/components/modals/DismissWasherModal';
 
 export default function WasherProfileDetailPage() {
   const params = useParams();
-  const id = (params?.id as string) || 'wsh_amit';
-  const { washers, vehicles, routeStops, reinstateWasher } = useStore();
-  const washer = washers.find((w) => w.id === id) || getWasherById(id) || washerPartners[0];
+  const id = (params?.id as string) || '';
+  const { washers, vehicles, routeStops, reinstateWasher, user, role } = useStore();
+  const washer = washers.find((w) => w.id === id) || getWasherById(id);
+
+  const currentAdminId =
+    user?.uid ||
+    user?.id ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_admin_uid') : null) ||
+    'admin-lead-1';
+  const isCreatedByMe = washer ? (!washer.createdBy || washer.createdBy === currentAdminId) : false;
 
   const [selectedDisbursement, setSelectedDisbursement] = useState<string | null>(null);
   const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
@@ -53,22 +61,46 @@ export default function WasherProfileDetailPage() {
   const [isDismissModalOpen, setIsDismissModalOpen] = useState(false);
   const [previewPhoto, setPreviewPhoto] = useState<{ url: string; title: string } | null>(null);
 
-  const isDismissed = washer.status === 'Dismissed';
+  const isDismissed = washer?.status === 'Dismissed';
 
   // Live today's route stops for this washer
   const todayStops = useMemo(() => {
+    if (!washer) return [];
     return routeStops.filter((s) => s.washer_id === washer.id);
-  }, [routeStops, washer.id]);
+  }, [routeStops, washer]);
 
   const completedStopsCount = todayStops.filter((s) => s.status === 'completed').length;
   const inProgressStopsCount = todayStops.filter((s) => s.status === 'current').length;
 
   // Appointed vehicles for this washer
   const appointedVehicles = useMemo(() => {
+    if (!washer) return [];
     return vehicles.filter(
       (v) => v.assigned_washer_id === washer.id || (v as unknown as { washerId?: string }).washerId === washer.id
     );
-  }, [vehicles, washer.id]);
+  }, [vehicles, washer]);
+
+  if (!washer) {
+    return (
+      <div className="flex min-h-screen bg-[#F5F7FA]">
+        <AdminSidebar />
+        <main className="flex-1 p-10 flex items-center justify-center">
+          <div className="max-w-md p-8 bg-white border border-slate-200 rounded-3xl text-center space-y-4 shadow-sm">
+            <h1 className="text-xl font-bold text-slate-900">Washer Partner Not Found</h1>
+            <p className="text-xs text-slate-500">
+              The requested washer partner could not be located in your active roster.
+            </p>
+            <Link
+              href="/admin/washers"
+              className="inline-block px-5 py-2.5 bg-[#0B132B] text-white font-bold text-xs rounded-xl"
+            >
+              Return to Washer Network
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const handleReinstate = async () => {
     if (confirm(`Reinstate ${washer.name} back to active partner status?`)) {
@@ -128,14 +160,31 @@ export default function WasherProfileDetailPage() {
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={handleReinstate}
-              className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 shrink-0 cursor-pointer shadow-sm transition-all"
-            >
-              <RotateCcw className="w-4 h-4 text-emerald-400" />
-              <span>Reinstate to Active Duty</span>
-            </button>
+            {isCreatedByMe && (
+              <button
+                type="button"
+                onClick={handleReinstate}
+                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-2 shrink-0 cursor-pointer shadow-sm transition-all"
+              >
+                <RotateCcw className="w-4 h-4 text-emerald-400" />
+                <span>Reinstate to Active Duty</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Ownership Scope Notice */}
+        {!isCreatedByMe && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2.5">
+              <Lock className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                <strong>Ownership Restriction:</strong> This washer partner was onboarded by Admin <strong>{washer.createdBy}</strong>. You have read-only audit access. Only the creating Admin can appoint vehicles or dismiss this partner.
+              </span>
+            </div>
+            <span className="font-mono text-[10px] bg-white text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold shrink-0">
+              View Only
+            </span>
           </div>
         )}
 
@@ -179,9 +228,14 @@ export default function WasherProfileDetailPage() {
                   <span className="flex items-center gap-1 text-amber-600 font-bold">
                     <Star className="w-4 h-4 fill-amber-500" /> {washer.rating} Rating ({washer.reviewsCount} reviews)
                   </span>
-                  <span>•</span>
-                  <span className="font-semibold text-slate-700">{washer.society}</span>
-                  <span>•</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                    {(washer.societies || (washer.society ? washer.society.split(',').map((s) => s.trim()) : ['Green Valley Residency'])).map((soc, idx) => (
+                      <span key={idx} className="font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md text-xs border border-slate-200">
+                        {soc}
+                      </span>
+                    ))}
+                  </div>
                   <span className="font-mono text-slate-600 flex items-center gap-1">
                     <Phone className="w-3.5 h-3.5 text-slate-400" /> {washer.phone}
                   </span>
@@ -196,35 +250,42 @@ export default function WasherProfileDetailPage() {
 
             {/* Header Actions */}
             <div className="flex items-center gap-2.5 self-start sm:self-center shrink-0 flex-wrap">
-              {!isDismissed ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => handleOpenAppointForVehicle(undefined)}
-                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
-                  >
-                    <Car className="w-3.5 h-3.5" />
-                    <span>Appoint Vehicle</span>
-                  </button>
+              {isCreatedByMe ? (
+                !isDismissed ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenAppointForVehicle(undefined)}
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+                    >
+                      <Car className="w-3.5 h-3.5" />
+                      <span>Appoint Vehicle</span>
+                    </button>
 
+                    <button
+                      type="button"
+                      onClick={() => setIsDismissModalOpen(true)}
+                      className="px-3.5 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                    >
+                      <UserX className="w-3.5 h-3.5 text-red-600" />
+                      <span>Dismiss Partner</span>
+                    </button>
+                  </>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => setIsDismissModalOpen(true)}
-                    className="px-3.5 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
+                    onClick={handleReinstate}
+                    className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
                   >
-                    <UserX className="w-3.5 h-3.5 text-red-600" />
-                    <span>Dismiss Partner</span>
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Reinstate Partner</span>
                   </button>
-                </>
+                )
               ) : (
-                <button
-                  type="button"
-                  onClick={handleReinstate}
-                  className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-colors"
-                >
-                  <RotateCcw className="w-3.5 h-3.5" />
-                  <span>Reinstate Partner</span>
-                </button>
+                <div className="px-3 py-2 rounded-xl bg-slate-100 text-slate-500 border border-slate-200 text-xs flex items-center gap-1.5 font-medium">
+                  <Lock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Control restricted to creator ({washer.createdBy})</span>
+                </div>
               )}
 
               <a

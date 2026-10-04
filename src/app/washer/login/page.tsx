@@ -139,31 +139,6 @@ export default function DedicatedWasherLoginPage() {
             </div>
           </div>
         </div>
-
-        {/* Portal Switchers */}
-        <div className="grid grid-cols-2 gap-3 text-left">
-          <Link
-            href="/auth/login"
-            className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all group block"
-          >
-            <div className="text-xs font-bold text-blue-400 flex items-center gap-1">
-              <span>🚗 Owner Login</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-            </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Vehicle Care & Schedule</p>
-          </Link>
-
-          <Link
-            href="/admin/login"
-            className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all group block"
-          >
-            <div className="text-xs font-bold text-slate-300 flex items-center gap-1">
-              <span>⚙️ Admin Login</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-            </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Operations & Treasury</p>
-          </Link>
-        </div>
       </div>
     </div>
   );

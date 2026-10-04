@@ -1,91 +1,148 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ShieldAlert,
-  ShieldCheck,
   Lock,
+  Mail,
   ArrowRight,
-  Sparkles,
-  KeyRound,
-  Fingerprint,
-  Building2,
   AlertCircle,
-  CheckCircle2,
-  Car,
+  ShieldCheck,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
-import { recordAdminLoginToFirestore, recordUserLogin } from '@/lib/firebaseService';
+import {
+  recordAdminLoginToFirestore,
+  recordUserLogin,
+  fetchAreaManagerFromFirestore,
+  fetchAreaManagerByEmail,
+} from '@/lib/firebaseService';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 export default function DedicatedAdminLoginPage() {
   const router = useRouter();
   const { setRole, setUser } = useStore();
 
-  const [identifier, setIdentifier] = useState('admin@torquecare.com');
-  const [passcode, setPasscode] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleAdminSubmit = (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!identifier.trim()) {
-      setError('Please enter your Admin Work Email or Mobile');
+    const cleanEmail = email.trim().toLowerCase();
+
+    if (!cleanEmail) {
+      setError('Please enter your official admin email address.');
+      return;
+    }
+
+    if (!cleanEmail.endsWith('@torquecare.in')) {
+      setError('Access restricted: Email ID must end with @torquecare.in');
+      return;
+    }
+
+    if (!password) {
+      setError('Please enter your admin password.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
       return;
     }
 
     setLoading(true);
     setError('');
 
-    const adminUser = {
-      id: 'admin-lead-1',
-      name: 'Vikram Malhotra (Ops Lead)',
-      phone: '+91 99999 00001',
-      role: 'admin' as const,
-      status: 'active' as const,
-      created_at: new Date().toISOString(),
-    };
+    try {
+      let firebaseUid = '';
+      let authUserEmail = cleanEmail;
 
-    // Set role to admin in store
-    setRole('admin');
-    setUser(adminUser);
+      // 1. Authenticate against Firebase Auth using the manually created admin account
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+        firebaseUid = userCredential.user.uid;
+        authUserEmail = userCredential.user.email || cleanEmail;
+      } catch (authErr: any) {
+        console.warn('Firebase Auth signIn notice:', authErr);
+        if (
+          authErr?.code === 'auth/user-not-found' ||
+          authErr?.code === 'auth/wrong-password' ||
+          authErr?.code === 'auth/invalid-credential'
+        ) {
+          setError('Invalid email or password. Please verify your credentials in Firebase Auth.');
+          setLoading(false);
+          return;
+        }
+        // Fallback UID if network/offline
+        const emailPrefix = cleanEmail.split('@')[0];
+        firebaseUid = `admin_${emailPrefix}`;
+      }
 
-    // Save admin login to Firebase Firestore
-    recordAdminLoginToFirestore(adminUser, identifier).catch((err) => {
-      console.warn('Firebase admin login notice:', err);
-    });
-    recordUserLogin(adminUser, 'admin_console').catch((err) => {
-      console.warn('Firebase admin user record notice:', err);
-    });
+      // 2. Check if this is the first time login by querying area_managers in Firestore
+      let isFirstTime = true;
+      let existingManagerData = null;
 
-    setTimeout(() => {
-      router.push('/admin/dashboard');
-    }, 400);
-  };
+      try {
+        existingManagerData = await fetchAreaManagerFromFirestore(firebaseUid);
+        if (!existingManagerData) {
+          existingManagerData = await fetchAreaManagerByEmail(authUserEmail);
+        }
 
-  const handleQuickBypass = () => {
-    setLoading(true);
-    const adminUser = {
-      id: 'admin-lead-1',
-      name: 'Vikram Malhotra (Ops Lead)',
-      phone: '+91 99999 00001',
-      role: 'admin' as const,
-      status: 'active' as const,
-      created_at: new Date().toISOString(),
-    };
-    setRole('admin');
-    setUser(adminUser);
+        // If the area manager doc exists with completed Aadhaar details, it's not the first time
+        if (
+          existingManagerData &&
+          existingManagerData.aadhaarNumber &&
+          existingManagerData.aadhaarNumber.length >= 10
+        ) {
+          isFirstTime = false;
+        }
+      } catch (e) {
+        console.warn('Check existing area manager error:', e);
+      }
 
-    // Save admin bypass login to Firebase Firestore
-    recordAdminLoginToFirestore(adminUser, 'admin_bypass@torquecare.com').catch((err) => {
-      console.warn('Firebase admin bypass notice:', err);
-    });
-    recordUserLogin(adminUser, 'quick_bypass').catch((err) => {
-      console.warn('Firebase admin user record notice:', err);
-    });
+      const emailPrefix = cleanEmail.split('@')[0];
+      const capitalizedPrefix =
+        emailPrefix.charAt(0).toUpperCase() + emailPrefix.slice(1);
+      const adminName = existingManagerData?.fullName || `${capitalizedPrefix} Malhotra`;
+      const adminPhone = existingManagerData?.phoneNumber || '+919999900001';
 
-    router.push('/admin/dashboard');
+      const adminUser = {
+        id: firebaseUid,
+        uid: firebaseUid,
+        name: adminName,
+        phone: adminPhone,
+        email: authUserEmail,
+        role: 'admin' as const,
+        status: 'active' as const,
+        created_at: new Date().toISOString(),
+      };
+
+      // Set role & user in store and localStorage
+      setRole('admin');
+      setUser(adminUser);
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('torque_admin_uid', firebaseUid);
+        localStorage.setItem('torque_admin_email', authUserEmail);
+        localStorage.setItem('torque_logged_in', 'true');
+        localStorage.setItem('torque_owner_name', adminName);
+      }
+
+      // Record sign-in in Firestore
+      recordAdminLoginToFirestore(adminUser, authUserEmail).catch(console.warn);
+      recordUserLogin(adminUser, 'admin_console').catch(console.warn);
+
+      // 3. Redirect to dedicated Profile Creation page to complete / verify profile details
+      router.push('/admin/profile-creation');
+    } catch (err: any) {
+      console.error('Admin login error:', err);
+      setError(err?.message || 'Authentication failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -109,51 +166,62 @@ export default function DedicatedAdminLoginPage() {
             Torque Care Admin Login
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 max-w-xs mx-auto leading-relaxed">
-            Authorized sign-in for Operations Supervisors, Society Marshals, and Regional Treasury Admins.
+            Authorized sign-in for Operations Supervisors and Regional Treasury Admins.
           </p>
         </div>
 
         {/* Login Card */}
         <div className="p-7 sm:p-8 rounded-3xl bg-white/5 border border-white/15 backdrop-blur-xl shadow-2xl text-left space-y-6 luxury-sheen">
           {error && (
-            <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-2 text-rose-300 text-xs font-semibold">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-              <span>{error}</span>
+            <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-start gap-2.5 text-rose-300 text-xs font-semibold">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-400 mt-0.5" />
+              <span className="leading-snug">{error}</span>
             </div>
           )}
 
           <form onSubmit={handleAdminSubmit} className="space-y-5">
+            {/* Email ID Entry */}
             <div>
               <label className="text-[11px] font-black text-slate-300 uppercase tracking-wider block mb-2">
-                Work Email or Admin ID
+                Official Email ID
               </label>
               <div className="flex items-center rounded-2xl border border-white/15 bg-white/5 p-2 focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-400/20 transition-all shadow-inner">
+                <Mail className="w-4 h-4 text-slate-400 ml-2 shrink-0" />
                 <input
-                  type="text"
+                  type="email"
                   required
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="e.g. admin@torquecare.com"
-                  className="w-full bg-transparent px-3 py-1.5 text-sm font-bold text-white focus:outline-hidden tracking-normal font-sans"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    if (error) setError('');
+                  }}
+                  placeholder="name@torquecare.in"
+                  className="w-full bg-transparent px-3 py-1.5 text-sm font-bold text-white focus:outline-hidden tracking-normal font-sans placeholder:text-slate-500"
                 />
               </div>
+              <p className="text-[10px] text-slate-400 mt-1.5 pl-1 flex items-center gap-1 font-mono">
+                <span>Must end with</span>
+                <span className="text-amber-400 font-bold">@torquecare.in</span>
+              </p>
             </div>
 
+            {/* Password Entry */}
             <div>
-              <div className="flex items-center justify-between mb-2">
-                <label className="text-[11px] font-black text-slate-300 uppercase tracking-wider">
-                  Security Passcode / Token
-                </label>
-                <span className="text-[10px] text-amber-400 font-mono font-bold">2FA Enabled</span>
-              </div>
+              <label className="text-[11px] font-black text-slate-300 uppercase tracking-wider block mb-2">
+                Password
+              </label>
               <div className="flex items-center rounded-2xl border border-white/15 bg-white/5 p-2 focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-400/20 transition-all shadow-inner">
-                <KeyRound className="w-4 h-4 text-slate-400 ml-2 shrink-0" />
+                <Lock className="w-4 h-4 text-slate-400 ml-2 shrink-0" />
                 <input
                   type="password"
-                  value={passcode}
-                  onChange={(e) => setPasscode(e.target.value)}
-                  placeholder="Enter 6-digit passcode or master key"
-                  className="w-full bg-transparent px-3 py-1.5 text-sm font-bold text-white focus:outline-hidden tracking-wider font-mono"
+                  required
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    if (error) setError('');
+                  }}
+                  placeholder="Enter admin password"
+                  className="w-full bg-transparent px-3 py-1.5 text-sm font-bold text-white focus:outline-hidden tracking-normal font-sans placeholder:text-slate-500"
                 />
               </div>
             </div>
@@ -161,56 +229,20 @@ export default function DedicatedAdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-4 px-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(245,158,11,0.25)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50"
+              className="w-full py-4 px-4 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(245,158,11,0.25)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50 mt-2"
             >
-              <span>{loading ? 'Authenticating Admin...' : 'Authenticate & Open Console'}</span>
+              <span>{loading ? 'Verifying Admin Credentials...' : 'Authenticate & Access Console'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
-          {/* 1-Click Fast Bypass for Testing */}
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={handleQuickBypass}
-              className="w-full py-3 px-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/15 text-slate-200 text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
-            >
-              <Fingerprint className="w-4 h-4 text-amber-400" />
-              <span>⚡ One-Click Test Login (Ops Lead Bypass)</span>
-            </button>
-          </div>
-
           {/* Audit Trail Note */}
           <div className="pt-3 border-t border-white/10 text-center space-y-1">
-            <p className="text-[10px] text-slate-400 leading-tight">
-              🔒 Immutable audit trail active. All admin actions, payouts, and fleet reassignments are cryptographically logged.
+            <p className="text-[10px] text-slate-400 leading-tight flex items-center justify-center gap-1.5">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Immutable cryptographic audit trail active on all admin sessions.</span>
             </p>
           </div>
-        </div>
-
-        {/* Portal Switchers */}
-        <div className="grid grid-cols-2 gap-3 text-left">
-          <Link
-            href="/auth/login"
-            className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all group block"
-          >
-            <div className="text-xs font-bold text-blue-400 flex items-center gap-1">
-              <span>🚗 Owner Login</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-            </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Car Care & Daily Calendar</p>
-          </Link>
-
-          <Link
-            href="/washer/login"
-            className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition-all group block"
-          >
-            <div className="text-xs font-bold text-emerald-400 flex items-center gap-1">
-              <span>🧼 Washer Login</span>
-              <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
-            </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">Partner Route & Earnings</p>
-          </Link>
         </div>
       </div>
     </div>

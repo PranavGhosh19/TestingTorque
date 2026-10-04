@@ -255,28 +255,29 @@ export default function OwnerDashboardPage() {
     user.selected_plan ||
     'HOME BASIC';
 
-  // Calculate opted subscription price (from Firestore user, vehicle, or body type)
+  // Calculate opted subscription price for the selected vehicle in the Garage
   const subscriptionPrice = useMemo(() => {
-    // 1. Direct price from user object (fetched from Firestore Car_Owners)
+    // 1. Direct price from currently selected vehicle
+    if (primaryVehicle) {
+      if (primaryVehicle.price && typeof primaryVehicle.price === 'number') {
+        return primaryVehicle.price;
+      }
+      if (primaryVehicle.subscription_price && typeof primaryVehicle.subscription_price === 'number') {
+        return primaryVehicle.subscription_price;
+      }
+      const t = (primaryVehicle.type || 'car').toLowerCase();
+      if (t === 'luxury') return 799;
+      if (t === 'suv') return 649;
+      if (t === 'bike') return 399;
+      return 599;
+    }
+
+    // 2. Direct price from user object (fallback)
     if (user?.price && typeof user.price === 'number') {
       return user.price;
     }
     if (user?.subscription_price && typeof user.subscription_price === 'number') {
       return user.subscription_price;
-    }
-
-    // 2. Sum of vehicle prices if vehicles exist
-    if (vehicles && vehicles.length > 0) {
-      const sum = vehicles.reduce((acc, v) => {
-        if (v.price && typeof v.price === 'number') return acc + v.price;
-        if (v.subscription_price && typeof v.subscription_price === 'number') return acc + v.subscription_price;
-        const t = (v.type || 'car').toLowerCase();
-        if (t === 'luxury') return acc + 799;
-        if (t === 'suv') return acc + 649;
-        if (t === 'bike') return acc + 399;
-        return acc + 599;
-      }, 0);
-      if (sum > 0) return sum;
     }
 
     // 3. Check localStorage
@@ -288,16 +289,8 @@ export default function OwnerDashboardPage() {
       }
     }
 
-    // 4. Fallback based on primary vehicle type
-    if (primaryVehicle) {
-      const t = (primaryVehicle.type || 'car').toLowerCase();
-      if (t === 'luxury') return 799;
-      if (t === 'suv') return 649;
-      if (t === 'bike') return 399;
-    }
-
     return 599;
-  }, [user, vehicles, primaryVehicle]);
+  }, [user, primaryVehicle]);
 
   // Dynamically resolve owner_name from Firebase user, primary vehicle, or localStorage
   const ownerName =
@@ -371,25 +364,28 @@ export default function OwnerDashboardPage() {
           </div>
         </div>
 
-        {/* Multi-Vehicle Garage Tabs (if owner has multiple registered cars) */}
-        {activeVehicles.length > 1 && (
+        {/* Multi-Vehicle Garage Tabs (Select active car) */}
+        {activeVehicles.length > 0 && (
           <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 flex items-center gap-1 shrink-0">
-              <Layers className="w-3 h-3 text-[#2DD4A0]" /> Garage:
+            <span className="text-[10px] font-mono uppercase tracking-wider text-white/50 flex items-center gap-1 shrink-0 font-bold">
+              <Layers className="w-3.5 h-3.5 text-[#2DD4A0]" /> Garage:
             </span>
             {activeVehicles.map((veh, idx) => (
               <button
                 key={veh.id || idx}
                 onClick={() => setSelectedVehicleIndex(idx)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 shrink-0 ${
+                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
                   selectedVehicleIndex === idx
-                    ? 'bg-white text-black font-bold shadow-md'
+                    ? 'bg-white text-black font-bold shadow-md ring-2 ring-[#2DD4A0]/40'
                     : 'bg-[#161C25] hover:bg-white/10 text-white/70 border border-white/[0.08]'
                 }`}
               >
                 <Car className="w-3 h-3" />
                 <span>{veh.make} {veh.model}</span>
                 <span className="text-[10px] opacity-75 font-mono">({veh.registration_number})</span>
+                {selectedVehicleIndex === idx && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0] ml-0.5" />
+                )}
               </button>
             ))}
           </div>
@@ -491,7 +487,7 @@ export default function OwnerDashboardPage() {
             </div>
             <div className="text-xl font-bold text-white tracking-tight">{activePlanName}</div>
             <p className="text-xs text-white/60 leading-relaxed">
-              Recurring society bay care by {assignedWasher.name} at {primaryVehicle?.society_name || 'Green Valley Residency'}.
+              Recurring society bay care for {primaryVehicle ? `${primaryVehicle.make} ${primaryVehicle.model}` : 'your vehicle'} by {assignedWasher.name} at {primaryVehicle?.society_name || 'Green Valley Residency'}.
             </p>
             {lastSyncTime && (
               <div className="text-[10px] text-white/40 font-mono pt-1">
@@ -607,16 +603,21 @@ export default function OwnerDashboardPage() {
               </span>
             </div>
 
-            <div className="p-5 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center shadow-xl">
+            <div className="p-5 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center shadow-xl relative overflow-hidden">
               <div className="text-2xl sm:text-3xl font-black text-white">
                 ₹{subscriptionPrice.toLocaleString('en-IN')}
               </div>
               <div className="text-xs font-semibold text-white/70 mt-1">
                 Subscription
               </div>
-              <span className="text-[10px] text-[#2DD4A0] font-mono font-bold block mt-0.5">
+              <span className="text-[10px] text-[#2DD4A0] font-mono font-bold block mt-0.5 uppercase tracking-wide">
                 {activePlanName}
               </span>
+              {primaryVehicle && (
+                <span className="text-[9px] text-white/40 block font-mono mt-1 truncate">
+                  {primaryVehicle.make} {primaryVehicle.model}
+                </span>
+              )}
             </div>
           </div>
         </div>
