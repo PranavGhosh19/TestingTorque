@@ -12,6 +12,10 @@ export interface User {
   email?: string;
   address?: string;
   society?: string;
+  societyId?: string;
+  societyName?: string;
+  selectedWasherId?: string;
+  selectedWasherName?: string;
   alt_phone?: string;
   role: UserRole;
   avatar_url?: string;

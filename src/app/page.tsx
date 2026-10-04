@@ -49,6 +49,7 @@ export default function HomePage() {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [activeProofView, setActiveProofView] = useState<'after' | 'before'>('after');
   const [selectedFaq, setSelectedFaq] = useState<number | null>(null);
+  const [comparisonTab, setComparisonTab] = useState<'torque' | 'traditional'>('torque');
 
   useEffect(() => {
     const storedLoggedIn =
@@ -584,10 +585,40 @@ export default function HomePage() {
           </div>
 
           <div className="rounded-[24px] bg-[#161C25] border border-white/[0.1] overflow-hidden shadow-2xl">
+            {/* Mobile Tab Switcher (Only visible on small screens < md) */}
+            <div className="md:hidden p-3 bg-[#0D1825] border-b border-white/[0.08]">
+              <div className="grid grid-cols-2 p-1 bg-[#0A101D] border border-white/10 rounded-xl gap-1">
+                <button
+                  type="button"
+                  onClick={() => setComparisonTab('traditional')}
+                  className={`py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                    comparisonTab === 'traditional'
+                      ? 'bg-[#1C2533] text-white shadow-md border border-white/15'
+                      : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  <Car className="w-3.5 h-3.5" />
+                  Traditional
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setComparisonTab('torque')}
+                  className={`py-2.5 px-3 rounded-lg text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                    comparisonTab === 'torque'
+                      ? 'bg-gradient-to-r from-[#008975] to-[#2DD4A0] text-[#0A101D] font-extrabold shadow-md'
+                      : 'text-white/50 hover:text-white'
+                  }`}
+                >
+                  <Smartphone className="w-3.5 h-3.5" />
+                  Torque Care
+                </button>
+              </div>
+            </div>
+
             {/* Split Top Header */}
             <div className="relative grid grid-cols-1 md:grid-cols-2">
               {/* Left Header */}
-              <div className="bg-[#0D1825] py-5 px-6 sm:px-8 flex items-center gap-4 border-b md:border-b-0 border-white/[0.08]">
+              <div className={`${comparisonTab === 'traditional' ? 'flex' : 'hidden'} md:flex bg-[#0D1825] py-5 px-6 sm:px-8 items-center gap-4 border-b md:border-b-0 border-white/[0.08]`}>
                 <div className="w-10 h-10 rounded-xl bg-white/[0.08] border border-white/10 flex items-center justify-center text-white shrink-0">
                   <Car className="w-5 h-5" />
                 </div>
@@ -605,7 +636,7 @@ export default function HomePage() {
               </div>
 
               {/* Right Header */}
-              <div className="bg-gradient-to-r from-[#008975] to-[#2DD4A0] py-5 px-6 sm:px-8 flex items-center gap-4">
+              <div className={`${comparisonTab === 'torque' ? 'flex' : 'hidden'} md:flex bg-gradient-to-r from-[#008975] to-[#2DD4A0] py-5 px-6 sm:px-8 items-center gap-4`}>
                 <div className="w-10 h-10 rounded-xl bg-black/20 border border-white/20 flex items-center justify-center text-white shrink-0">
                   <Smartphone className="w-5 h-5" />
                 </div>
@@ -622,7 +653,7 @@ export default function HomePage() {
             <div className="divide-y divide-white/[0.08]">
               {/* Row 1 */}
               <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                <div className={`${comparisonTab === 'traditional' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#11161D]/60`}>
                   <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
                     <User className="w-5 h-5" />
                   </div>
@@ -636,7 +667,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                <div className={`${comparisonTab === 'torque' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#2DD4A0]/[0.025]`}>
                   <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
                     <UserCheck className="w-5 h-5" />
                   </div>
@@ -653,7 +684,7 @@ export default function HomePage() {
 
               {/* Row 2 */}
               <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                <div className={`${comparisonTab === 'traditional' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#11161D]/60`}>
                   <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
                     <Users className="w-5 h-5" />
                   </div>
@@ -667,7 +698,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                <div className={`${comparisonTab === 'torque' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#2DD4A0]/[0.025]`}>
                   <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
                     <UserPlus className="w-5 h-5" />
                   </div>
@@ -684,7 +715,7 @@ export default function HomePage() {
 
               {/* Row 3 */}
               <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                <div className={`${comparisonTab === 'traditional' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#11161D]/60`}>
                   <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
                     <Banknote className="w-5 h-5" />
                   </div>
@@ -698,7 +729,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                <div className={`${comparisonTab === 'torque' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#2DD4A0]/[0.025]`}>
                   <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
                     <IndianRupee className="w-5 h-5" />
                   </div>
@@ -715,7 +746,7 @@ export default function HomePage() {
 
               {/* Row 4 */}
               <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                <div className={`${comparisonTab === 'traditional' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#11161D]/60`}>
                   <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
                     <EyeOff className="w-5 h-5" />
                   </div>
@@ -729,7 +760,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                <div className={`${comparisonTab === 'torque' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#2DD4A0]/[0.025]`}>
                   <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
                     <Camera className="w-5 h-5" />
                   </div>
@@ -746,7 +777,7 @@ export default function HomePage() {
 
               {/* Row 5 */}
               <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                <div className={`${comparisonTab === 'traditional' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#11161D]/60`}>
                   <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
                     <PhoneCall className="w-5 h-5" />
                   </div>
@@ -760,7 +791,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                <div className={`${comparisonTab === 'torque' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#2DD4A0]/[0.025]`}>
                   <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
                     <CheckCircle2 className="w-5 h-5" />
                   </div>
@@ -777,7 +808,7 @@ export default function HomePage() {
 
               {/* Row 6 */}
               <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-white/[0.08] transition-colors hover:bg-white/[0.015]">
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#11161D]/60">
+                <div className={`${comparisonTab === 'traditional' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#11161D]/60`}>
                   <div className="w-11 h-11 rounded-full bg-white/[0.05] border border-white/10 flex items-center justify-center text-slate-300 shrink-0 mt-0.5">
                     <Star className="w-5 h-5" />
                   </div>
@@ -791,7 +822,7 @@ export default function HomePage() {
                   </div>
                 </div>
 
-                <div className="p-5 sm:p-7 flex items-start gap-4 bg-[#2DD4A0]/[0.025]">
+                <div className={`${comparisonTab === 'torque' ? 'flex' : 'hidden'} md:flex p-5 sm:p-7 items-start gap-4 bg-[#2DD4A0]/[0.025]`}>
                   <div className="w-11 h-11 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5">
                     <ShieldCheck className="w-5 h-5" />
                   </div>
@@ -865,7 +896,6 @@ export default function HomePage() {
           <div className="flex items-center gap-6 text-white/65">
             <Link href="/how-it-works" className="hover:text-white transition-colors">How it works</Link>
             <Link href="/for-owners" className="hover:text-white transition-colors">Car Owners</Link>
-            <Link href="/for-washers" className="hover:text-white transition-colors">For Washers</Link>
             <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
             <Link href="/about" className="hover:text-white transition-colors">About</Link>
           </div>

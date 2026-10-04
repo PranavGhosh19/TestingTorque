@@ -77,16 +77,51 @@ export default function AdminWashersPage() {
   const [activeTab, setActiveTab] = useState<'all' | 'mine' | 'active' | 'dismissed'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Combined real washers (no dummy Amit Kumar)
+  const isDummyWasher = (w: WasherPartner | any) => {
+    if (!w) return true;
+    const name = String(w.name || '').toLowerCase();
+    const id = String(w.id || '').toLowerCase();
+    return (
+      id === 'wsh_amit' ||
+      name.includes('lijo') ||
+      name.includes('pranav ghosh') ||
+      name.includes('amit kumar') ||
+      id.includes('lijo') ||
+      id.includes('pranav') ||
+      id.includes('amit')
+    );
+  };
+
+  // One-time cleanup for any dummy records in browser storage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('torque_washers');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            const cleaned = parsed.filter((w) => !isDummyWasher(w));
+            if (cleaned.length !== parsed.length) {
+              localStorage.setItem('torque_washers', JSON.stringify(cleaned));
+            }
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }, []);
+
+  // Combined real washers (excluding test/dummy records like Lijo, Pranav Ghosh, Amit Kumar)
   const combinedWashers = useMemo(() => {
     const map = new Map<string, WasherPartner>();
     // First from store
     washers.forEach((w) => {
-      if (w.id !== 'wsh_amit') map.set(w.id, w);
+      if (!isDummyWasher(w)) map.set(w.id, w);
     });
     // Then merge from firestore
     firestoreWashers.forEach((w) => {
-      if (w.id !== 'wsh_amit' && !map.has(w.id)) {
+      if (!isDummyWasher(w) && !map.has(w.id)) {
         map.set(w.id, w);
       }
     });
@@ -96,7 +131,7 @@ export default function AdminWashersPage() {
   // Admin scoped washers: washers created/onboarded by this admin
   const adminWashers = useMemo(() => {
     return combinedWashers.filter((w) => {
-      if (w.id === 'wsh_amit') return false;
+      if (isDummyWasher(w)) return false;
       if (!w.createdBy) return true;
       return (
         w.createdBy === currentAdminId ||
@@ -484,7 +519,12 @@ export default function AdminWashersPage() {
                             <span>Window: {w.routeWindow}</span>
                           )}
                           <div className="flex items-center gap-1 flex-wrap justify-end">
-                            {(w.societies || (w.society ? w.society.split(',').map((s) => s.trim()) : ['Green Valley Residency'])).map((soc, idx) => (
+                            {(w.societies && w.societies.length > 0
+                              ? w.societies
+                              : w.society
+                              ? w.society.split(',').map((s) => s.trim()).filter(Boolean)
+                              : []
+                            ).map((soc, idx) => (
                               <span
                                 key={idx}
                                 className="inline-flex items-center gap-1 font-mono text-[10px] bg-white text-slate-700 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-2xs"
@@ -501,7 +541,12 @@ export default function AdminWashersPage() {
                         <span>Route suspended</span>
                         <div className="flex items-center gap-1 flex-wrap">
                           <span className="text-[10px] text-slate-400">Formerly:</span>
-                          {(w.societies || (w.society ? w.society.split(',').map((s) => s.trim()) : ['Green Valley Residency'])).map((soc, idx) => (
+                          {(w.societies && w.societies.length > 0
+                            ? w.societies
+                            : w.society
+                            ? w.society.split(',').map((s) => s.trim()).filter(Boolean)
+                            : []
+                          ).map((soc, idx) => (
                             <span key={idx} className="font-mono text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-md">
                               {soc}
                             </span>
@@ -573,7 +618,7 @@ export default function AdminWashersPage() {
                         <span className="font-semibold text-slate-800 text-right max-w-[65%] truncate">
                           {w.societies && w.societies.length > 0
                             ? w.societies.join(', ')
-                            : w.society || 'Green Valley Residency'}
+                            : w.society || 'Unassigned'}
                         </span>
                       </div>
                     </div>

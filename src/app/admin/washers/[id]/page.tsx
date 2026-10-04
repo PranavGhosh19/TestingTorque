@@ -230,7 +230,12 @@ export default function WasherProfileDetailPage() {
                   </span>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <Building2 className="w-3.5 h-3.5 text-emerald-600" />
-                    {(washer.societies || (washer.society ? washer.society.split(',').map((s) => s.trim()) : ['Green Valley Residency'])).map((soc, idx) => (
+                    {(washer.societies && washer.societies.length > 0
+                      ? washer.societies
+                      : washer.society
+                      ? washer.society.split(',').map((s) => s.trim()).filter(Boolean)
+                      : []
+                    ).map((soc, idx) => (
                       <span key={idx} className="font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md text-xs border border-slate-200">
                         {soc}
                       </span>

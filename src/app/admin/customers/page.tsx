@@ -50,217 +50,7 @@ interface Customer {
   vehicles: CustomerVehicle[];
 }
 
-const customerList: Customer[] = [
-  {
-    id: 'cust_1',
-    name: 'Pranav Ghosh',
-    phone: '+91 98765 43210',
-    society: 'Green Valley Residency',
-    flat: 'Tower B • 402',
-    status: 'Active',
-    plan: 'Standard Plan',
-    vehicles: [
-      {
-        id: 'veh_honda_city',
-        name: 'Honda City ZX',
-        plate: 'DL 01 AB 4291',
-        last4: '4291',
-        parkingLocation: 'Block B • Parking 42',
-        preferredTime: '07:30 AM',
-        color: 'Lunar Silver',
-      },
-      {
-        id: 'veh_creta_1',
-        name: 'Hyundai Creta',
-        plate: 'KA 01 HY 4567',
-        last4: '4567',
-        parkingLocation: 'Block C • Parking 108',
-        preferredTime: '08:00 AM',
-        color: 'Phantom Black',
-      },
-    ],
-  },
-  {
-    id: 'cust_2',
-    name: 'Ananya Sharma',
-    phone: '+91 98111 22334',
-    society: 'Green Valley Residency',
-    flat: 'Tower B • 108',
-    status: 'Active',
-    plan: 'Standard Plan',
-    vehicles: [
-      {
-        id: 'v_2',
-        name: 'Hyundai Creta',
-        plate: 'DL 04 EF 2281',
-        last4: '2281',
-        parkingLocation: 'Block B • Parking 45',
-        preferredTime: '07:45 AM',
-        color: 'Polar White',
-      },
-    ],
-  },
-  {
-    id: 'cust_3',
-    name: 'Vikram Mehta',
-    phone: '+91 99223 34455',
-    society: 'Green Valley Residency',
-    flat: 'Tower B • 304',
-    status: 'Active',
-    plan: 'Basic Plan',
-    vehicles: [
-      {
-        id: 'v_3',
-        name: 'Maruti Swift',
-        plate: 'DL 09 PQ 9821',
-        last4: '9821',
-        parkingLocation: 'Block B • Parking 48',
-        preferredTime: '08:00 AM',
-        color: 'Solid Fire Red',
-      },
-    ],
-  },
-  {
-    id: 'cust_4',
-    name: 'Col. Rajesh Singh',
-    phone: '+91 97112 33445',
-    society: 'Green Valley Residency',
-    flat: 'Tower C • 1201',
-    status: 'Active',
-    plan: 'Premium Plan',
-    vehicles: [
-      {
-        id: 'v_6',
-        name: 'Toyota Fortuner',
-        plate: 'UP 16 AX 8800',
-        last4: '8800',
-        parkingLocation: 'Block C • Parking 04',
-        preferredTime: '08:45 AM',
-        color: 'Super White',
-      },
-    ],
-  },
-  {
-    id: 'cust_5',
-    name: 'Rohan Gupta',
-    phone: '+91 98711 00223',
-    society: 'Green Valley Residency',
-    flat: 'Tower B • 502',
-    status: 'Active',
-    plan: 'Standard Plan',
-    vehicles: [
-      {
-        id: 'v_4',
-        name: 'Tata Nexon',
-        plate: 'DL 02 ZB 5512',
-        last4: '5512',
-        parkingLocation: 'Block B • Parking 50',
-        preferredTime: '08:15 AM',
-        color: 'Daytona Grey',
-      },
-    ],
-  },
-  {
-    id: 'cust_6',
-    name: 'Pooja Verma',
-    phone: '+91 98100 44556',
-    society: 'Green Valley Residency',
-    flat: 'Tower B • 801',
-    status: 'Active',
-    plan: 'Standard Plan',
-    vehicles: [
-      {
-        id: 'v_5',
-        name: 'Kia Seltos',
-        plate: 'HR 26 AK 1190',
-        last4: '1190',
-        parkingLocation: 'Block B • Parking 52',
-        preferredTime: '08:30 AM',
-        color: 'Gravity Grey',
-      },
-    ],
-  },
-  {
-    id: 'cust_7',
-    name: 'Sameer Sen',
-    phone: '+91 99990 11223',
-    society: 'Palm Residency',
-    flat: 'Tower A • 301',
-    status: 'Active',
-    plan: 'Premium Plan',
-    vehicles: [
-      {
-        id: 'v_7',
-        name: 'Mahindra XUV700',
-        plate: 'DL 10 CP 3491',
-        last4: '3491',
-        parkingLocation: 'Block C • Parking 08',
-        preferredTime: '09:00 AM',
-        color: 'Midnight Black',
-      },
-    ],
-  },
-  {
-    id: 'cust_8',
-    name: 'Divya Rao',
-    phone: '+91 98450 99887',
-    society: 'Palm Residency',
-    flat: 'Tower A • 604',
-    status: 'Active',
-    plan: 'Standard Plan',
-    vehicles: [
-      {
-        id: 'v_8',
-        name: 'Honda Elevate',
-        plate: 'DL 05 TR 7721',
-        last4: '7721',
-        parkingLocation: 'Block C • Parking 12',
-        preferredTime: '09:15 AM',
-        color: 'Golden Brown',
-      },
-    ],
-  },
-  {
-    id: 'cust_9',
-    name: 'Aditya Kapoor',
-    phone: '+91 98188 55443',
-    society: 'Green Valley Residency',
-    flat: 'Tower C • 202',
-    status: 'Active',
-    plan: 'Premium Plan',
-    vehicles: [
-      {
-        id: 'v_9',
-        name: 'BMW 3 Series',
-        plate: 'DL 01 ZZ 0007',
-        last4: '0007',
-        parkingLocation: 'Block C • Parking 21',
-        preferredTime: '09:30 AM',
-        color: 'Portimao Blue',
-      },
-    ],
-  },
-  {
-    id: 'cust_10',
-    name: 'Neha Chawla',
-    phone: '+91 98102 77889',
-    society: 'Green Valley Residency',
-    flat: 'Tower C • 505',
-    status: 'Active',
-    plan: 'Standard Plan',
-    vehicles: [
-      {
-        id: 'v_10',
-        name: 'Volkswagen Taigun',
-        plate: 'DL 03 YK 4421',
-        last4: '4421',
-        parkingLocation: 'Block C • Parking 25',
-        preferredTime: '09:45 AM',
-        color: 'Wild Cherry Red',
-      },
-    ],
-  },
-];
+const customerList: Customer[] = [];
 
 interface SelectedCalendarContext {
   customer: Customer;
@@ -687,19 +477,25 @@ export default function AdminCustomersPage() {
           {filteredCustomers.length === 0 ? (
             <div className="p-12 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-                <Search className="w-6 h-6" />
+                <Users className="w-6 h-6" />
               </div>
-              <h3 className="font-bold text-slate-800 text-base">No matching customers found</h3>
+              <h3 className="font-bold text-slate-800 text-base">
+                {customerList.length === 0 ? 'No Customer Accounts Registered' : 'No matching customers found'}
+              </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                Try adjusting your search query or reset the column filter options.
+                {customerList.length === 0
+                  ? 'Customer registrations and vehicle subscription records will automatically appear here once owners onboard.'
+                  : 'Try adjusting your search query or reset the column filter options.'}
               </p>
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
-              >
-                Reset All Filters
-              </button>
+              {customerList.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="mt-2 text-xs font-bold text-emerald-600 hover:text-emerald-700 underline cursor-pointer"
+                >
+                  Reset All Filters
+                </button>
+              )}
             </div>
           ) : (
             <div className="overflow-x-auto overflow-y-visible">

@@ -53,6 +53,8 @@ interface StoreContextType {
       phone: string;
       address?: string;
       society?: string;
+      societyId?: string;
+      societyName?: string;
       alt_phone?: string;
       selectedPlan?: string;
       selectedWasherId?: string;
@@ -79,6 +81,8 @@ interface StoreContextType {
   setRouteStops: React.Dispatch<React.SetStateAction<RouteStop[]>>;
   washers: WasherPartner[];
   onboardWasher: (washerData: {
+    id?: string;
+    washerFirebaseUID?: string;
     name: string;
     phone: string;
     society?: string;
@@ -412,107 +416,9 @@ const initialEarnings: WasherEarnings = {
   recent_payouts: [],
 };
 
-const initialSocieties: Society[] = [
-  {
-    id: 'soc_green_valley',
-    name: 'Green Valley Residency',
-    address: 'Sector 48, Gurgaon',
-    city: 'Gurgaon',
-    total_vehicles: 100,
-    active_washers: 3,
-    daily_capacity: 120,
-    today_completion_rate: 91,
-    status_indicator: 'green',
-    completed_count: 91,
-    total_today: 100,
-  },
-  {
-    id: 'soc_palm_residency',
-    name: 'Palm Residency',
-    address: 'Golf Course Extension Road',
-    city: 'Gurgaon',
-    total_vehicles: 88,
-    active_washers: 3,
-    daily_capacity: 105,
-    today_completion_rate: 84,
-    status_indicator: 'green',
-    completed_count: 84,
-    total_today: 100,
-  },
-  {
-    id: 'soc_sunrise_heights',
-    name: 'Sunrise Heights',
-    address: 'Sector 56, Gurgaon',
-    city: 'Gurgaon',
-    total_vehicles: 65,
-    active_washers: 2,
-    daily_capacity: 70,
-    today_completion_rate: 63,
-    status_indicator: 'yellow',
-    completed_count: 63,
-    total_today: 100,
-  },
-  {
-    id: 'soc_metro_homes',
-    name: 'Metro Homes',
-    address: 'Sector 72, Gurgaon',
-    city: 'Gurgaon',
-    total_vehicles: 50,
-    active_washers: 1,
-    daily_capacity: 35,
-    today_completion_rate: 42,
-    status_indicator: 'red',
-    completed_count: 42,
-    total_today: 100,
-  },
-];
+const initialSocieties: Society[] = [];
 
-const initialExceptions: ExceptionItem[] = [
-  {
-    id: 'exc_1',
-    type: 'missed_wash',
-    title: '12 Missed Washes Alert',
-    description: 'Metro Homes Block C washer reported delayed route due to water pressure shutoff.',
-    society: 'Metro Homes',
-    vehicle: '12 vehicles affected',
-    washer: 'Dinesh Kumar',
-    time: '8:15 AM',
-    resolved: false,
-  },
-  {
-    id: 'exc_2',
-    type: 'washer_unavailable',
-    title: '7 Washer Unavailable Attempts',
-    description: 'Owners parked in visitor zone without updating parking bay in app.',
-    society: 'Sunrise Heights',
-    vehicle: 'DL 04 KL 1122 and 6 others',
-    washer: 'Suresh Verma',
-    time: '7:50 AM',
-    resolved: false,
-  },
-  {
-    id: 'exc_3',
-    type: 'customer_complaint',
-    title: '4 Customer Inquiries / Complaints',
-    description: 'Owner noted windshield had smudge marks after heavy dust storm.',
-    society: 'Palm Residency',
-    vehicle: 'HR 26 DQ 7891 (Creta)',
-    washer: 'Vijay Pal',
-    time: '8:45 AM',
-    resolved: false,
-  },
-  {
-    id: 'exc_4',
-    type: 'replacement_required',
-    title: '3 Washer Replacements Required',
-    description: 'Washer on medical emergency leave; auto-backup assigned to Rahul.',
-    society: 'Green Valley',
-    vehicle: 'Route 3 (33 vehicles)',
-    washer: 'Ramesh Singh -> Backup Rahul',
-    time: '6:30 AM',
-    resolved: true,
-  },
-];
+const initialExceptions: ExceptionItem[] = [];
 
 const initialNotifications: NotificationItem[] = [
   {
@@ -620,7 +526,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         if (savedWashers) {
           const parsed = JSON.parse(savedWashers);
           if (Array.isArray(parsed)) {
-            const clean = parsed.filter((w) => w && w.id !== 'wsh_amit');
+            const isDummyWasher = (w: any) =>
+              !w ||
+              w.id === 'wsh_amit' ||
+              /lijo|pranav\s*ghosh|amit\s*kumar/i.test(w.name || '') ||
+              /lijo|pranav|amit/i.test(w.id || '');
+            const clean = parsed.filter((w) => !isDummyWasher(w));
+            if (clean.length !== parsed.length) {
+              localStorage.setItem('torque_washers', JSON.stringify(clean));
+            }
             setWashers(clean);
           }
         }
@@ -807,6 +721,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       phone: string;
       address?: string;
       society?: string;
+      societyId?: string;
+      societyName?: string;
       alt_phone?: string;
       selectedPlan?: string;
       selectedWasherId?: string;
@@ -827,12 +743,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       subscription_price?: number;
     }>
   ) => {
-    // Primary Identity: Phone number is the primary UID
+    // Primary Identity: Firebase Auth UID is canonical, fallback to phone primary UID
     const cleanPhoneDigits = (ownerData.phone || '').replace(/\D/g, '');
     const phonePrimaryUid = cleanPhoneDigits.length >= 10
       ? `+91${cleanPhoneDigits.slice(-10)}`
-      : (ownerData.phone || ownerData.uid || auth.currentUser?.uid || `usr_${Date.now()}`);
-    const newUserId = phonePrimaryUid;
+      : (ownerData.phone || `usr_${Date.now()}`);
+    const newUserId = ownerData.uid || auth.currentUser?.uid || phonePrimaryUid;
 
     const getBodyTypePrice = (type?: string): number => {
       const t = (type || 'car').toLowerCase();
@@ -858,6 +774,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       phoneNumber: ownerData.phone,
       address: ownerData.address,
       society: ownerData.society,
+      societyId: ownerData.societyId,
+      societyName: ownerData.societyName || ownerData.society,
+      selectedWasherId: ownerData.selectedWasherId,
+      selectedWasherName: ownerData.selectedWasherName,
       alt_phone: ownerData.alt_phone,
       role: 'owner',
       status: 'active',
@@ -886,13 +806,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         parking_location: v.parking_location || 'Assigned Bay',
         parking_floor: 'Basement 1',
         preferred_wash_time: v.preferred_wash_time || '07:30 AM',
-        society_id: 'soc_green_valley',
-        society_name: v.society_name || ownerData.society || 'Green Valley Residency',
+        society_id: (v as any).society_id || ownerData.societyId || '',
+        society_name: v.society_name || ownerData.societyName || ownerData.society || '',
         subscription_status: 'active',
         washes_this_month: 0,
         selected_plan: ownerData.selectedPlan || 'HOME BASIC',
-        assigned_washer_id: ownerData.selectedWasherId || '',
-        assigned_washer_name: ownerData.selectedWasherName || 'Assigned Route Partner',
+        assigned_washer_id: (v as any).assigned_washer_id || ownerData.selectedWasherId || '',
+        assigned_washer_name: (v as any).assigned_washer_name || ownerData.selectedWasherName || 'Assigned Route Partner',
         price: vPrice,
         subscription_price: vPrice,
       };
@@ -913,6 +833,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       if (ownerData.selectedWasherId) {
         localStorage.setItem('torque_assigned_washer_id', ownerData.selectedWasherId);
+      }
+      if (ownerData.societyId) {
+        localStorage.setItem('torque_society_id', ownerData.societyId);
+      }
+      if (ownerData.societyName || ownerData.society) {
+        localStorage.setItem('torque_society_name', ownerData.societyName || ownerData.society || '');
       }
       localStorage.setItem('torque_user', JSON.stringify(newUser));
       localStorage.setItem('torque_vehicles', JSON.stringify(createdVehicles));
@@ -1090,6 +1016,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   };
 
   const onboardWasher = (washerData: {
+    id?: string;
+    washerFirebaseUID?: string;
     name: string;
     phone: string;
     society?: string;
@@ -1103,7 +1031,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     address?: string;
     createdBy?: string;
   }): WasherPartner => {
-    const newId = `wsh_${Date.now()}`;
+    const newId = washerData.id || washerData.washerFirebaseUID || `wsh_${Date.now()}`;
     const cleanPhone = washerData.phone.startsWith('+91')
       ? washerData.phone
       : `+91 ${washerData.phone.replace(/^\+91\s*/, '')}`;
@@ -1113,7 +1041,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         ? washerData.societies
         : washerData.society
         ? washerData.society.split(',').map((s) => s.trim()).filter(Boolean)
-        : ['Green Valley Residency'];
+        : [];
     const joinedSocietiesStr = assignedSocietiesList.join(', ');
 
     const newPartner: WasherPartner = {

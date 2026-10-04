@@ -40,8 +40,10 @@ export default function AdminPayoutsPage() {
     return washers.reduce((sum, w) => sum + (w.monthlyPayoutsGone || 0), 0);
   }, [washers]);
 
-  // Lifetime cumulative disbursements till now (prior batches + current month)
-  const totalLifetimePayout = isDataErased ? 0 : 248600;
+  // Lifetime cumulative disbursements dynamically calculated from recorded disbursements
+  const totalLifetimePayout = useMemo(() => {
+    return allDisbursements.reduce((sum, d) => sum + (d.netAmount || 0), 0);
+  }, [allDisbursements]);
 
   // Partner with highest payout this month
   const topEarner = useMemo(() => {
@@ -341,8 +343,10 @@ export default function AdminPayoutsPage() {
                 <tbody className="divide-y divide-slate-100">
                   {filteredDisbursements.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="px-5 py-8 text-center text-slate-400">
-                        No disbursement records match your search criteria.
+                      <td colSpan={7} className="px-5 py-12 text-center text-slate-400">
+                        <Wallet className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <div className="text-sm font-bold text-slate-700">No disbursement records found</div>
+                        <div className="text-xs text-slate-400 mt-0.5">Automated bank clearances and route partner disbursements will appear here.</div>
                       </td>
                     </tr>
                   ) : (

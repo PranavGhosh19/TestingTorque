@@ -16,8 +16,8 @@ service cloud.firestore {
     //     ↓
     // customer
     //
-    // Firebase Auth UID is the canonical identity.
-    // Custom Auth claims are the canonical source of authorization.
+    // Firebase Auth UID = canonical identity
+    // Firebase Custom Auth Claims = canonical authorization
     //
     // NEVER use:
     // - email domain as a role
@@ -48,17 +48,21 @@ service cloud.firestore {
 
     function isAreaManager() {
       return isAuthenticated()
-        && 'role' in request.auth.token
-        && request.auth.token.role == 'admin';
+        && (
+          ('role' in request.auth.token && request.auth.token.role == 'admin')
+          || exists(/databases/$(database)/documents/area_managers/$(request.auth.uid))
+        );
     }
 
 
     function isAdmin() {
       return isAuthenticated()
-        && 'role' in request.auth.token
         && (
-          request.auth.token.role == 'admin'
-          || request.auth.token.role == 'super_admin'
+          ('role' in request.auth.token && (
+            request.auth.token.role == 'admin'
+            || request.auth.token.role == 'super_admin'
+          ))
+          || exists(/databases/$(database)/documents/area_managers/$(request.auth.uid))
         );
     }
 
@@ -90,57 +94,29 @@ service cloud.firestore {
 
     // ===============================================================
     // 5. AREA MANAGERS
-    //
-    // area_managers/{managerId}
-    //
-    // READ:
-    //   Own profile
-    //   Super Admin
-    //
-    // CREATE:
-    //   Super Admin only
-    //
-    // UPDATE:
-    //   Own profile
-    //   Super Admin
-    //
-    // DELETE:
-    //   Super Admin only
     // ===============================================================
 
     match /area_managers/{managerId} {
 
+      // Own profile or Super Admin
       allow read: if isOwner(managerId)
         || isSuperAdmin();
 
-      allow create: if isSuperAdmin();
+      // Area Manager creating their own profile, or Super Admin
+      allow create: if isOwner(managerId)
+        || isSuperAdmin();
 
+      // Own profile or Super Admin
       allow update: if isOwner(managerId)
         || isSuperAdmin();
 
+      // Only Super Admin deletes
       allow delete: if isSuperAdmin();
     }
 
 
     // ===============================================================
     // 6. WASHERS — PRIVATE OPERATIONAL DATA
-    //
-    // Washers/{washerId}
-    //
-    // CUSTOMER:
-    //   NO ACCESS
-    //
-    // AREA MANAGER:
-    //   Own washers only
-    //
-    // SUPER ADMIN:
-    //   All washers
-    //
-    // WASHER:
-    //   Own profile only
-    //
-    // IMPORTANT:
-    // createdBy cannot be changed.
     // ===============================================================
 
     match /Washers/{washerId} {
@@ -168,8 +144,7 @@ service cloud.firestore {
       || (
         isAuthenticated()
         && request.auth.uid == washerId
-      )
-      || true;
+      );
 
 
       // -------------------------------------------------------------
@@ -205,46 +180,32 @@ service cloud.firestore {
 
 
     // ===============================================================
-    // 7. WASHER DIRECTORY — CUSTOMER DISCOVERY
+    // 7. WASHER DIRECTORY — SANITIZED CUSTOMER DISCOVERY
     //
     // washer_directory/{washerId}
     //
-    // THIS IS THE COLLECTION USED BY /auth/signup.
+    // ONLY NON-SENSITIVE INFORMATION.
     //
-    // ONLY STORE NON-SENSITIVE INFORMATION HERE.
+    // Customers:
+    //   READ ONLY
     //
-    // Example:
+    // Area Managers:
+    //   Manage their own washer directory records
     //
-    // {
-    //   washerId: "firebaseUID",
-    //   name: "Rakesh Kumar",
-    //   photoURL: "...",
-    //   societies: ["society_001", "society_002"],
-    //   status: "active",
-    //   availableForSignup: true,
-    //   createdBy: "adminUID"
-    // }
-    //
-    // DO NOT STORE:
-    // - Aadhaar
-    // - PAN
-    // - bank account
-    // - IFSC
-    // - KYC documents
-    // - salary
-    // - private address
-    // - sensitive contact information
+    // Super Admin:
+    //   Full access
     // ===============================================================
 
     match /washer_directory/{washerId} {
 
       // -------------------------------------------------------------
       // READ
+      // -------------------------------------------------------------
       //
-      // Authenticated users can discover available washers.
+      // Prospective customers during signup and authenticated users can discover available washers.
       //
-      // Since this collection contains ONLY sanitized public/service
-      // discovery data, this is safe for signup.
+      // IMPORTANT:
+      // The collection contains ONLY sanitized fields (no sensitive info).
       // -------------------------------------------------------------
 
       allow read: if true;
@@ -252,63 +213,120 @@ service cloud.firestore {
 
       // -------------------------------------------------------------
       // CREATE
-      //
-      // Only Area Managers or Super Admin.
-      //
-      // createdBy must match the Area Manager creating it.
       // -------------------------------------------------------------
 
-      allow create: if (
-        isAreaManager()
-        && request.resource.data.createdBy == request.auth.uid
-      )
-      || isSuperAdmin();
+      allow create: if isAreaManager()
+        || isAdmin()
+        || isSuperAdmin();
 
 
       // -------------------------------------------------------------
       // UPDATE
       // -------------------------------------------------------------
 
-      allow update: if (
-        isAreaManager()
-        && resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdBy == resource.data.createdBy
-      )
-      || (
-        isSuperAdmin()
-        && request.resource.data.createdBy == resource.data.createdBy
-      );
+      allow update: if isAreaManager()
+        || isAdmin()
+        || isSuperAdmin();
 
 
       // -------------------------------------------------------------
       // DELETE
       // -------------------------------------------------------------
 
-      allow delete: if (
-        isAreaManager()
-        && resource.data.createdBy == request.auth.uid
-      )
-      || isSuperAdmin();
+      allow delete: if isAreaManager()
+        || isAdmin()
+        || isSuperAdmin();
+    }
+
+
+    // ===============================================================
+    // 7B. SOCIETIES — FIRESTORE SOCIETY CATALOG
+    //
+    // Societies/{societyId}
+    //
+    // Customer:
+    //   READ ONLY
+    //
+    // Area Manager:
+    //   Manage societies they created
+    //
+    // Super Admin:
+    //   Full access
+    //
+    // IMPORTANT:
+    // societyId is the canonical relationship key.
+    // ===============================================================
+
+    match /Societies/{societyId} {
+
+      // -------------------------------------------------------------
+      // READ
+      // -------------------------------------------------------------
+      //
+      // Prospective customers need to read available societies during signup before authenticating.
+      // -------------------------------------------------------------
+
+      allow read: if true;
+
+
+      // -------------------------------------------------------------
+      // CREATE
+      // -------------------------------------------------------------
+
+      allow create: if isAreaManager()
+        || isAdmin()
+        || isSuperAdmin();
+
+
+      // -------------------------------------------------------------
+      // UPDATE
+      // -------------------------------------------------------------
+
+      allow update: if isAreaManager()
+        || isAdmin()
+        || isSuperAdmin();
+
+
+      // -------------------------------------------------------------
+      // DELETE
+      // -------------------------------------------------------------
+
+      allow delete: if isAdmin()
+        || isSuperAdmin();
+    }
+
+
+    // ===============================================================
+    // 7B. STATE HIERARCHY — STATE (COLLECTION) -> CITY -> SOCIETY
+    // ===============================================================
+
+    match /State/{stateId} {
+      allow read: if true;
+      allow create, update: if isAreaManager() || isSuperAdmin() || isAdmin();
+      allow delete: if isSuperAdmin();
+
+      match /City/{cityId} {
+        allow read: if true;
+        allow create, update: if isAreaManager() || isSuperAdmin() || isAdmin();
+        allow delete: if isSuperAdmin();
+
+        match /Society/{societyId} {
+          allow read: if true;
+          allow create, update: if isAreaManager() || isSuperAdmin() || isAdmin();
+          allow delete: if isSuperAdmin();
+        }
+      }
+    }
+
+    match /{path=**}/Society/{societyId} {
+      allow read: if true;
+      allow create, update: if isAreaManager() || isSuperAdmin() || isAdmin();
+      allow delete: if isSuperAdmin();
     }
 
 
     // ===============================================================
     // 8. CAR OWNERS
-    //
-    // Car_Owners/{ownerId}
-    //
-    // CUSTOMER:
-    //   Own profile
-    //
-    // AREA MANAGER:
-    //   Operational access
-    //
-    // SUPER ADMIN:
-    //   Global access
-    //
-    // NOTE:
-    // Customer-to-Admin relationship can later be tightened using
-    // assignedWasherId / areaManagerId.
     // ===============================================================
 
     match /Car_Owners/{ownerId} {
@@ -429,9 +447,6 @@ service cloud.firestore {
 
     // ===============================================================
     // 10. DEFAULT DENY
-    //
-    // Everything not explicitly allowed above is DENIED.
     // ===============================================================
-
   }
 }

@@ -19,11 +19,17 @@ import {
   ArrowRight,
   FileCheck,
   Plus,
+  Loader2,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { WasherPartner } from '@/lib/washerPartners';
 import { auth } from '@/lib/firebase';
-import { syncWasherToFirestore } from '@/lib/firebaseService';
+import {
+  syncWasherToFirestore,
+  fetchAllSocieties,
+  createSociety,
+  FirestoreSociety,
+} from '@/lib/firebaseService';
 
 interface OnboardWasherModalProps {
   isOpen: boolean;
@@ -36,59 +42,59 @@ export default function OnboardWasherModal({
   onClose,
   onSuccess,
 }: OnboardWasherModalProps) {
-  const { onboardWasher, verifyPhoneNumber, societies: storeSocieties, user } = useStore();
+  const { onboardWasher, verifyPhoneNumber, user } = useStore();
   const currentAdminId =
     auth.currentUser?.uid ||
-    (typeof window !== 'undefined' ? localStorage.getItem('torque_admin_uid') : null) ||
+    (typeof window !== 'undefined' ? (localStorage.getItem('torque_admin_uid') || localStorage.getItem('torque_owner_id')) : null) ||
     user?.uid ||
     user?.id ||
     'admin-lead-1';
 
-  const defaultSocieties = [
-    'Green Valley Residency',
-    'Palm Residency',
-    'Sunrise Heights',
-    'Silver Oak Towers',
-  ];
-  const availableSocietiesList = Array.from(
-    new Set([
-      ...defaultSocieties,
-      ...(storeSocieties || []).map((s) => s.name),
-    ])
-  );
+  const [adminSocieties, setAdminSocieties] = useState<FirestoreSociety[]>([]);
+  const [isLoadingSocieties, setIsLoadingSocieties] = useState(false);
 
   // Form State
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedSocieties, setSelectedSocieties] = useState<string[]>(['Green Valley Residency']);
-  const [customSocietyInput, setCustomSocietyInput] = useState('');
+  const [selectedSocieties, setSelectedSocieties] = useState<string[]>([]);
   const [routeWindow, setRouteWindow] = useState('06:30 AM - 09:30 AM');
   const [bankAccount, setBankAccount] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [address, setAddress] = useState('');
 
-  const handleToggleSociety = (socName: string) => {
+  // Fetch societies from Firestore
+  const loadAdminSocieties = React.useCallback(async () => {
+    setIsLoadingSocieties(true);
+    try {
+      const data = await fetchAllSocieties();
+      setAdminSocieties(data);
+    } catch (err) {
+      console.warn('Could not load societies:', err);
+    } finally {
+      setIsLoadingSocieties(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      setSelectedSocieties([]);
+      return;
+    }
+    loadAdminSocieties();
+  }, [isOpen, loadAdminSocieties]);
+
+  const handleToggleSociety = (socId: string) => {
     setSelectedSocieties((prev) => {
-      if (prev.includes(socName)) {
-        return prev.filter((s) => s !== socName);
+      if (prev.includes(socId)) {
+        return prev.filter((id) => id !== socId);
       } else {
-        return [...prev, socName];
+        return [...prev, socId];
       }
     });
   };
 
-  const handleRemoveSociety = (socName: string) => {
-    setSelectedSocieties((prev) => prev.filter((s) => s !== socName));
-  };
-
-  const handleAddCustomSociety = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const clean = customSocietyInput.trim();
-    if (!clean) return;
-    if (!selectedSocieties.includes(clean)) {
-      setSelectedSocieties((prev) => [...prev, clean]);
-    }
-    setCustomSocietyInput('');
+  const handleRemoveSociety = (socId: string) => {
+    setSelectedSocieties((prev) => prev.filter((id) => id !== socId));
   };
 
   // Aadhaar State
@@ -197,10 +203,15 @@ export default function OnboardWasherModal({
     setErrorMessage('');
 
     try {
+      const chosenSocietyNames = selectedSocieties.map((socId) => {
+        const found = adminSocieties.find((s) => s.societyId === socId);
+        return found ? found.name : socId;
+      });
+
       const newPartner = onboardWasher({
         name,
         phone: phone.trim(),
-        society: selectedSocieties.join(', '),
+        society: chosenSocietyNames.join(', '),
         societies: selectedSocieties,
         createdBy: currentAdminId,
         routeWindow,
@@ -211,7 +222,7 @@ export default function OnboardWasherModal({
         address,
       });
 
-      // Synchronously write directly into Firestore Washers collection
+      // Synchronously write directly into Firestore Washers & washer_directory collections
       const syncResult = await syncWasherToFirestore(newPartner);
       if (!syncResult.success) {
         console.warn('Firestore washer sync notice:', syncResult.error);
@@ -497,23 +508,27 @@ export default function OnboardWasherModal({
                         ⚠️ No society selected. Please pick at least one society below.
                       </span>
                     ) : (
-                      selectedSocieties.map((soc) => (
-                        <span
-                          key={soc}
-                          className="inline-flex items-center gap-1.5 bg-[#0B132B] text-white font-bold text-xs pl-3 pr-2 py-1.5 rounded-xl shadow-xs animate-in zoom-in-95"
-                        >
-                          <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-                          <span>{soc}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveSociety(soc)}
-                            className="hover:bg-white/20 text-slate-300 hover:text-white rounded-md p-0.5 ml-1 transition-colors cursor-pointer"
-                            title={`Remove ${soc}`}
+                      selectedSocieties.map((socId) => {
+                        const socObj = adminSocieties.find((s) => s.societyId === socId);
+                        const label = socObj ? `${socObj.name} (${socObj.city})` : socId;
+                        return (
+                          <span
+                            key={socId}
+                            className="inline-flex items-center gap-1.5 bg-[#0B132B] text-white font-bold text-xs pl-3 pr-2 py-1.5 rounded-xl shadow-xs animate-in zoom-in-95"
                           >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </span>
-                      ))
+                            <Building2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                            <span>{label}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveSociety(socId)}
+                              className="hover:bg-white/20 text-slate-300 hover:text-white rounded-md p-0.5 ml-1 transition-colors cursor-pointer"
+                              title={`Remove ${label}`}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </span>
+                        );
+                      })
                     )}
                   </div>
                 </div>
@@ -523,58 +538,90 @@ export default function OnboardWasherModal({
                   <div className="text-[11px] font-semibold text-slate-500">
                     Click to add or remove societies for this washer&apos;s daily route:
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {availableSocietiesList.map((socName) => {
-                      const isSelected = selectedSocieties.includes(socName);
-                      return (
-                        <button
-                          key={socName}
-                          type="button"
-                          onClick={() => handleToggleSociety(socName)}
-                          className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
-                            isSelected
-                              ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-2xs ring-1 ring-emerald-500/20'
-                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
-                          }`}
+
+                  {isLoadingSocieties ? (
+                    <div className="flex items-center gap-2 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-500">
+                      <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+                      <span>Fetching societies from Firestore...</span>
+                    </div>
+                  ) : adminSocieties.length === 0 ? (
+                    <div className="p-3.5 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-800 space-y-1">
+                      <div className="font-bold flex items-center gap-1.5">
+                        <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                        <span>No societies available in Firestore yet</span>
+                      </div>
+                      <p className="text-[11px] text-amber-700">
+                        Create societies in the{' '}
+                        <a
+                          href="/admin/societies"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="font-bold underline text-amber-900 hover:text-amber-950"
                         >
-                          <span className="truncate">{socName}</span>
-                          {isSelected ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 ml-1" />
-                          ) : (
-                            <Plus className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
+                          Societies Panel
+                        </a>{' '}
+                        or type a name below to auto-create and assign one now.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {adminSocieties.map((soc) => {
+                        const isSelected = selectedSocieties.includes(soc.societyId);
+                        return (
+                          <button
+                            key={soc.societyId}
+                            type="button"
+                            onClick={() => handleToggleSociety(soc.societyId)}
+                            className={`p-2.5 rounded-xl border text-xs font-bold transition-all text-left flex items-center justify-between cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-2xs ring-1 ring-emerald-500/20'
+                                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="truncate mr-1">
+                              <span className="truncate block font-bold">{soc.name}</span>
+                              <span className="text-[10px] text-slate-400 block font-normal truncate">
+                                {soc.city}, {soc.state}
+                              </span>
+                            </div>
+                            {isSelected ? (
+                              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 ml-1" />
+                            ) : (
+                              <Plus className="w-3.5 h-3.5 text-slate-400 shrink-0 ml-1" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
 
-                {/* Add Custom / Other Society */}
-                <div className="flex gap-2 pt-0.5">
-                  <div className="relative flex-1">
-                    <Building2 className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                    <input
-                      type="text"
-                      value={customSocietyInput}
-                      onChange={(e) => setCustomSocietyInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleAddCustomSociety();
-                        }
-                      }}
-                      placeholder="Add another society name (e.g. DLF Cyber City)..."
-                      className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900"
-                    />
+                {/* Manage Societies Link / Refresh */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                  <div className="flex items-center gap-2 text-slate-600">
+                    <Building2 className="w-4 h-4 text-slate-400 shrink-0" />
+                    <span>Need to onboard a new society?</span>
                   </div>
-                  <button
-                    type="button"
-                    onClick={handleAddCustomSociety}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Society</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => loadAdminSocieties()}
+                      disabled={isLoadingSocieties}
+                      className="px-2.5 py-1 text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                    >
+                      <Loader2 className={`w-3 h-3 ${isLoadingSocieties ? 'animate-spin text-emerald-600' : 'hidden'}`} />
+                      <span>Refresh</span>
+                    </button>
+                    <a
+                      href="/admin/societies"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1 bg-[#0B132B] hover:bg-slate-800 text-white rounded-lg text-[11px] font-bold transition-colors inline-flex items-center gap-1"
+                    >
+                      <span>Manage Societies</span>
+                      <ArrowRight className="w-3 h-3" />
+                    </a>
+                  </div>
                 </div>
               </div>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -30,8 +30,15 @@ import {
 } from 'lucide-react';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 import { useStore } from '@/lib/store';
-import { WasherPartner, washerPartners as initialWasherPartners } from '@/lib/washerPartners';
-import { fetchWashersFromDirectory, fetchAllWashersFromFirestore } from '@/lib/firebaseService';
+import { WasherPartner } from '@/lib/washerPartners';
+import {
+  fetchActiveSocieties,
+  fetchAllSocieties,
+  fetchWashersBySocietyId,
+  validateWasherForSociety,
+  FirestoreSociety,
+  DirectoryWasher,
+} from '@/lib/firebaseService';
 import { sendPhoneOtp, verifyPhoneOtp, formatPhoneE164 } from '@/lib/firebaseAuth';
 
 interface VehicleDraft {
@@ -57,7 +64,7 @@ interface PlanOption {
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { registerOwner, verifyPhoneNumber, washers, societies: storeSocieties, isLoggedIn, isHydrated, role } = useStore();
+  const { registerOwner, verifyPhoneNumber, isLoggedIn, isHydrated, role } = useStore();
 
   useEffect(() => {
     const storedLoggedIn =
@@ -84,22 +91,117 @@ export default function SignUpPage() {
   // Step 1: Owner Details
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [selectedSociety, setSelectedSociety] = useState('Green Valley Residency');
-  const [flatNumber, setFlatNumber] = useState('Tower 4, Flat 602');
-  const [isCustomSociety, setIsCustomSociety] = useState(false);
-  const [customSocietyName, setCustomSocietyName] = useState('');
-  const [address, setAddress] = useState('Green Valley Residency, Tower 4, Flat 602');
+
+  // Location & Society selection — driven by Firestore Societies collection (State -> City -> Society)
+  const [firestoreSocieties, setFirestoreSocieties] = useState<FirestoreSociety[]>([]);
+  const [selectedState, setSelectedState] = useState<string>('');
+  const [selectedCity, setSelectedCity] = useState<string>('');
+  const [selectedSocietyId, setSelectedSocietyId] = useState<string>('');
+  const [flatNumber, setFlatNumber] = useState('');
+  const [address, setAddress] = useState('');
   const [altPhone, setAltPhone] = useState('');
-  const [ownerErrors, setOwnerErrors] = useState<{ name?: string; phone?: string }>({});
+  const [ownerErrors, setOwnerErrors] = useState<{
+    name?: string;
+    phone?: string;
+    state?: string;
+    city?: string;
+    society?: string;
+  }>({});
+  const [societiesLoading, setSocietiesLoading] = useState(true);
 
-  const effectiveSociety = (isCustomSociety ? customSocietyName : selectedSociety).trim();
+  // Derived: the full FirestoreSociety object for the selected ID
+  const selectedSocietyObj = firestoreSocieties.find((s) => s.societyId === selectedSocietyId) ?? null;
+  const effectiveSocietyName = selectedSocietyObj?.name ?? '';
 
-  // Keep address synchronized with selectedSociety & flatNumber
+  // Extract unique sorted states from Firestore societies
+  const availableStates = useMemo(() => {
+    const states = new Set<string>();
+    firestoreSocieties.forEach((s) => {
+      const st = (s.state || '').trim();
+      if (st) states.add(st);
+    });
+    return Array.from(states).sort((a, b) => a.localeCompare(b));
+  }, [firestoreSocieties]);
+
+  // Extract unique sorted cities in the selected state from Firestore societies
+  const availableCities = useMemo(() => {
+    if (!selectedState) return [];
+    const cities = new Set<string>();
+    firestoreSocieties.forEach((s) => {
+      if ((s.state || '').trim().toLowerCase() === selectedState.trim().toLowerCase()) {
+        const ct = (s.city || '').trim();
+        if (ct) cities.add(ct);
+      }
+    });
+    return Array.from(cities).sort((a, b) => a.localeCompare(b));
+  }, [firestoreSocieties, selectedState]);
+
+  // Extract societies matching the selected state and city
+  const availableSocieties = useMemo(() => {
+    if (!selectedState || !selectedCity) return [];
+    return firestoreSocieties
+      .filter(
+        (s) =>
+          (s.state || '').trim().toLowerCase() === selectedState.trim().toLowerCase() &&
+          (s.city || '').trim().toLowerCase() === selectedCity.trim().toLowerCase()
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [firestoreSocieties, selectedState, selectedCity]);
+
+  // Load active societies from Firestore on mount (strictly real data)
   useEffect(() => {
-    const soc = effectiveSociety || 'Green Valley Residency';
-    const combined = flatNumber.trim() ? `${soc}, ${flatNumber.trim()}` : soc;
+    (async () => {
+      setSocietiesLoading(true);
+      try {
+        let socs = await fetchActiveSocieties();
+        if (!socs || socs.length === 0) {
+          const all = await fetchAllSocieties();
+          socs = all.filter((s) => s.status === 'active');
+        }
+        setFirestoreSocieties(socs || []);
+      } catch (err) {
+        console.warn('Could not fetch societies from Firebase:', err);
+        setFirestoreSocieties([]);
+      } finally {
+        setSocietiesLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleStateChange = (newState: string) => {
+    setSelectedState(newState);
+    setSelectedCity('');
+    setSelectedSocietyId('');
+    setWashersForSociety([]);
+    if (ownerErrors.state) setOwnerErrors((prev) => ({ ...prev, state: undefined }));
+  };
+
+  const handleCityChange = (newCity: string) => {
+    setSelectedCity(newCity);
+    setSelectedSocietyId('');
+    setWashersForSociety([]);
+    if (ownerErrors.city) setOwnerErrors((prev) => ({ ...prev, city: undefined }));
+  };
+
+  const handleSocietyChange = (newSocId: string) => {
+    setSelectedSocietyId(newSocId);
+    setWashersForSociety([]);
+    if (newSocId) {
+      loadWashersForSocietyId(newSocId);
+    }
+    if (ownerErrors.society) setOwnerErrors((prev) => ({ ...prev, society: undefined }));
+  };
+
+  // Keep address synchronized with selected society & flatNumber
+  useEffect(() => {
+    const soc = effectiveSocietyName.trim();
+    const locParts = [selectedCity, selectedState].filter(Boolean).join(', ');
+    const fullSocStr = soc ? (locParts ? `${soc} (${locParts})` : soc) : '';
+    const combined = flatNumber.trim()
+      ? `${flatNumber.trim()}, ${fullSocStr}`
+      : fullSocStr;
     setAddress(combined);
-  }, [effectiveSociety, flatNumber]);
+  }, [effectiveSocietyName, flatNumber, selectedCity, selectedState]);
 
   // Phone Verification State with Live Firebase Phone Auth
   const [isPhoneVerifying, setIsPhoneVerifying] = useState(false);
@@ -158,162 +260,42 @@ export default function SignUpPage() {
     return basePrice;
   };
 
-  // Step 4: Choose a Washer (Live from Firestore Washers collection)
-  const [directoryWashers, setDirectoryWashers] = useState<WasherPartner[]>([]);
-  const [allDirectoryWashers, setAllDirectoryWashers] = useState<WasherPartner[]>([]);
+  // Step 1 & 4: Choose a Washer — driven by societyId Firestore query (cached in state)
+  const [washersForSociety, setWashersForSociety] = useState<DirectoryWasher[]>([]);
   const [isLoadingWashers, setIsLoadingWashers] = useState(false);
 
-  // Discover all active Firestore washers on mount to populate available societies
-  const loadInitialDirectory = async () => {
-    try {
-      const allActive = await fetchWashersFromDirectory();
-      if (allActive && allActive.length > 0) {
-        setAllDirectoryWashers(allActive);
-      }
-    } catch (err) {
-      console.warn('Directory initial load notice:', err);
+  // Load washers whenever the selected societyId changes in Step 1
+  const loadWashersForSocietyId = useCallback(async (socId: string) => {
+    if (!socId) {
+      setWashersForSociety([]);
+      return;
     }
-  };
-
-  useEffect(() => {
-    loadInitialDirectory();
-  }, []);
-
-  // Customer Step 4 query: query live Firestore washers matching customer's selected society
-  const loadWashersForSociety = async (societyName: string) => {
-    if (!societyName) return;
     setIsLoadingWashers(true);
     try {
-      const allLive = await fetchWashersFromDirectory();
-      if (allLive && allLive.length > 0) {
-        setAllDirectoryWashers(allLive);
-      }
-      const matching = await fetchWashersFromDirectory(societyName);
-      setDirectoryWashers(matching);
+      const washers = await fetchWashersBySocietyId(socId);
+      setWashersForSociety(washers);
     } catch (err) {
-      console.warn('Failed to query Washers from Firestore:', err);
+      console.warn('Failed to query washers by societyId:', err);
+      setWashersForSociety([]);
     } finally {
       setIsLoadingWashers(false);
     }
-  };
+  }, []);
 
-  // Re-query Firestore washers when user moves to Step 4 or effectiveSociety changes
   useEffect(() => {
-    if (step === 4 || effectiveSociety) {
-      loadWashersForSociety(effectiveSociety);
+    if (selectedSocietyId) {
+      loadWashersForSocietyId(selectedSocietyId);
+    } else {
+      setWashersForSociety([]);
     }
-  }, [step, effectiveSociety]);
+  }, [selectedSocietyId, loadWashersForSocietyId]);
 
-  // List of all societies known to the system (from live Firestore Washers and store societies)
-  const availableSocieties = useMemo(() => {
-    const set = new Set<string>();
-
-    // 1. From all live active washers in Firestore "Washers" collection
-    const allKnownWashers = [...allDirectoryWashers, ...directoryWashers];
-    allKnownWashers.forEach((w) => {
-      if (Array.isArray(w.societies) && w.societies.length > 0) {
-        w.societies.forEach((soc) => {
-          if (soc && soc.trim()) set.add(soc.trim());
-        });
-      } else if (typeof w.society === 'string' && w.society.trim()) {
-        w.society.split(',').forEach((soc) => {
-          if (soc && soc.trim()) set.add(soc.trim());
-        });
-      }
-    });
-
-    // 2. From store registered societies
-    (storeSocieties || []).forEach((s) => {
-      if (s.name && s.name.trim()) set.add(s.name.trim());
-    });
-
-    if (set.size === 0) {
-      set.add('Green Valley Residency');
-      set.add('Palm Residency');
-      set.add('Sunrise Heights');
-      set.add('Silver Oak Towers');
-    }
-
-    return Array.from(set);
-  }, [allDirectoryWashers, directoryWashers, storeSocieties]);
-
-  const availableWashers = useMemo(() => {
-    const map = new Map<string, WasherPartner>();
-    const EXCLUDED_WASHER_IDS = ['wsh_amit'];
-
-    // 1. First add all live washers fetched from Firestore
-    allDirectoryWashers.forEach((w) => {
-      if (!EXCLUDED_WASHER_IDS.includes(w.id)) {
-        map.set(w.id, { ...w, isFirebaseLive: true } as any);
-      }
-    });
-
-    // 2. Also add any from directoryWashers
-    directoryWashers.forEach((w) => {
-      if (!EXCLUDED_WASHER_IDS.includes(w.id) && !map.has(w.id)) {
-        map.set(w.id, { ...w, isFirebaseLive: true } as any);
-      }
-    });
-
-    // 3. Fallback to store washers if none found in Firestore yet
-    if (map.size === 0) {
-      (washers || []).forEach((w) => {
-        if (!EXCLUDED_WASHER_IDS.includes(w.id) && !map.has(w.id)) {
-          map.set(w.id, w);
-        }
-      });
-    }
-
-    return Array.from(map.values());
-  }, [allDirectoryWashers, directoryWashers, washers]);
-
-  // Filter washers matching customer's selected "Society Residence / Apartment" with "societies" from Firestore
-  const washersForSelectedSociety = useMemo(() => {
-    const targetSociety = (effectiveSociety || '').trim().toLowerCase();
-    if (!targetSociety) return [];
-
-    // Prioritize pool of live Firestore washers, fallback to availableWashers
-    const pool =
-      allDirectoryWashers.length > 0
-        ? allDirectoryWashers
-        : directoryWashers.length > 0
-        ? directoryWashers
-        : availableWashers;
-
-    return pool.filter((washer) => {
-      // Exclude dismissed washers
-      if (washer.status === 'Dismissed' || (washer as any).isDismissed) return false;
-
-      // 1. Check washer "societies" array from Firestore (e.g. ['Green Valley Residency', 'Palm Residency', ...])
-      if (Array.isArray(washer.societies) && washer.societies.length > 0) {
-        const hasMatch = washer.societies.some((soc) => {
-          const clean = (soc || '').trim().toLowerCase();
-          return (
-            clean === targetSociety ||
-            clean.includes(targetSociety) ||
-            targetSociety.includes(clean)
-          );
-        });
-        if (hasMatch) return true;
-      }
-
-      // 2. Check washer.society comma-separated string fallback from Firestore
-      if (typeof washer.society === 'string' && washer.society.trim()) {
-        const parts = washer.society.split(',').map((s) => s.trim().toLowerCase());
-        const hasMatch = parts.some(
-          (part) =>
-            part === targetSociety ||
-            part.includes(targetSociety) ||
-            targetSociety.includes(part)
-        );
-        if (hasMatch) return true;
-      }
-
-      return false;
-    });
-  }, [allDirectoryWashers, directoryWashers, availableWashers, effectiveSociety]);
+  // Alias for backwards compatibility in JSX below
+  const washersForSelectedSociety = washersForSociety;
 
   const [selectedWasherId, setSelectedWasherId] = useState<string>('');
+  // Validation error for final submit
+  const [submitError, setSubmitError] = useState('');
 
   // Keep selected washer synchronized with washers operating in selected society
   useEffect(() => {
@@ -533,19 +515,24 @@ export default function SignUpPage() {
     }
     setIsConfirmingOtp(true);
     const primaryPhoneUid = formatPhoneE164(phone);
+    let resolvedUid = primaryPhoneUid;
     try {
       try {
-        await verifyPhoneOtp(code);
+        const authedUser = await verifyPhoneOtp(code);
+        if (authedUser?.uid) {
+          resolvedUid = authedUser.uid;
+        } else if (auth.currentUser?.uid) {
+          resolvedUid = auth.currentUser.uid;
+        }
       } catch (authErr: any) {
         // Fallback demo/test code support if SMS was blocked by network/carrier
         if (code === '123456' || code === '000000') {
-          // Demo code bypass
+          resolvedUid = auth.currentUser?.uid || primaryPhoneUid;
         } else {
           throw authErr;
         }
       }
-      // Phone number is the primary UID across all collections
-      setVerifiedUid(primaryPhoneUid);
+      setVerifiedUid(resolvedUid);
       setIsPhoneVerified(true);
       setIsPhoneVerifying(false);
       setOwnerErrors({});
@@ -564,7 +551,7 @@ export default function SignUpPage() {
   // Validate Step 1 -> Move to Step 2 (Only allowed once phone number is verified)
   const handleProceedToVehicles = (e: React.FormEvent) => {
     e.preventDefault();
-    const errors: { name?: string; phone?: string } = {};
+    const errors: { name?: string; phone?: string; state?: string; city?: string; society?: string } = {};
 
     if (!name.trim()) {
       errors.name = 'Full name is required';
@@ -578,6 +565,16 @@ export default function SignUpPage() {
       errors.phone = 'Please verify your phone number via OTP first';
       setIsPhoneVerifying(true);
       setOtpSent(true);
+    }
+
+    if (!selectedState) {
+      errors.state = 'Please select a state';
+    }
+    if (!selectedCity) {
+      errors.city = 'Please select a city';
+    }
+    if (!selectedSocietyId) {
+      errors.society = 'Please select a society';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -668,49 +665,81 @@ export default function SignUpPage() {
   };
 
   // Validate Step 3 -> Move to Step 4 (Choose Washer)
+  // Reuses the washer results already loaded in state during Step 1 (no redundant Firestore query)
   const handleProceedToWasher = () => {
     setStep(4);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Final Submit on Step 4
-  const handleFinalSubmit = (e: React.FormEvent) => {
+  // Final Submit on Step 4 — with Firestore server-side washer validation
+  const handleFinalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    setSubmitError('');
 
-    const totalSubscriptionPrice = vehicles.reduce(
-      (sum, v) => sum + getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
-      0
-    );
+    if (!selectedSocietyId) {
+      setSubmitError('Please select a valid society in Step 1 before submitting.');
+      return;
+    }
 
     const chosenWasher =
       washersForSelectedSociety.find((w) => w.id === selectedWasherId) ||
       washersForSelectedSociety[0] ||
       null;
 
+    if (!chosenWasher) {
+      setSubmitError('Please select a verified washer partner assigned to your society.');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    // Server-side validation: verify washer is genuinely assigned to the selected society
+    // If the relationship is invalid, reject the signup — do not trust frontend alone
+    try {
+      const validation = await validateWasherForSociety(chosenWasher.id, selectedSocietyId, effectiveSocietyName);
+      if (!validation.valid) {
+        setSubmitError(`Signup rejected: ${validation.reason || 'Selected washer is not assigned to this society.'}`);
+        setIsSubmitting(false);
+        return;
+      }
+    } catch (err: any) {
+      console.error('Washer validation check failed:', err);
+      setSubmitError('Could not verify washer society assignment. Please choose an active partner and try again.');
+      setIsSubmitting(false);
+      return;
+    }
+
+    const totalSubscriptionPrice = vehicles.reduce(
+      (sum, v) => sum + getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
+      0
+    );
+
     const enrichedVehicles = vehicles.map((v) => ({
       ...v,
-      society_name: effectiveSociety || 'Green Valley Residency',
-      assigned_washer_id: chosenWasher?.id || '',
-      assigned_washer_name: chosenWasher?.name || 'Assigned Route Partner',
+      society_id: selectedSocietyId,
+      society_name: effectiveSocietyName || selectedSocietyObj?.name || '',
+      assigned_washer_id: chosenWasher.id,
+      assigned_washer_name: chosenWasher.name || 'Assigned Route Partner',
       price: getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
       subscription_price: getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
     }));
 
-    const primaryPhoneUid = formatPhoneE164(phone);
+    const effectiveUid = verifiedUid || auth.currentUser?.uid || primaryPhoneUid;
 
-    // Call store action with owner data, selected plan, and verified primary phone UID
+    // Call store action with canonical fields (societyId, selectedWasherId) and snapshot fields
     registerOwner(
       {
-        uid: verifiedUid || primaryPhoneUid,
+        uid: effectiveUid,
         name: name.trim(),
         phone: primaryPhoneUid,
-        society: effectiveSociety || undefined,
+        society: effectiveSocietyName || undefined,
+        societyId: selectedSocietyId,
+        societyName: effectiveSocietyName || undefined,
         address: address.trim() || undefined,
         alt_phone: altPhone.trim() || undefined,
         selectedPlan: selectedPlan.name,
-        selectedWasherId: chosenWasher?.id || '',
-        selectedWasherName: chosenWasher?.name || 'Assigned Route Partner',
+        selectedWasherId: chosenWasher.id,
+        selectedWasherName: chosenWasher.name || 'Assigned Route Partner',
         price: totalSubscriptionPrice,
         subscriptionPrice: totalSubscriptionPrice,
       },
@@ -974,103 +1003,162 @@ export default function SignUpPage() {
               </div>
             )}
 
-            {/* Society Residence Selection & Details */}
+            {/* Society Residence Selection & Details (State -> City -> Society) */}
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div>
-                  <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2 flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <Building2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                      Society Residence / Apartment <span className="text-rose-400">*</span>
+              <div className="border-t border-white/[0.08] pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">
+                    Location &amp; Society Route
+                  </span>
+                  {societiesLoading && (
+                    <span className="text-[10px] font-mono text-white/40 flex items-center gap-1.5">
+                      <Loader2 className="w-3 h-3 animate-spin text-[#2DD4A0]" />
+                      Syncing locations from Firestore…
                     </span>
+                  )}
+                </div>
+                <p className="text-xs text-white/50 mt-0.5">
+                  Select your State, City, and Society to connect with verified partners operating on your building route.
+                </p>
+              </div>
+
+              {/* Cascading Dropdowns: State -> City -> Society */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* 1. SELECT STATE */}
+                <div>
+                  <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                    State <span className="text-rose-400">*</span>
                   </label>
                   <div className="relative">
                     <select
-                      value={isCustomSociety ? '__custom__' : selectedSociety}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === '__custom__') {
-                          setIsCustomSociety(true);
-                        } else {
-                          setIsCustomSociety(false);
-                          setSelectedSociety(val);
-                        }
-                      }}
+                      value={selectedState}
+                      onChange={(e) => handleStateChange(e.target.value)}
                       className="w-full px-4 py-3.5 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-semibold text-white focus:outline-hidden focus:border-[#2DD4A0] focus:ring-1 focus:ring-[#2DD4A0]/30 transition-all appearance-none cursor-pointer pr-10"
                     >
-                      {availableSocieties.map((soc) => (
-                        <option key={soc} value={soc} className="bg-[#161C25] text-white py-2">
-                          {soc}
+                      <option value="" className="bg-[#161C25] text-white/40">
+                        Select State
+                      </option>
+                      {availableStates.map((st) => (
+                        <option key={st} value={st} className="bg-[#161C25] text-white py-2">
+                          {st}
                         </option>
                       ))}
-                      <option value="__custom__" className="bg-[#161C25] text-[#2DD4A0] font-bold">
-                        + Enter Another Society / Apartment
-                      </option>
                     </select>
                     <ChevronDown className="w-4 h-4 text-white/40 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
                   </div>
-
-                  {/* Custom Society Input if '__custom__' selected */}
-                  {isCustomSociety && (
-                    <div className="mt-2.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <input
-                        type="text"
-                        required
-                        value={customSocietyName}
-                        onChange={(e) => setCustomSocietyName(e.target.value)}
-                        placeholder="Enter Society / Apartment Name"
-                        className="w-full px-4 py-3 bg-[#11161D] border border-[#2DD4A0]/50 rounded-2xl text-sm font-semibold text-white placeholder-white/25 focus:outline-hidden focus:ring-1 focus:ring-[#2DD4A0]/30"
-                      />
-                    </div>
+                  {ownerErrors.state && (
+                    <p className="text-[11px] text-rose-400 mt-1.5 font-medium">{ownerErrors.state}</p>
                   )}
-
-                  {/* Washer Route Coverage indicator for selected society */}
-                  {(() => {
-                    const target = (effectiveSociety || '').trim().toLowerCase();
-                    const activeWasherCount = availableWashers.filter((w) => {
-                      if (!target) return false;
-                      if (Array.isArray(w.societies) && w.societies.length > 0) {
-                        return w.societies.some(
-                          (s) =>
-                            (s || '').trim().toLowerCase() === target ||
-                            (s || '').trim().toLowerCase().includes(target) ||
-                            target.includes((s || '').trim().toLowerCase())
-                        );
-                      }
-                      if (typeof w.society === 'string') {
-                        return w.society
-                          .split(',')
-                          .some(
-                            (s) =>
-                              s.trim().toLowerCase() === target ||
-                              s.trim().toLowerCase().includes(target) ||
-                              target.includes(s.trim().toLowerCase())
-                          );
-                      }
-                      return false;
-                    }).length;
-
-                    return (
-                      <div className="flex items-center gap-1.5 mt-2">
-                        {activeWasherCount > 0 ? (
-                          <span className="text-[11px] font-mono text-[#2DD4A0] flex items-center gap-1.5 font-semibold">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />
-                            <span>{activeWasherCount} Verified Washer{activeWasherCount > 1 ? 's' : ''} active on this society route</span>
-                          </span>
-                        ) : (
-                          <span className="text-[11px] font-mono text-amber-400/90 flex items-center gap-1.5 font-medium">
-                            <Clock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                            <span>No dedicated washer assigned yet — backup allocated on signup</span>
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })()}
                 </div>
 
+                {/* 2. SELECT CITY */}
+                <div>
+                  <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                    City <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedCity}
+                      onChange={(e) => handleCityChange(e.target.value)}
+                      disabled={!selectedState || availableCities.length === 0}
+                      className="w-full px-4 py-3.5 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-semibold text-white focus:outline-hidden focus:border-[#2DD4A0] focus:ring-1 focus:ring-[#2DD4A0]/30 transition-all appearance-none cursor-pointer pr-10 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <option value="" className="bg-[#161C25] text-white/40">
+                        {!selectedState ? 'Select State First' : 'Select City'}
+                      </option>
+                      {availableCities.map((ct) => (
+                        <option key={ct} value={ct} className="bg-[#161C25] text-white py-2">
+                          {ct}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-white/40 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  {ownerErrors.city && (
+                    <p className="text-[11px] text-rose-400 mt-1.5 font-medium">{ownerErrors.city}</p>
+                  )}
+                </div>
+
+                {/* 3. SELECT SOCIETY */}
                 <div>
                   <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
                     <Home className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                    Society <span className="text-rose-400">*</span>
+                  </label>
+                  <div className="relative">
+                    <select
+                      value={selectedSocietyId}
+                      onChange={(e) => handleSocietyChange(e.target.value)}
+                      disabled={!selectedCity || availableSocieties.length === 0}
+                      className="w-full px-4 py-3.5 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-semibold text-white focus:outline-hidden focus:border-[#2DD4A0] focus:ring-1 focus:ring-[#2DD4A0]/30 transition-all appearance-none cursor-pointer pr-10 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      <option value="" className="bg-[#161C25] text-white/40">
+                        {!selectedCity ? 'Select City First' : 'Select Society'}
+                      </option>
+                      {availableSocieties.map((soc) => (
+                        <option key={soc.societyId} value={soc.societyId} className="bg-[#161C25] text-white py-2">
+                          {soc.name}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-white/40 absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                  {ownerErrors.society && (
+                    <p className="text-[11px] text-rose-400 mt-1.5 font-medium">{ownerErrors.society}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Step 1 Washer Count Indicator for Selected Society (Requirement 7) */}
+              {selectedSocietyId && (
+                <div className="pt-2">
+                  {isLoadingWashers ? (
+                    <div className="p-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center gap-2 text-xs font-mono text-white/60">
+                      <Loader2 className="w-4 h-4 animate-spin text-[#2DD4A0]" />
+                      <span>Querying available washer partners in {effectiveSocietyName}...</span>
+                    </div>
+                  ) : washersForSelectedSociety.length > 0 ? (
+                    <div className="p-4 rounded-2xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/30 flex items-center justify-between flex-wrap gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-[#2DD4A0]/20 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0">
+                          <CheckCircle2 className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-extrabold text-white flex items-center gap-2">
+                            <span className="text-[#2DD4A0] font-mono">
+                              {washersForSelectedSociety.length} Washer Partner{washersForSelectedSociety.length > 1 ? 's' : ''} Available
+                            </span>
+                          </div>
+                          <p className="text-xs text-white/60">
+                            Operating on {effectiveSocietyName} route • Ready to assign in Step 4
+                          </p>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-mono uppercase tracking-wider px-3 py-1 rounded-full bg-[#2DD4A0]/20 text-[#2DD4A0] font-bold border border-[#2DD4A0]/40">
+                        Route Active
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-amber-300">
+                      <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+                      <div>
+                        <div className="text-sm font-bold text-white">0 Washer Partners Available</div>
+                        <p className="text-xs text-amber-300/80 mt-0.5">
+                          No active washer partners are currently assigned to {effectiveSocietyName}. Please contact admin or select another society.
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Flat Number & Address Preview */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 pt-1">
+                <div>
+                  <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
                     Flat / Tower / Unit Number
                   </label>
                   <input
@@ -1081,7 +1169,7 @@ export default function SignUpPage() {
                     className="w-full px-4 py-3.5 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-semibold text-white placeholder-white/25 focus:outline-hidden focus:border-[#2DD4A0] focus:ring-1 focus:ring-[#2DD4A0]/30 transition-all"
                   />
                   <p className="text-[11px] text-white/40 mt-2 font-mono">
-                    Combined Address: <span className="text-white/80">{address || effectiveSociety}</span>
+                    Combined Address: <span className="text-white/80">{address || effectiveSocietyName || '—'}</span>
                   </p>
                 </div>
               </div>
@@ -1567,18 +1655,18 @@ export default function SignUpPage() {
                     <h3 className="text-sm font-bold text-white">Choose Your Dedicated Washer Partner</h3>
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30 flex items-center gap-1">
                       <Building2 className="w-3 h-3 text-[#2DD4A0]" />
-                      <span>{effectiveSociety || 'Selected Society'}</span>
+                      <span>{effectiveSocietyName || 'Selected Society'}</span>
                     </span>
                   </div>
                   <p className="text-xs text-white/60 mt-0.5">
-                    Verified service partners operating in <span className="text-white font-semibold">{effectiveSociety}</span> with morning route execution &amp; daily photo proof.
+                    Verified service partners operating in <span className="text-white font-semibold">{effectiveSocietyName || 'your society'}</span> with morning route execution &amp; daily photo proof.
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
                 <button
                   type="button"
-                  onClick={() => loadWashersForSociety(effectiveSociety)}
+                  onClick={() => loadWashersForSocietyId(selectedSocietyId, effectiveSocietyName)}
                   disabled={isLoadingWashers}
                   className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-white/80 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                   title="Reload Live Washers from washer_directory"
@@ -1608,10 +1696,10 @@ export default function SignUpPage() {
                       </div>
                       <div className="space-y-1.5">
                         <h4 className="text-base font-bold text-white">
-                          No Dedicated Washer Active in {effectiveSociety}
+                          No Dedicated Washer Active in {effectiveSocietyName || 'Selected Society'}
                         </h4>
                         <p className="text-xs text-white/50 max-w-md mx-auto leading-relaxed">
-                          We checked the verified partner directory for partners working in <span className="text-white font-medium">{effectiveSociety}</span>. No partner is currently assigned to this society route.
+                          We checked the verified partner directory for partners working in <span className="text-white font-medium">{effectiveSocietyName || 'this society'}</span>. No partner is currently assigned to this society route.
                         </p>
                       </div>
                       <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -1628,7 +1716,7 @@ export default function SignUpPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => loadWashersForSociety(effectiveSociety)}
+                          onClick={() => loadWashersForSocietyId(selectedSocietyId, effectiveSocietyName)}
                           className="px-5 py-2.5 rounded-xl bg-[#2DD4A0]/10 hover:bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/30 text-xs font-bold transition-all cursor-pointer flex items-center gap-2"
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
@@ -1657,6 +1745,7 @@ export default function SignUpPage() {
                         <div className="w-14 h-14 rounded-2xl overflow-hidden border border-white/20 shrink-0 bg-slate-800 relative">
                           <img
                             src={
+                              washer.photoURL ||
                               washer.avatar ||
                               `https://ui-avatars.com/api/?name=${encodeURIComponent(washer.name || 'Partner')}&background=0B132B&color=2DD4A0&bold=true`
                             }
@@ -1689,25 +1778,25 @@ export default function SignUpPage() {
                           <div className="pt-0.5">
                             <p className="text-xs text-white/70 flex items-center gap-1.5 font-medium">
                               <MapPin className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />
-                              <span className="text-[#2DD4A0] font-semibold">{effectiveSociety} Route</span>
+                              <span className="text-[#2DD4A0] font-semibold">{effectiveSocietyName || 'Society'} Route</span>
                             </p>
                             {/* Assigned societies list */}
                             {Array.isArray(washer.societies) && washer.societies.length > 0 && (
                               <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                                {washer.societies.map((soc) => {
-                                  const isCurrent =
-                                    (soc || '').trim().toLowerCase() ===
-                                    (effectiveSociety || '').trim().toLowerCase();
+                                {washer.societies.map((socId) => {
+                                  const isCurrent = socId === selectedSocietyId;
+                                  const socObj = firestoreSocieties.find((s) => s.societyId === socId);
+                                  const socLabel = socObj?.name || socId;
                                   return (
                                     <span
-                                      key={soc}
+                                      key={socId}
                                       className={`text-[10px] font-mono px-2 py-0.5 rounded-md border ${
                                         isCurrent
                                           ? 'bg-[#2DD4A0]/20 border-[#2DD4A0]/40 text-[#2DD4A0] font-bold'
                                           : 'bg-white/5 border-white/10 text-white/50'
                                       }`}
                                     >
-                                      {soc} {isCurrent && '✓'}
+                                      {socLabel} {isCurrent && '✓'}
                                     </span>
                                   );
                                 })}
@@ -1805,11 +1894,19 @@ export default function SignUpPage() {
                     {selectedWasher?.name || 'Allocated upon activation'}
                   </div>
                   <div className="text-[11px] text-white/60 mt-0.5 font-mono">
-                    {effectiveSociety ? `${effectiveSociety} Route` : 'Assigned Route'}
+                    {effectiveSocietyName ? `${effectiveSocietyName} Route` : 'Assigned Route'}
                   </div>
                 </div>
               </div>
             </div>
+
+            {/* Validation / Submit Error Alert */}
+            {submitError && (
+              <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-semibold flex items-center gap-2.5 animate-in fade-in duration-200">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{submitError}</span>
+              </div>
+            )}
 
             {/* Bottom Actions Bar */}
             <div className="p-6 rounded-[24px] bg-[#161C25] border border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4">

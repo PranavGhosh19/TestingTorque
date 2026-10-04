@@ -3,6 +3,7 @@
 
 import {
   collection,
+  collectionGroup,
   doc,
   setDoc,
   getDoc,
@@ -94,15 +95,25 @@ export async function syncOwnerToFirestore(
 
     const subscriptionPrice = owner.price || (owner as any).subscription_price || calculatedTotal;
 
+    const resolvedSocietyId = (owner as any).societyId || (owner as any).society_id || null;
+    const resolvedSocietyName = (owner as any).societyName || owner.society || (owner as any).society_name || null;
+    const resolvedWasherId = (owner as any).selectedWasherId || owner.assigned_washer_id || '';
+    const resolvedWasherName = (owner as any).selectedWasherName || owner.assigned_washer_name || '';
+
     // 1. CAR OWNER: Car_Owners/{ownerId}
     const carOwnerRef = doc(db, 'Car_Owners', ownerId);
     const carOwnerPayload = {
+      customerId: ownerId,
       ownerId: ownerId,
       name: owner.name,
       phone: owner.phone,
       altPhone: owner.alt_phone || null,
       address: owner.address || null,
-      society: owner.society || (owner as any).society_name || null,
+      society: resolvedSocietyName,
+      societyId: resolvedSocietyId,
+      societyName: resolvedSocietyName,
+      selectedWasherId: resolvedWasherId,
+      selectedWasherName: resolvedWasherName,
       role: 'owner',
       status: owner.status || 'active',
       planId: defaultPlanName,
@@ -116,8 +127,8 @@ export async function syncOwnerToFirestore(
         status: 'active',
         startDate: new Date().toISOString(),
       },
-      assignedWasherId: owner.assigned_washer_id || '',
-      assignedWasherName: owner.assigned_washer_name || '',
+      assignedWasherId: resolvedWasherId,
+      assignedWasherName: resolvedWasherName,
       createdAt: owner.created_at || new Date().toISOString(),
       lastLoginAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -125,8 +136,8 @@ export async function syncOwnerToFirestore(
       id: ownerId,
       owner_name: owner.owner_name || owner.name,
       selected_plan: defaultPlanName,
-      assigned_washer_id: owner.assigned_washer_id || '',
-      assigned_washer_name: owner.assigned_washer_name || '',
+      assigned_washer_id: resolvedWasherId,
+      assigned_washer_name: resolvedWasherName,
     };
     await setDoc(carOwnerRef, carOwnerPayload, { merge: true });
 
@@ -149,11 +160,12 @@ export async function syncOwnerToFirestore(
           color: vehicle.color || 'Pearl White',
           parkingLocation: vehicle.parking_location || 'Assigned Bay',
           preferredWashTime: vehicle.preferred_wash_time || '07:30 AM',
-          societyName: vehicle.society_name || 'Green Valley Residency',
+          societyId: vehicle.society_id || resolvedSocietyId,
+          societyName: vehicle.society_name || resolvedSocietyName,
           price: vehiclePrice,
           subscriptionPrice: vehiclePrice,
-          washerId: vehicle.assigned_washer_id || owner.assigned_washer_id || '',
-          washerName: vehicle.assigned_washer_name || owner.assigned_washer_name || '',
+          washerId: vehicle.assigned_washer_id || resolvedWasherId,
+          washerName: vehicle.assigned_washer_name || resolvedWasherName,
           subscription: {
             planId: vehiclePlan,
             price: vehiclePrice,
@@ -176,8 +188,8 @@ export async function syncOwnerToFirestore(
           preferred_wash_time: vehicle.preferred_wash_time || '07:30 AM',
           society_name: vehicle.society_name || 'Green Valley Residency',
           selected_plan: vehiclePlan,
-          assigned_washer_id: vehicle.assigned_washer_id || owner.assigned_washer_id || '',
-          assigned_washer_name: vehicle.assigned_washer_name || owner.assigned_washer_name || '',
+          assigned_washer_id: vehicle.assigned_washer_id || resolvedWasherId,
+          assigned_washer_name: vehicle.assigned_washer_name || resolvedWasherName,
         };
         await setDoc(vehicleDocRef, vehiclePayload, { merge: true });
 
@@ -240,7 +252,7 @@ export async function syncWasherToFirestore(
         ? washer.societies
         : washer.society
         ? washer.society.split(',').map((s) => s.trim()).filter(Boolean)
-        : ['Green Valley Residency'];
+        : [];
 
     const washerPayload = {
       id: washer.id,
@@ -275,9 +287,11 @@ export async function syncWasherToFirestore(
       avgTimePerCar: washer.avgTimePerCar || '5.5 mins',
       completionRate: washer.completionRate || '100%',
       totalLifetimeWashes: washer.totalLifetimeWashes || 0,
-      status: washer.status || 'Active on Route',
+      status: washer.status || 'active',
       kyc: washer.kyc || 'Verified (Aadhaar & Police Clear)',
       role: 'washer',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
       created_at: washer.created_at || new Date().toISOString(),
       last_login_at: serverTimestamp(),
       updated_at: serverTimestamp(),
@@ -288,7 +302,7 @@ export async function syncWasherToFirestore(
     await setDoc(washerRef, washerPayload, { merge: true });
 
     // 2. Public sanitized discovery document specifically for /auth/signup discovery: washer_directory/{washerId}
-    const isDismissed = washer.status === 'Dismissed';
+    const isDismissed = washer.status === 'Dismissed' || washer.status === 'inactive';
     const directoryPayload = {
       washerId: washer.id,
       id: washer.id,
@@ -297,13 +311,14 @@ export async function syncWasherToFirestore(
       avatar: washer.avatar || '/images/washer_amit.jpg',
       societies: societiesList,
       society: washer.society || societiesList.join(', '),
-      status: isDismissed ? 'dismissed' : 'active',
+      status: isDismissed ? 'inactive' : 'active',
       availableForSignup: !isDismissed,
       rating: String(washer.rating || '5.0'),
       reviewsCount: Number(washer.reviewsCount || 1),
       routeWindow: washer.routeWindow || '06:30 AM - 09:30 AM',
       completionRate: washer.completionRate || '100%',
       createdBy: createdBy,
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     };
 
@@ -423,6 +438,22 @@ export async function appointWasherToVehicleInFirestore(
       {
         washerId,
         washerName,
+        assigned_washer_id: washerId,
+        assigned_washer_name: washerName,
+        assignedWasherId: washerId,
+        assignedWasherName: washerName,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Also keep the Car_Owners root document selectedWasher in sync
+    const ownerRef = doc(db, 'Car_Owners', ownerId);
+    await setDoc(
+      ownerRef,
+      {
+        selectedWasherId: washerId,
+        selectedWasherName: washerName,
         assigned_washer_id: washerId,
         assigned_washer_name: washerName,
         assignedWasherId: washerId,
@@ -1517,9 +1548,22 @@ export async function fetchAllWashersFromFirestore(adminUid?: string): Promise<W
       snap = await getDocs(washersRef);
     }
     snap.forEach((docSnap) => {
-      if (docSnap.id === 'wsh_amit') return; // Skip dummy mock partner
+      const data = docSnap.data();
+      const name = String(data.name || '').toLowerCase();
+      const id = String(docSnap.id || '').toLowerCase();
+      // Skip dummy mock and test partners (Lijo, Pranav Ghosh, Amit Kumar)
+      if (
+        id === 'wsh_amit' ||
+        name.includes('lijo') ||
+        name.includes('pranav ghosh') ||
+        name.includes('amit kumar') ||
+        id.includes('lijo') ||
+        id.includes('pranav') ||
+        id.includes('amit')
+      ) {
+        return;
+      }
       if (!washersMap.has(docSnap.id)) {
-        const data = docSnap.data();
         const parsedSocieties: string[] =
           data.societies && Array.isArray(data.societies) && data.societies.length > 0
             ? data.societies
@@ -1831,3 +1875,439 @@ export async function fetchAreaManagerByEmail(email: string): Promise<AreaManage
   }
 }
 
+
+// ===============================================================
+// SOCIETIES — Production Firestore Collection
+// ===============================================================
+
+export interface FirestoreSociety {
+  societyId: string;
+  name: string;
+  city: string;
+  state: string;
+  status: 'active' | 'inactive';
+  createdBy: string;
+  createdAt?: any;
+  updatedAt?: any;
+}
+
+/**
+ * Generates a unique society ID like "soc_8F3K2A"
+ */
+export function generateSocietyId(): string {
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  let suffix = '';
+  for (let i = 0; i < 6; i++) {
+    suffix += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `soc_${suffix}`;
+}
+
+/**
+ * Fetch all societies (admin use — all statuses).
+ * Queries Firestore Societies collection.
+ */
+export async function fetchAllSocieties(): Promise<FirestoreSociety[]> {
+  try {
+    const colRef = collection(db, 'Societies');
+    const snap = await getDocs(colRef);
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        societyId: data.societyId || d.id,
+        name: data.name || '',
+        state: data.state || '',
+        city: data.city || '',
+        status: (data.status as 'active' | 'inactive') || 'active',
+        createdBy: data.createdBy || '',
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+      };
+    });
+  } catch (err: any) {
+    console.warn('fetchAllSocieties notice:', err?.message || err);
+    return [];
+  }
+}
+
+/**
+ * Fetch only active societies — for customer-facing signup dropdown.
+ */
+export async function fetchActiveSocieties(): Promise<FirestoreSociety[]> {
+  try {
+    const colRef = collection(db, 'Societies');
+    const q = query(colRef, where('status', '==', 'active'));
+    const snap = await getDocs(q);
+    const activeDocs = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        societyId: data.societyId || d.id,
+        name: data.name || '',
+        state: data.state || '',
+        city: data.city || '',
+        status: 'active' as const,
+        createdBy: data.createdBy || '',
+        createdAt: data.createdAt,
+        updatedAt: data.updatedAt,
+      };
+    });
+    if (activeDocs.length > 0) return activeDocs;
+    // Fallback if status filter unindexed
+    const all = await fetchAllSocieties();
+    return all.filter((s) => s.status === 'active');
+  } catch (err: any) {
+    console.warn('fetchActiveSocieties notice:', err?.message || err);
+    return [];
+  }
+}
+
+/**
+ * Fetch societies created by the admin.
+ */
+export async function fetchSocietiesByAdmin(adminId?: string): Promise<FirestoreSociety[]> {
+  try {
+    const all = await fetchAllSocieties();
+    const currentUid =
+      adminId ||
+      auth?.currentUser?.uid ||
+      (typeof window !== 'undefined' ? (localStorage.getItem('torque_admin_uid') || localStorage.getItem('torque_owner_id')) : null) ||
+      '';
+
+    if (currentUid) {
+      const filtered = all.filter((s) => {
+        if (!s.createdBy) return false;
+        return (
+          s.createdBy === currentUid ||
+          (auth?.currentUser?.uid && s.createdBy === auth.currentUser.uid) ||
+          (typeof window !== 'undefined' && localStorage.getItem('torque_admin_uid') && s.createdBy === localStorage.getItem('torque_admin_uid')) ||
+          (typeof window !== 'undefined' && localStorage.getItem('torque_owner_id') && s.createdBy === localStorage.getItem('torque_owner_id'))
+        );
+      });
+      if (filtered.length > 0) {
+        return filtered;
+      }
+      // Fallback for dev / mock session IDs if created under unknown_admin or admin-lead-1
+      const fallback = all.filter(
+        (s) => s.createdBy === 'unknown_admin' || s.createdBy === 'admin-lead-1' || s.createdBy === currentUid
+      );
+      if (fallback.length > 0) {
+        return fallback;
+      }
+    }
+
+    // Return any non-empty createdBy societies from Firestore
+    return all.filter((s) => Boolean(s.createdBy));
+  } catch (err: any) {
+    console.warn('fetchSocietiesByAdmin notice:', err?.message || err);
+    return [];
+  }
+}
+
+/**
+ * Create a new society in Firestore.
+ * Firestore structure:
+ * Societies/
+ *     {societyId}
+ * Fields:
+ * societyId, name, state, city, status, createdBy, createdAt, updatedAt
+ */
+export async function createSociety(data: {
+  name: string;
+  city: string;
+  state: string;
+  createdBy?: string;
+}): Promise<{ success: boolean; societyId: string; error?: string }> {
+  try {
+    const createdBy =
+      data.createdBy ||
+      auth?.currentUser?.uid ||
+      (typeof window !== 'undefined' ? (localStorage.getItem('torque_admin_uid') || localStorage.getItem('torque_owner_id')) : null) ||
+      'unknown_admin';
+
+    const societyId = generateSocietyId();
+    const cleanState = data.state.trim();
+    const cleanCity = data.city.trim();
+    const cleanName = data.name.trim();
+
+    const societyPayload = {
+      societyId,
+      name: cleanName,
+      state: cleanState,
+      city: cleanCity,
+      status: 'active' as const,
+      createdBy,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    const rootSocietyRef = doc(db, 'Societies', societyId);
+    await setDoc(rootSocietyRef, societyPayload);
+
+    return { success: true, societyId };
+  } catch (err: any) {
+    console.error('createSociety error:', err);
+    return { success: false, societyId: '', error: err?.message || 'Failed to create society' };
+  }
+}
+
+/**
+ * Update an existing society (name, city, state, or status).
+ */
+export async function updateSociety(
+  societyId: string,
+  updates: Partial<{ name: string; city: string; state: string; status: 'active' | 'inactive' }>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const rootRef = doc(db, 'Societies', societyId);
+    await setDoc(
+      rootRef,
+      {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return { success: true };
+  } catch (err: any) {
+    console.error('updateSociety error:', err);
+    return { success: false, error: err?.message || 'Failed to update society' };
+  }
+}
+
+/**
+ * Fetch washers from washer_directory assigned to a specific societyId.
+ * Executes direct Firestore query:
+ *   collection('washer_directory')
+ *   where('societies', 'array-contains', selectedSocietyId)
+ *   where('status', '==', 'active')
+ *   where('availableForSignup', '==', true)
+ */
+export interface DirectoryWasher {
+  id: string;
+  washerId: string;
+  name: string;
+  photoURL: string;
+  avatar?: string;
+  societies: string[]; // array of societyIds
+  status: string;
+  availableForSignup: boolean;
+  rating: string;
+  reviewsCount: number;
+  routeWindow: string;
+  completionRate: string;
+  createdBy?: string;
+}
+
+export async function fetchWashersBySocietyId(
+  societyId: string
+): Promise<DirectoryWasher[]> {
+  try {
+    const cleanId = (societyId || '').trim();
+    if (!cleanId) return [];
+
+    const colRef = collection(db, 'washer_directory');
+    const q = query(
+      colRef,
+      where('societies', 'array-contains', cleanId),
+      where('status', '==', 'active'),
+      where('availableForSignup', '==', true)
+    );
+    const snap = await getDocs(q);
+
+    return snap.docs.map((d) => {
+      const data = d.data();
+      const photo = data.photoURL || data.avatar || '';
+      return {
+        id: d.id,
+        washerId: data.washerId || d.id,
+        name: data.name || 'Washer Partner',
+        photoURL: photo,
+        avatar: photo,
+        societies: Array.isArray(data.societies) ? data.societies : [],
+        status: data.status || 'active',
+        availableForSignup: data.availableForSignup ?? true,
+        rating: String(data.rating || '5.0'),
+        reviewsCount: Number(data.reviewsCount || 0),
+        routeWindow: data.routeWindow || '06:30 AM – 09:30 AM',
+        completionRate: data.completionRate || '100%',
+        createdBy: data.createdBy || '',
+      };
+    });
+  } catch (err: any) {
+    console.warn('fetchWashersBySocietyId query error:', err?.message || err);
+    try {
+      const fallbackQuery = query(
+        collection(db, 'washer_directory'),
+        where('societies', 'array-contains', (societyId || '').trim())
+      );
+      const snap = await getDocs(fallbackQuery);
+      return snap.docs
+        .map((d) => {
+          const data = d.data();
+          const photo = data.photoURL || data.avatar || '';
+          return {
+            id: d.id,
+            washerId: data.washerId || d.id,
+            name: data.name || 'Washer Partner',
+            photoURL: photo,
+            avatar: photo,
+            societies: Array.isArray(data.societies) ? data.societies : [],
+            status: data.status || 'active',
+            availableForSignup: data.availableForSignup ?? true,
+            rating: String(data.rating || '5.0'),
+            reviewsCount: Number(data.reviewsCount || 0),
+            routeWindow: data.routeWindow || '06:30 AM – 09:30 AM',
+            completionRate: data.completionRate || '100%',
+            createdBy: data.createdBy || '',
+          };
+        })
+        .filter((w) => w.status === 'active' && w.availableForSignup);
+    } catch (fErr) {
+      return [];
+    }
+  }
+}
+
+/**
+ * Fetch all washers from washer_directory (admin use for society assignment UI).
+ */
+export async function fetchAllDirectoryWashers(): Promise<DirectoryWasher[]> {
+  try {
+    const colRef = collection(db, 'washer_directory');
+    const snap = await getDocs(colRef);
+    return snap.docs
+      .map((d) => {
+        const data = d.data();
+        const photo = data.photoURL || data.avatar || '/images/washer_amit.jpg';
+        return {
+          id: d.id,
+          washerId: d.id,
+          name: data.name || 'Washer Partner',
+          photoURL: photo,
+          avatar: photo,
+          societies: Array.isArray(data.societies) ? data.societies : [],
+          status: data.status || 'active',
+          availableForSignup: data.availableForSignup ?? true,
+          rating: String(data.rating || '5.0'),
+          reviewsCount: Number(data.reviewsCount || 0),
+          routeWindow: data.routeWindow || '06:30 AM – 09:30 AM',
+          completionRate: data.completionRate || '100%',
+          createdBy: data.createdBy || '',
+        };
+      });
+  } catch (err: any) {
+    console.warn('fetchAllDirectoryWashers notice:', err?.message || err);
+    return [];
+  }
+}
+
+/**
+ * Assign a washer to a society by updating their societies array in washer_directory
+ * and Washers collections using arrayUnion (no duplicates).
+ */
+export async function assignWasherToSociety(
+  washerId: string,
+  societyId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { arrayUnion } = await import('firebase/firestore');
+
+    // Update washer_directory (public, customer-facing)
+    const dirRef = doc(db, 'washer_directory', washerId);
+    await setDoc(dirRef, { societies: arrayUnion(societyId), updatedAt: serverTimestamp() }, { merge: true });
+
+    // Also update Washers collection (private operational)
+    const washerRef = doc(db, 'Washers', washerId);
+    await setDoc(washerRef, { societies: arrayUnion(societyId), updatedAt: serverTimestamp() }, { merge: true });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('assignWasherToSociety error:', err);
+    return { success: false, error: err?.message || 'Failed to assign washer to society' };
+  }
+}
+
+/**
+ * Remove a washer from a society using arrayRemove.
+ */
+export async function removeWasherFromSociety(
+  washerId: string,
+  societyId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { arrayRemove } = await import('firebase/firestore');
+
+    const dirRef = doc(db, 'washer_directory', washerId);
+    await setDoc(dirRef, { societies: arrayRemove(societyId), updatedAt: serverTimestamp() }, { merge: true });
+
+    const washerRef = doc(db, 'Washers', washerId);
+    await setDoc(washerRef, { societies: arrayRemove(societyId), updatedAt: serverTimestamp() }, { merge: true });
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('removeWasherFromSociety error:', err);
+    return { success: false, error: err?.message || 'Failed to remove washer from society' };
+  }
+}
+
+/**
+ * Server-side validation: Verify that a washer is actually assigned to the selected society.
+ * Called before completing signup to prevent spoofed frontend submissions.
+ *
+ * Validates:
+ *   washer_directory/{washerId}.societies contains societyId
+ *   washer_directory/{washerId}.status == 'active'
+ *   washer_directory/{washerId}.availableForSignup == true
+ */
+export async function validateWasherForSociety(
+  washerId: string,
+  societyId: string,
+  societyName?: string
+): Promise<{ valid: boolean; reason?: string }> {
+  try {
+    if (!washerId || (!societyId && !societyName)) {
+      return { valid: false, reason: 'Missing washer or society ID' };
+    }
+    const dirRef = doc(db, 'washer_directory', washerId);
+    let data: any = null;
+    const snap = await getDoc(dirRef);
+    if (snap.exists()) {
+      data = snap.data();
+    } else {
+      const wRef = doc(db, 'Washers', washerId);
+      const wSnap = await getDoc(wRef);
+      if (wSnap.exists()) {
+        data = wSnap.data();
+      }
+    }
+
+    if (!data) {
+      return { valid: false, reason: 'Washer not found in directory' };
+    }
+
+    const societies: string[] = Array.isArray(data.societies) ? data.societies : [];
+    const singleSoc: string = typeof data.society === 'string' ? data.society : '';
+    const idClean = (societyId || '').trim();
+    const nameClean = (societyName || '').trim().toLowerCase();
+
+    const isAssigned =
+      (idClean && societies.includes(idClean)) ||
+      (nameClean && societies.some((s) => s.toLowerCase() === nameClean)) ||
+      (idClean && singleSoc.includes(idClean)) ||
+      (nameClean && singleSoc.toLowerCase().includes(nameClean));
+
+    if (!isAssigned) {
+      return { valid: false, reason: 'Washer is not assigned to selected society' };
+    }
+    if (data.status === 'dismissed' || data.status === 'inactive') {
+      return { valid: false, reason: 'Washer is not currently active' };
+    }
+    if (data.availableForSignup === false) {
+      return { valid: false, reason: 'Washer is not available for signup' };
+    }
+    return { valid: true };
+  } catch (err: any) {
+    console.warn('validateWasherForSociety notice:', err?.message || err);
+    return { valid: false, reason: 'Validation error — please try again' };
+  }
+}
