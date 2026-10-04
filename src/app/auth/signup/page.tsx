@@ -158,12 +158,12 @@ export default function SignUpPage() {
     return basePrice;
   };
 
-  // Step 4: Choose a Washer (Live from Firebase washer_directory discovery collection)
+  // Step 4: Choose a Washer (Live from Firestore Washers collection)
   const [directoryWashers, setDirectoryWashers] = useState<WasherPartner[]>([]);
   const [allDirectoryWashers, setAllDirectoryWashers] = useState<WasherPartner[]>([]);
   const [isLoadingWashers, setIsLoadingWashers] = useState(false);
 
-  // Discover all active directory washers on mount to populate available societies
+  // Discover all active Firestore washers on mount to populate available societies
   const loadInitialDirectory = async () => {
     try {
       const allActive = await fetchWashersFromDirectory();
@@ -179,39 +179,38 @@ export default function SignUpPage() {
     loadInitialDirectory();
   }, []);
 
-  // Customer Step 4 query:
-  // query(collection(db, "washer_directory"), where("societies", "array-contains", selectedSociety), where("status", "==", "active"), where("availableForSignup", "==", true))
+  // Customer Step 4 query: query live Firestore washers matching customer's selected society
   const loadWashersForSociety = async (societyName: string) => {
     if (!societyName) return;
     setIsLoadingWashers(true);
     try {
+      const allLive = await fetchWashersFromDirectory();
+      if (allLive && allLive.length > 0) {
+        setAllDirectoryWashers(allLive);
+      }
       const matching = await fetchWashersFromDirectory(societyName);
       setDirectoryWashers(matching);
     } catch (err) {
-      console.warn('Failed to query washer_directory:', err);
+      console.warn('Failed to query Washers from Firestore:', err);
     } finally {
       setIsLoadingWashers(false);
     }
   };
 
-  // Re-query washer_directory when user moves to Step 4 or effectiveSociety changes
+  // Re-query Firestore washers when user moves to Step 4 or effectiveSociety changes
   useEffect(() => {
     if (step === 4 || effectiveSociety) {
       loadWashersForSociety(effectiveSociety);
     }
   }, [step, effectiveSociety]);
 
-  // List of all societies known to the system (from registered store societies and live washer_directory)
+  // List of all societies known to the system (from live Firestore Washers and store societies)
   const availableSocieties = useMemo(() => {
     const set = new Set<string>();
 
-    // 1. From store registered societies
-    (storeSocieties || []).forEach((s) => {
-      if (s.name && s.name.trim()) set.add(s.name.trim());
-    });
-
-    // 2. From all live active washers in washer_directory
-    (allDirectoryWashers || []).forEach((w) => {
+    // 1. From all live active washers in Firestore "Washers" collection
+    const allKnownWashers = [...allDirectoryWashers, ...directoryWashers];
+    allKnownWashers.forEach((w) => {
       if (Array.isArray(w.societies) && w.societies.length > 0) {
         w.societies.forEach((soc) => {
           if (soc && soc.trim()) set.add(soc.trim());
@@ -223,6 +222,11 @@ export default function SignUpPage() {
       }
     });
 
+    // 2. From store registered societies
+    (storeSocieties || []).forEach((s) => {
+      if (s.name && s.name.trim()) set.add(s.name.trim());
+    });
+
     if (set.size === 0) {
       set.add('Green Valley Residency');
       set.add('Palm Residency');
@@ -231,20 +235,27 @@ export default function SignUpPage() {
     }
 
     return Array.from(set);
-  }, [storeSocieties, allDirectoryWashers]);
+  }, [allDirectoryWashers, directoryWashers, storeSocieties]);
 
   const availableWashers = useMemo(() => {
     const map = new Map<string, WasherPartner>();
     const EXCLUDED_WASHER_IDS = ['wsh_amit'];
 
-    // 1. First add all live washers fetched from washer_directory
+    // 1. First add all live washers fetched from Firestore
     allDirectoryWashers.forEach((w) => {
       if (!EXCLUDED_WASHER_IDS.includes(w.id)) {
         map.set(w.id, { ...w, isFirebaseLive: true } as any);
       }
     });
 
-    // 2. Fallback to store washers if none found in directory yet
+    // 2. Also add any from directoryWashers
+    directoryWashers.forEach((w) => {
+      if (!EXCLUDED_WASHER_IDS.includes(w.id) && !map.has(w.id)) {
+        map.set(w.id, { ...w, isFirebaseLive: true } as any);
+      }
+    });
+
+    // 3. Fallback to store washers if none found in Firestore yet
     if (map.size === 0) {
       (washers || []).forEach((w) => {
         if (!EXCLUDED_WASHER_IDS.includes(w.id) && !map.has(w.id)) {
@@ -254,21 +265,26 @@ export default function SignUpPage() {
     }
 
     return Array.from(map.values());
-  }, [allDirectoryWashers, washers]);
+  }, [allDirectoryWashers, directoryWashers, washers]);
 
-  // Filter washers from washer_directory matching customer's selected society
+  // Filter washers matching customer's selected "Society Residence / Apartment" with "societies" from Firestore
   const washersForSelectedSociety = useMemo(() => {
-    if (directoryWashers.length > 0) {
-      return directoryWashers;
-    }
-
     const targetSociety = (effectiveSociety || '').trim().toLowerCase();
     if (!targetSociety) return [];
 
-    const pool = allDirectoryWashers.length > 0 ? allDirectoryWashers : availableWashers;
+    // Prioritize pool of live Firestore washers, fallback to availableWashers
+    const pool =
+      allDirectoryWashers.length > 0
+        ? allDirectoryWashers
+        : directoryWashers.length > 0
+        ? directoryWashers
+        : availableWashers;
 
     return pool.filter((washer) => {
-      // 1. Check washer_directory societies array
+      // Exclude dismissed washers
+      if (washer.status === 'Dismissed' || (washer as any).isDismissed) return false;
+
+      // 1. Check washer "societies" array from Firestore (e.g. ['Green Valley Residency', 'Palm Residency', ...])
       if (Array.isArray(washer.societies) && washer.societies.length > 0) {
         const hasMatch = washer.societies.some((soc) => {
           const clean = (soc || '').trim().toLowerCase();
@@ -281,7 +297,7 @@ export default function SignUpPage() {
         if (hasMatch) return true;
       }
 
-      // 2. Check washer.society comma-separated string fallback
+      // 2. Check washer.society comma-separated string fallback from Firestore
       if (typeof washer.society === 'string' && washer.society.trim()) {
         const parts = washer.society.split(',').map((s) => s.trim().toLowerCase());
         const hasMatch = parts.some(
@@ -295,7 +311,7 @@ export default function SignUpPage() {
 
       return false;
     });
-  }, [directoryWashers, allDirectoryWashers, availableWashers, effectiveSociety]);
+  }, [allDirectoryWashers, directoryWashers, availableWashers, effectiveSociety]);
 
   const [selectedWasherId, setSelectedWasherId] = useState<string>('');
 

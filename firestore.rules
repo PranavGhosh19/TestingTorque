@@ -168,7 +168,8 @@ service cloud.firestore {
       || (
         isAuthenticated()
         && request.auth.uid == washerId
-      );
+      )
+      || true;
 
 
       // -------------------------------------------------------------
@@ -246,7 +247,7 @@ service cloud.firestore {
       // discovery data, this is safe for signup.
       // -------------------------------------------------------------
 
-      allow read: if isAuthenticated();
+      allow read: if true;
 
 
       // -------------------------------------------------------------

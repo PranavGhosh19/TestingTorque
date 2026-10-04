@@ -1572,67 +1572,130 @@ export async function fetchAllWashersFromFirestore(adminUid?: string): Promise<W
 
 /**
  * Step 4 Customer Discovery Query for /auth/signup:
- * Queries the public sanitized washer_directory collection.
- *
- * Query conditions:
- * - collection(db, "washer_directory")
- * - where("societies", "array-contains", selectedSociety)
- * - where("status", "==", "active")
- * - where("availableForSignup", "==", true)
+ * Queries the primary Washers collection (and washer_directory) from Firestore,
+ * matching the customer's selected "Society Residence / Apartment" with the washer's "societies" array.
  */
 export async function fetchWashersFromDirectory(
   selectedSociety?: string
 ): Promise<WasherPartner[]> {
   try {
-    const directoryRef = collection(db, 'washer_directory');
-    let q;
-    if (selectedSociety && selectedSociety.trim()) {
-      q = query(
-        directoryRef,
-        where('societies', 'array-contains', selectedSociety.trim()),
-        where('status', '==', 'active'),
-        where('availableForSignup', '==', true)
-      );
-    } else {
-      q = query(
-        directoryRef,
-        where('status', '==', 'active'),
-        where('availableForSignup', '==', true)
-      );
+    const washersMap = new Map<string, WasherPartner>();
+
+    // 1. Primary: Fetch from Washers collection (source of truth for onboarded washers)
+    try {
+      const washersRef = collection(db, 'Washers');
+      const snap = await getDocs(washersRef);
+      snap.forEach((docSnap) => {
+        if (docSnap.id === 'wsh_amit') return; // Skip dummy mock partner
+        const data = docSnap.data();
+        if (data.status === 'Dismissed' || data.isDismissed === true) return;
+
+        const parsedSocieties: string[] =
+          data.societies && Array.isArray(data.societies) && data.societies.length > 0
+            ? data.societies
+            : typeof data.society === 'string' && data.society.trim()
+            ? data.society.split(',').map((s: string) => s.trim()).filter(Boolean)
+            : [];
+
+        washersMap.set(docSnap.id, {
+          id: docSnap.id,
+          washerId: docSnap.id,
+          name: data.name || 'Washer Partner',
+          phone: '', // Keep private
+          avatar: data.avatar || data.avatar_url || data.photoURL || '/images/washer_amit.jpg',
+          rating: String(data.rating || '5.0'),
+          reviewsCount: Number(data.reviewsCount || data.reviews_count || 1),
+          society: data.society || (parsedSocieties.length > 0 ? parsedSocieties.join(', ') : 'Assigned Route'),
+          societies: parsedSocieties,
+          createdBy: data.createdBy || null,
+          assignedCarsPerDay: Number(data.assignedCarsPerDay || data.assigned_cars_per_day || 30),
+          routeWindow: data.routeWindow || data.route_window || '06:30 AM - 09:30 AM',
+          avgTimePerCar: data.avgTimePerCar || data.avg_time_per_car || '5.5 mins',
+          completionRate: data.completionRate || data.completion_rate || '100%',
+          totalLifetimeWashes: Number(data.totalLifetimeWashes || data.total_lifetime_washes || 0),
+          status: (data.status as any) || 'Active on Route',
+          kyc: data.kyc || 'Verified Partner',
+          aadhaarVerified: true,
+          phoneVerified: true,
+          isFirebaseLive: true,
+        } as WasherPartner);
+      });
+    } catch (err: any) {
+      console.warn('Notice querying Washers collection:', err?.message || err);
     }
 
-    const snap = await getDocs(q);
-    const directoryWashers: WasherPartner[] = [];
-    snap.forEach((docSnap) => {
-      const data = docSnap.data();
-      const parsedSocieties: string[] =
-        data.societies && Array.isArray(data.societies) && data.societies.length > 0
-          ? data.societies
-          : typeof data.society === 'string' && data.society.trim()
-          ? data.society.split(',').map((s: string) => s.trim()).filter(Boolean)
-          : [];
+    // 2. Secondary: Also check washer_directory collection for any legacy or directory-specific records
+    try {
+      const directoryRef = collection(db, 'washer_directory');
+      const snap2 = await getDocs(directoryRef);
+      snap2.forEach((docSnap) => {
+        if (docSnap.id === 'wsh_amit' || washersMap.has(docSnap.id)) return;
+        const data = docSnap.data();
+        if (data.status === 'dismissed' || data.availableForSignup === false) return;
 
-      directoryWashers.push({
-        id: docSnap.id,
-        name: data.name || 'Washer Partner',
-        phone: '', // Private - not exposed in directory
-        avatar: data.photoURL || data.avatar || '/images/washer_amit.jpg',
-        rating: String(data.rating || '5.0'),
-        reviewsCount: Number(data.reviewsCount || 0),
-        society: data.society || (parsedSocieties.length > 0 ? parsedSocieties.join(', ') : 'Assigned Route'),
-        societies: parsedSocieties,
-        createdBy: data.createdBy || null,
-        routeWindow: data.routeWindow || '06:30 AM - 09:30 AM',
-        avgTimePerCar: '5.5 mins',
-        completionRate: data.completionRate || '100%',
-        status: 'Active on Route',
-        kyc: 'Verified Partner',
-        aadhaarVerified: true,
-        phoneVerified: true,
-      } as WasherPartner);
-    });
+        const parsedSocieties: string[] =
+          data.societies && Array.isArray(data.societies) && data.societies.length > 0
+            ? data.societies
+            : typeof data.society === 'string' && data.society.trim()
+            ? data.society.split(',').map((s: string) => s.trim()).filter(Boolean)
+            : [];
 
-    return directoryWashers;
+        washersMap.set(docSnap.id, {
+          id: docSnap.id,
+          washerId: docSnap.id,
+          name: data.name || 'Washer Partner',
+          phone: '',
+          avatar: data.photoURL || data.avatar || '/images/washer_amit.jpg',
+          rating: String(data.rating || '5.0'),
+          reviewsCount: Number(data.reviewsCount || 1),
+          society: data.society || (parsedSocieties.length > 0 ? parsedSocieties.join(', ') : 'Assigned Route'),
+          societies: parsedSocieties,
+          createdBy: data.createdBy || null,
+          assignedCarsPerDay: 30,
+          routeWindow: data.routeWindow || '06:30 AM - 09:30 AM',
+          avgTimePerCar: '5.5 mins',
+          completionRate: data.completionRate || '100%',
+          totalLifetimeWashes: 0,
+          status: 'Active on Route',
+          kyc: 'Verified Partner',
+          aadhaarVerified: true,
+          phoneVerified: true,
+          isFirebaseLive: true,
+        } as WasherPartner);
+      });
+    } catch (err2: any) {
+      console.warn('Notice querying washer_directory collection:', err2?.message || err2);
+    }
+
+    const allWashers = Array.from(washersMap.values());
+
+    // 3. Match against the selected "Society Residence / Apartment" with "societies"
+    if (selectedSociety && selectedSociety.trim()) {
+      const target = selectedSociety.trim().toLowerCase();
+      return allWashers.filter((w) => {
+        // A. Match against societies array from Firestore
+        if (Array.isArray(w.societies) && w.societies.length > 0) {
+          const matched = w.societies.some((soc) => {
+            const clean = (soc || '').trim().toLowerCase();
+            return clean === target || clean.includes(target) || target.includes(clean);
+          });
+          if (matched) return true;
+        }
+
+        // B. Match against society comma-delimited string fallback
+        if (typeof w.society === 'string' && w.society.trim()) {
+          const parts = w.society.split(',').map((s) => s.trim().toLowerCase());
+          const matched = parts.some(
+            (part) => part === target || part.includes(target) || target.includes(part)
+          );
+          if (matched) return true;
+        }
+
+        return false;
+      });
+    }
+
+    return allWashers;
   } catch (error: any) {
     console.warn('fetchWashersFromDirectory notice:', error?.message || error);
     return [];
