@@ -25,6 +25,8 @@ interface Props {
   vehicle?: Vehicle;
   washerName?: string;
   washerAvatar?: string;
+  location?: string;
+  societiesCovered?: string;
   className?: string;
   showFullProofBtn?: boolean;
 }
@@ -34,6 +36,8 @@ export default function SignatureProofCard({
   vehicle,
   washerName: propWasherName,
   washerAvatar: propWasherAvatar,
+  location,
+  societiesCovered,
   className = '',
   showFullProofBtn = true,
 }: Props) {
@@ -63,6 +67,18 @@ export default function SignatureProofCard({
     currentVehicle?.parking_location ||
     wash?.parking_location ||
     'Assigned Bay';
+
+  const cleanBay = parkingLocation.includes('•')
+    ? parkingLocation.split('•').slice(1).join('•').trim()
+    : parkingLocation;
+  const fallbackSociety =
+    currentVehicle?.society_name ||
+    user?.society ||
+    (parkingLocation.includes('•') ? parkingLocation.split('•')[0].trim() : '') ||
+    'Assigned Society';
+  const displayLocationText =
+    location ||
+    (societiesCovered ? `${societiesCovered} • ${cleanBay}` : `${fallbackSociety} • ${cleanBay}`);
 
   // Evaluate if present date proof is submitted before 10:00 AM
   const verification = isPresentDateProofBefore10AM(wash);
@@ -220,8 +236,8 @@ export default function SignatureProofCard({
                 </span>
               </div>
               <p className="text-[11px] text-white/60 flex items-center gap-1 mt-0.5">
-                <MapPin className="w-3 h-3 text-[#2DD4A0]" />
-                Green Valley • Bay D-14 (Basement 1)
+                <MapPin className="w-3 h-3 text-[#2DD4A0] shrink-0" />
+                <span className="truncate">{displayLocationText}</span>
               </p>
             </div>
           </div>
@@ -294,7 +310,7 @@ export default function SignatureProofCard({
                     <span className="flex items-center gap-1.5 text-slate-300">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Parking Bay Log
                     </span>
-                    <span className="font-bold text-white">{currentVehicle?.society_name || 'Green Valley'} · {parkingLocation}</span>
+                    <span className="font-bold text-white">{displayLocationText}</span>
                   </div>
                   <div className="flex items-center justify-between text-slate-400">
                     <span className="flex items-center gap-1.5 text-slate-300">

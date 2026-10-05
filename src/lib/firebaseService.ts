@@ -99,6 +99,11 @@ export async function syncOwnerToFirestore(
     const resolvedSocietyName = (owner as any).societyName || owner.society || (owner as any).society_name || null;
     const resolvedWasherId = (owner as any).selectedWasherId || owner.assigned_washer_id || '';
     const resolvedWasherName = (owner as any).selectedWasherName || owner.assigned_washer_name || '';
+    const resolvedAdminId = (owner as any).adminId || (owner as any).assignedAdminId || (owner as any).areaManagerId || null;
+    const resolvedState = (owner as any).state || null;
+    const resolvedCity = (owner as any).city || null;
+    const resolvedFlat = (owner as any).flat || (owner as any).flatNumber || owner.address || null;
+    const resolvedFlatNumber = (owner as any).flatNumber || (owner as any).flat || null;
 
     // 1. CAR OWNER: Car_Owners/{ownerId}
     const carOwnerRef = doc(db, 'Car_Owners', ownerId);
@@ -109,9 +114,16 @@ export async function syncOwnerToFirestore(
       phone: owner.phone,
       altPhone: owner.alt_phone || null,
       address: owner.address || null,
+      flat: resolvedFlat,
+      flatNumber: resolvedFlatNumber,
+      state: resolvedState,
+      city: resolvedCity,
       society: resolvedSocietyName,
       societyId: resolvedSocietyId,
       societyName: resolvedSocietyName,
+      adminId: resolvedAdminId,
+      assignedAdminId: resolvedAdminId,
+      areaManagerId: resolvedAdminId,
       selectedWasherId: resolvedWasherId,
       selectedWasherName: resolvedWasherName,
       role: 'owner',
@@ -141,6 +153,20 @@ export async function syncOwnerToFirestore(
     };
     await setDoc(carOwnerRef, carOwnerPayload, { merge: true });
 
+    // 1B. SUBCOLLECTION: Societies/{societyId}/Car_Owners/{ownerId}
+    if (resolvedSocietyId) {
+      try {
+        const societyOwnerRef = doc(db, 'Societies', resolvedSocietyId, 'Car_Owners', ownerId);
+        await setDoc(societyOwnerRef, carOwnerPayload, { merge: true });
+
+        // Also singular Society/{societyId}/Car_Owners/{ownerId} for compatibility
+        const singSocOwnerRef = doc(db, 'Society', resolvedSocietyId, 'Car_Owners', ownerId);
+        await setDoc(singSocOwnerRef, carOwnerPayload, { merge: true });
+      } catch (socErr) {
+        console.warn('Notice: saving to Societies Car_Owners subcollection:', socErr);
+      }
+    }
+
     // 2. VEHICLES: Car_Owners/{ownerId}/Vehicles/{vehicleId}
     if (vehicles && vehicles.length > 0) {
       for (const vehicle of vehicles) {
@@ -162,6 +188,10 @@ export async function syncOwnerToFirestore(
           preferredWashTime: vehicle.preferred_wash_time || '07:30 AM',
           societyId: vehicle.society_id || resolvedSocietyId,
           societyName: vehicle.society_name || resolvedSocietyName,
+          flat: resolvedFlat,
+          flatNumber: resolvedFlatNumber,
+          adminId: (vehicle as any).adminId || (vehicle as any).admin_id || resolvedAdminId,
+          assignedAdminId: (vehicle as any).assignedAdminId || (vehicle as any).assigned_admin_id || resolvedAdminId,
           price: vehiclePrice,
           subscriptionPrice: vehiclePrice,
           washerId: vehicle.assigned_washer_id || resolvedWasherId,
@@ -192,6 +222,19 @@ export async function syncOwnerToFirestore(
           assigned_washer_name: vehicle.assigned_washer_name || resolvedWasherName,
         };
         await setDoc(vehicleDocRef, vehiclePayload, { merge: true });
+
+        // 2B. SUBCOLLECTION VEHICLE: Societies/{societyId}/Car_Owners/{ownerId}/Vehicles/{vehicleId}
+        const effectiveVehicleSocId = vehicle.society_id || resolvedSocietyId;
+        if (effectiveVehicleSocId) {
+          try {
+            const socVehDocRef = doc(db, 'Societies', effectiveVehicleSocId, 'Car_Owners', ownerId, 'Vehicles', vehicleId);
+            await setDoc(socVehDocRef, vehiclePayload, { merge: true });
+            const singSocVehDocRef = doc(db, 'Society', effectiveVehicleSocId, 'Car_Owners', ownerId, 'Vehicles', vehicleId);
+            await setDoc(singSocVehDocRef, vehiclePayload, { merge: true });
+          } catch (vSocErr) {
+            // ignore
+          }
+        }
 
         // 3. WASHES: Only sync if an actual wash record is explicitly provided
         if (initialWash && initialWash.id) {
@@ -1442,7 +1485,8 @@ export async function fetchOwnerDashboardFromFirestore(
             name: washerName,
             phone: '+91 98765 43210',
             avatar: '/images/washer_amit.jpg',
-            society: 'Green Valley Residency',
+            society: result.user?.society || result.vehicles[0]?.society_name || 'Assigned Society',
+            societies: [result.user?.society || result.vehicles[0]?.society_name || 'Assigned Society'],
             assignedCarsPerDay: 30,
             routeWindow: '06:30 AM - 09:30 AM',
             rating: '4.98',
@@ -2311,3 +2355,201 @@ export async function validateWasherForSociety(
     return { valid: false, reason: 'Validation error — please try again' };
   }
 }
+
+/**
+ * ===============================================================
+ * CUSTOMER REGISTRY & SERVICE AUDITS (/admin/customers)
+ * ===============================================================
+ */
+
+export interface AdminCustomerVehicle {
+  id: string;
+  name: string;
+  plate: string;
+  last4: string;
+  parkingLocation: string;
+  preferredTime: string;
+  color?: string;
+  type?: string;
+  assignedWasherName?: string;
+  assignedWasherId?: string;
+}
+
+export interface AdminCustomer {
+  id: string;
+  name: string;
+  phone: string;
+  society: string;
+  societyId?: string;
+  state?: string;
+  city?: string;
+  flat: string;
+  status: 'Active' | 'Paused';
+  plan: string;
+  vehicles: AdminCustomerVehicle[];
+  adminId?: string;
+  assignedAdminId?: string;
+  assignedWasherId?: string;
+  assignedWasherName?: string;
+  price?: number;
+  createdAt?: string;
+}
+
+/**
+ * Resolves the Admin (Area Manager) in charge of a given washer or society:
+ * Checks washer_directory, Washers, and Societies collections.
+ */
+export async function resolveInchargeAdminId(
+  washerId?: string,
+  societyId?: string
+): Promise<string> {
+  try {
+    if (washerId) {
+      const dRef = doc(db, 'washer_directory', washerId);
+      const dSnap = await getDoc(dRef);
+      if (dSnap.exists() && dSnap.data()?.createdBy) {
+        return dSnap.data().createdBy;
+      }
+      const wRef = doc(db, 'Washers', washerId);
+      const wSnap = await getDoc(wRef);
+      if (wSnap.exists() && wSnap.data()?.createdBy) {
+        return wSnap.data().createdBy;
+      }
+    }
+
+    if (societyId) {
+      const sRef = doc(db, 'Societies', societyId);
+      const sSnap = await getDoc(sRef);
+      if (sSnap.exists() && sSnap.data()?.createdBy) {
+        return sSnap.data().createdBy;
+      }
+    }
+  } catch (err: any) {
+    console.warn('resolveInchargeAdminId notice:', err?.message || err);
+  }
+  return '';
+}
+
+/**
+ * Fetches car owners and their vehicle fleet from Firestore for /admin/customers.
+ * Reads collection('Car_Owners') and nested collection('Car_Owners', ownerId, 'Vehicles').
+ * Also checks fallback vehicles array in document data.
+ */
+export async function fetchAdminCustomers(adminId?: string): Promise<AdminCustomer[]> {
+  try {
+    const ownersRef = collection(db, 'Car_Owners');
+    const snap = await getDocs(ownersRef);
+
+    const customers: AdminCustomer[] = [];
+
+    for (const docSnap of snap.docs) {
+      const d = docSnap.data();
+
+      // Extract vehicles
+      const vehicles: AdminCustomerVehicle[] = [];
+
+      try {
+        const vehiclesRef = collection(db, 'Car_Owners', docSnap.id, 'Vehicles');
+        const vSnap = await getDocs(vehiclesRef);
+
+        vSnap.forEach((vDoc) => {
+          const vd = vDoc.data();
+          const regPlate = (vd.registrationNumber || vd.registration_number || '').trim();
+          const cleanPlateDigits = regPlate.replace(/[^a-zA-Z0-9]/g, '');
+          const last4 = cleanPlateDigits.length >= 4 ? cleanPlateDigits.slice(-4) : cleanPlateDigits || '0000';
+          const vehicleName = `${vd.make || ''} ${vd.model || ''}`.trim() || 'Vehicle';
+
+          vehicles.push({
+            id: vDoc.id,
+            name: vehicleName,
+            plate: regPlate || 'UNREGISTERED',
+            last4: last4.toUpperCase(),
+            parkingLocation: vd.parkingLocation || vd.parking_location || 'Assigned Bay',
+            preferredTime: vd.preferredWashTime || vd.preferred_wash_time || '07:30 AM',
+            color: vd.color || 'Pearl White',
+            type: vd.type || 'car',
+            assignedWasherName: vd.washerName || vd.assigned_washer_name || d.assignedWasherName || d.selectedWasherName || '',
+            assignedWasherId: vd.washerId || vd.assigned_washer_id || d.assignedWasherId || d.selectedWasherId || '',
+          });
+        });
+      } catch (vErr) {
+        console.warn(`Error loading vehicles for customer ${docSnap.id}:`, vErr);
+      }
+
+      // Fallback: If no subcollection docs found, check if array exists in doc data
+      if (vehicles.length === 0 && Array.isArray(d.vehicles) && d.vehicles.length > 0) {
+        d.vehicles.forEach((vd: any, idx: number) => {
+          const regPlate = (vd.registrationNumber || vd.registration_number || '').trim();
+          const cleanPlateDigits = regPlate.replace(/[^a-zA-Z0-9]/g, '');
+          const last4 = cleanPlateDigits.length >= 4 ? cleanPlateDigits.slice(-4) : cleanPlateDigits || '0000';
+          const vehicleName = `${vd.make || ''} ${vd.model || ''}`.trim() || 'Vehicle';
+
+          vehicles.push({
+            id: vd.id || `v_${docSnap.id}_${idx}`,
+            name: vehicleName,
+            plate: regPlate || 'UNREGISTERED',
+            last4: last4.toUpperCase(),
+            parkingLocation: vd.parkingLocation || vd.parking_location || 'Assigned Bay',
+            preferredTime: vd.preferredWashTime || vd.preferred_wash_time || '07:30 AM',
+            color: vd.color || 'Pearl White',
+            type: vd.type || 'car',
+            assignedWasherName: vd.washerName || vd.assigned_washer_name || d.assignedWasherName || d.selectedWasherName || '',
+            assignedWasherId: vd.washerId || vd.assigned_washer_id || d.assignedWasherId || d.selectedWasherId || '',
+          });
+        });
+      }
+
+      // If still no vehicles, provide a fallback representation from owner metadata if registration exists
+      if (vehicles.length === 0 && (d.registrationNumber || d.registration_number || d.vehicleName || d.make)) {
+        const regPlate = (d.registrationNumber || d.registration_number || '').trim();
+        const cleanPlateDigits = regPlate.replace(/[^a-zA-Z0-9]/g, '');
+        const last4 = cleanPlateDigits.length >= 4 ? cleanPlateDigits.slice(-4) : cleanPlateDigits || '0000';
+        vehicles.push({
+          id: `veh_single_${docSnap.id}`,
+          name: `${d.make || ''} ${d.model || ''}`.trim() || d.vehicleName || 'Vehicle',
+          plate: regPlate || 'KA 01 HY 4567',
+          last4: last4.toUpperCase(),
+          parkingLocation: d.parkingLocation || d.parking_location || 'Assigned Bay',
+          preferredTime: d.preferredWashTime || d.preferred_wash_time || '07:30 AM',
+          color: d.color || 'Pearl White',
+          type: d.type || 'car',
+          assignedWasherName: d.assignedWasherName || d.selectedWasherName || '',
+          assignedWasherId: d.assignedWasherId || d.selectedWasherId || '',
+        });
+      }
+
+      const statusRaw = (d.status || 'Active').toLowerCase();
+      const status: 'Active' | 'Paused' = statusRaw === 'paused' || statusRaw === 'suspended' ? 'Paused' : 'Active';
+
+      const plan = d.selectedPlan || d.planId || d.selected_plan || (d.subscription && d.subscription.planId) || 'HOME BASIC';
+
+      const customerItem: AdminCustomer = {
+        id: docSnap.id,
+        name: d.name || d.owner_name || 'Vehicle Owner',
+        phone: d.phone || d.phoneNumber || '',
+        society: d.society || d.societyName || d.society_name || 'Unassigned Society',
+        societyId: d.societyId || d.society_id || '',
+        state: d.state || '',
+        city: d.city || '',
+        flat: d.flat || d.flatNumber || d.address || 'Bay Assigned',
+        status,
+        plan,
+        vehicles,
+        adminId: d.adminId || d.assignedAdminId || d.areaManagerId || d.createdBy || '',
+        assignedAdminId: d.assignedAdminId || d.adminId || '',
+        assignedWasherId: d.assignedWasherId || d.selectedWasherId || '',
+        assignedWasherName: d.assignedWasherName || d.selectedWasherName || '',
+        price: d.price || d.subscriptionPrice || 599,
+        createdAt: d.createdAt || d.created_at || (d.lastLoginAt ? new Date().toISOString() : ''),
+      };
+
+      customers.push(customerItem);
+    }
+
+    return customers;
+  } catch (err: any) {
+    console.warn('fetchAdminCustomers error:', err?.message || err);
+    return [];
+  }
+}
+

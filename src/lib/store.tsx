@@ -52,9 +52,16 @@ interface StoreContextType {
       name: string;
       phone: string;
       address?: string;
+      flat?: string;
+      flatNumber?: string;
+      state?: string;
+      city?: string;
       society?: string;
       societyId?: string;
       societyName?: string;
+      adminId?: string;
+      assignedAdminId?: string;
+      areaManagerId?: string;
       alt_phone?: string;
       selectedPlan?: string;
       selectedWasherId?: string;
@@ -70,7 +77,14 @@ interface StoreContextType {
       color: string;
       parking_location: string;
       preferred_wash_time: string;
+      society_id?: string;
       society_name?: string;
+      assigned_washer_id?: string;
+      assigned_washer_name?: string;
+      adminId?: string;
+      assignedAdminId?: string;
+      flat?: string;
+      flatNumber?: string;
       price?: number;
       subscription_price?: number;
     }>
@@ -720,9 +734,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       name: string;
       phone: string;
       address?: string;
+      flat?: string;
+      flatNumber?: string;
+      state?: string;
+      city?: string;
       society?: string;
       societyId?: string;
       societyName?: string;
+      adminId?: string;
+      assignedAdminId?: string;
+      areaManagerId?: string;
       alt_phone?: string;
       selectedPlan?: string;
       selectedWasherId?: string;
@@ -738,7 +759,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       color: string;
       parking_location: string;
       preferred_wash_time: string;
+      society_id?: string;
       society_name?: string;
+      assigned_washer_id?: string;
+      assigned_washer_name?: string;
+      adminId?: string;
+      assignedAdminId?: string;
+      flat?: string;
+      flatNumber?: string;
       price?: number;
       subscription_price?: number;
     }>
@@ -765,6 +793,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const finalPrice = ownerData.price || ownerData.subscriptionPrice || calculatedTotal || 599;
 
+    const resolvedAdminId = ownerData.adminId || ownerData.assignedAdminId || '';
+
     const newUser: User = {
       id: newUserId,
       uid: newUserId,
@@ -773,9 +803,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       phone: ownerData.phone,
       phoneNumber: ownerData.phone,
       address: ownerData.address,
+      flat: ownerData.flat || ownerData.flatNumber || ownerData.address,
+      flatNumber: ownerData.flatNumber || ownerData.flat,
+      state: ownerData.state,
+      city: ownerData.city,
       society: ownerData.society,
       societyId: ownerData.societyId,
       societyName: ownerData.societyName || ownerData.society,
+      adminId: resolvedAdminId,
+      assignedAdminId: resolvedAdminId,
+      areaManagerId: resolvedAdminId,
       selectedWasherId: ownerData.selectedWasherId,
       selectedWasherName: ownerData.selectedWasherName,
       alt_phone: ownerData.alt_phone,
@@ -813,6 +850,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         selected_plan: ownerData.selectedPlan || 'HOME BASIC',
         assigned_washer_id: (v as any).assigned_washer_id || ownerData.selectedWasherId || '',
         assigned_washer_name: (v as any).assigned_washer_name || ownerData.selectedWasherName || 'Assigned Route Partner',
+        flat: v.flat || ownerData.flat || ownerData.flatNumber || ownerData.address,
+        flatNumber: v.flatNumber || ownerData.flatNumber || ownerData.flat,
+        adminId: v.adminId || ownerData.adminId || resolvedAdminId,
+        assignedAdminId: v.assignedAdminId || ownerData.assignedAdminId || resolvedAdminId,
+        areaManagerId: resolvedAdminId,
         price: vPrice,
         subscription_price: vPrice,
       };
@@ -839,6 +881,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       }
       if (ownerData.societyName || ownerData.society) {
         localStorage.setItem('torque_society_name', ownerData.societyName || ownerData.society || '');
+      }
+      if (resolvedAdminId) {
+        localStorage.setItem('torque_admin_id', resolvedAdminId);
+      }
+      if (ownerData.state) {
+        localStorage.setItem('torque_owner_state', ownerData.state);
+      }
+      if (ownerData.city) {
+        localStorage.setItem('torque_owner_city', ownerData.city);
+      }
+      if (ownerData.flat || ownerData.flatNumber) {
+        localStorage.setItem('torque_owner_flat', ownerData.flat || ownerData.flatNumber || '');
       }
       localStorage.setItem('torque_user', JSON.stringify(newUser));
       localStorage.setItem('torque_vehicles', JSON.stringify(createdVehicles));

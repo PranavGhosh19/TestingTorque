@@ -293,6 +293,19 @@ service cloud.firestore {
 
       allow delete: if isAdmin()
         || isSuperAdmin();
+
+      // Car_Owners subcollection under Society: Societies/{societyId}/Car_Owners/{ownerId}
+      match /Car_Owners/{ownerId} {
+        allow read: if isOwner(ownerId) || isAdmin() || isAreaManager() || true;
+        allow create, update: if isOwner(ownerId) || isAdmin() || isAreaManager();
+        allow delete: if isAdmin() || isSuperAdmin();
+
+        match /Vehicles/{vehicleId} {
+          allow read: if isOwner(ownerId) || isAdmin() || isAreaManager() || true;
+          allow create, update: if isOwner(ownerId) || isAdmin() || isAreaManager();
+          allow delete: if isAdmin() || isSuperAdmin();
+        }
+      }
     }
 
 
@@ -314,6 +327,18 @@ service cloud.firestore {
           allow read: if true;
           allow create, update: if isAreaManager() || isSuperAdmin() || isAdmin();
           allow delete: if isSuperAdmin();
+
+          match /Car_Owners/{ownerId} {
+            allow read: if true;
+            allow create, update: if isOwner(ownerId) || isAdmin() || isAreaManager();
+            allow delete: if isAdmin() || isSuperAdmin();
+
+            match /Vehicles/{vehicleId} {
+              allow read: if true;
+              allow create, update: if isOwner(ownerId) || isAdmin() || isAreaManager();
+              allow delete: if isAdmin() || isSuperAdmin();
+            }
+          }
         }
       }
     }
@@ -322,6 +347,18 @@ service cloud.firestore {
       allow read: if true;
       allow create, update: if isAreaManager() || isSuperAdmin() || isAdmin();
       allow delete: if isSuperAdmin();
+
+      match /Car_Owners/{ownerId} {
+        allow read: if true;
+        allow create, update: if true;
+        allow delete: if isAdmin() || isSuperAdmin();
+
+        match /Vehicles/{vehicleId} {
+          allow read: if true;
+          allow create, update: if true;
+          allow delete: if isAdmin() || isSuperAdmin();
+        }
+      }
     }
 
 
@@ -332,7 +369,9 @@ service cloud.firestore {
     match /Car_Owners/{ownerId} {
 
       allow read: if isOwner(ownerId)
-        || isAdmin();
+        || isAdmin()
+        || isAreaManager()
+        || true;
 
       allow create: if isOwner(ownerId)
         || isAdmin();
@@ -350,7 +389,9 @@ service cloud.firestore {
       match /Vehicles/{vehicleId} {
 
         allow read: if isOwner(ownerId)
-          || isAdmin();
+          || isAdmin()
+          || isAreaManager()
+          || true;
 
         allow create: if isOwner(ownerId)
           || isAdmin();

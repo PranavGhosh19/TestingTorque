@@ -11,9 +11,16 @@ export interface User {
   owner_name?: string;
   email?: string;
   address?: string;
+  flat?: string;
+  flatNumber?: string;
+  state?: string;
+  city?: string;
   society?: string;
   societyId?: string;
   societyName?: string;
+  adminId?: string;
+  assignedAdminId?: string;
+  areaManagerId?: string;
   selectedWasherId?: string;
   selectedWasherName?: string;
   alt_phone?: string;
@@ -78,6 +85,11 @@ export interface Vehicle {
   assigned_washer_name?: string;
   price?: number;
   subscription_price?: number;
+  flat?: string;
+  flatNumber?: string;
+  adminId?: string;
+  assignedAdminId?: string;
+  areaManagerId?: string;
   lastWashStatus?: string;
   lastWashDate?: string;
   lastWashTime?: string;

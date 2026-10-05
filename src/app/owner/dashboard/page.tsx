@@ -29,7 +29,7 @@ import SundayPriorityModal from '@/components/modals/SundayPriorityModal';
 import AddVehicleModal from '@/components/modals/AddVehicleModal';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 import { useStore } from '@/lib/store';
-import { fetchOwnerDashboardFromFirestore } from '@/lib/firebaseService';
+import { fetchOwnerDashboardFromFirestore, fetchAllSocieties } from '@/lib/firebaseService';
 import { Vehicle, WasherPartner, WashRecord } from '@/lib/types';
 import { isPresentDateProofBefore10AM, isWashFromToday } from '@/lib/washUtils';
 
@@ -65,6 +65,7 @@ export default function OwnerDashboardPage() {
   const [firebaseWasher, setFirebaseWasher] = useState<WasherPartner | null>(null);
   const [firebaseWashes, setFirebaseWashes] = useState<WashRecord[]>([]);
   const [firebaseTodayWash, setFirebaseTodayWash] = useState<WashRecord | null>(null);
+  const [societyMap, setSocietyMap] = useState<Record<string, string>>({});
 
   // Selected Vehicle index for multi-car garages
   const [selectedVehicleIndex, setSelectedVehicleIndex] = useState(0);
@@ -73,6 +74,19 @@ export default function OwnerDashboardPage() {
   const loadFirebaseDashboard = async () => {
     setIsFirebaseSyncing(true);
     try {
+      try {
+        const socList = await fetchAllSocieties();
+        if (socList && socList.length > 0) {
+          const map: Record<string, string> = {};
+          socList.forEach((s) => {
+            if (s.id) map[s.id] = s.name;
+          });
+          setSocietyMap(map);
+        }
+      } catch (sErr) {
+        // ignore
+      }
+
       const fbData = await fetchOwnerDashboardFromFirestore(user.id, user.phone);
       
       if (fbData.user) {
@@ -249,6 +263,38 @@ export default function OwnerDashboardPage() {
           sundayBonusEarned: 1200,
           disbursements: [],
         });
+
+  // Resolve societies covered by the assigned washer
+  const washerSocietiesCovered = useMemo(() => {
+    const rawList =
+      assignedWasher?.societies && assignedWasher.societies.length > 0
+        ? assignedWasher.societies
+        : assignedWasher?.society
+        ? assignedWasher.society.split(',').map((s) => s.trim()).filter(Boolean)
+        : [];
+
+    const resolvedNames = rawList.map((idOrName) => societyMap[idOrName] || idOrName);
+
+    if (resolvedNames.length > 0) {
+      return resolvedNames.join(', ');
+    }
+    return primaryVehicle?.society_name || user.society || (user as any).societyName || 'Assigned Society';
+  }, [assignedWasher, societyMap, primaryVehicle, user]);
+
+  const parkingBayOnly = useMemo(() => {
+    const bay = primaryVehicle?.parking_location || (activeTodayWash || todayWash)?.parking_location || 'Bay Assigned';
+    if (bay.includes('•')) {
+      return bay.split('•').slice(1).join('•').trim();
+    }
+    return bay;
+  }, [primaryVehicle, activeTodayWash, todayWash]);
+
+  const dashboardLocationDisplay = useMemo(() => {
+    if (washerSocietiesCovered && parkingBayOnly) {
+      return `${washerSocietiesCovered} • ${parkingBayOnly}`;
+    }
+    return washerSocietiesCovered || parkingBayOnly;
+  }, [washerSocietiesCovered, parkingBayOnly]);
 
   const activePlanName =
     primaryVehicle?.selected_plan ||
@@ -446,6 +492,8 @@ export default function OwnerDashboardPage() {
               vehicle={primaryVehicle || undefined}
               washerName={assignedWasher.name}
               washerAvatar={assignedWasher.avatar}
+              societiesCovered={washerSocietiesCovered}
+              location={dashboardLocationDisplay}
             />
           </>
         )}
@@ -528,8 +576,8 @@ export default function OwnerDashboardPage() {
                 Tomorrow • {primaryVehicle?.preferred_wash_time || '07:30 AM'}
               </div>
               <p className="text-xs text-white/60 mt-1 flex items-center gap-1.5 font-mono">
-                <MapPin className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                {primaryVehicle?.parking_location || 'Assigned Parking Bay'}
+                <MapPin className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />
+                <span className="truncate">{dashboardLocationDisplay}</span>
               </p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-[#161C25] border border-white/[0.08] text-[#2DD4A0] flex items-center justify-center shrink-0">

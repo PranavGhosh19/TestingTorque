@@ -31,7 +31,12 @@ import {
 import AdminSidebar from '@/components/AdminSidebar';
 import { useStore } from '@/lib/store';
 import { WasherPartner } from '@/lib/washerPartners';
-import { fetchAllWashersFromFirestore } from '@/lib/firebaseService';
+import {
+  fetchAllWashersFromFirestore,
+  fetchAllSocieties,
+  fetchAdminCustomers,
+  AdminCustomer,
+} from '@/lib/firebaseService';
 import OnboardWasherModal from '@/components/modals/OnboardWasherModal';
 import AppointWasherModal from '@/components/modals/AppointWasherModal';
 import DismissWasherModal from '@/components/modals/DismissWasherModal';
@@ -46,18 +51,40 @@ export default function AdminWashersPage() {
 
   const [firestoreWashers, setFirestoreWashers] = useState<WasherPartner[]>([]);
   const [isLoadingFirestore, setIsLoadingFirestore] = useState(false);
+  const [societyMap, setSocietyMap] = useState<Record<string, string>>({});
+  const [adminCustomers, setAdminCustomers] = useState<AdminCustomer[]>([]);
 
   useEffect(() => {
     let isMounted = true;
     const loadWashers = async () => {
       try {
         setIsLoadingFirestore(true);
-        const remoteWashers = await fetchAllWashersFromFirestore(currentAdminId);
-        if (isMounted && remoteWashers.length > 0) {
-          setFirestoreWashers(remoteWashers.filter((w) => w.id !== 'wsh_amit'));
+        const [remoteWashers, socList, custList] = await Promise.all([
+          fetchAllWashersFromFirestore(currentAdminId),
+          fetchAllSocieties(),
+          fetchAdminCustomers(),
+        ]);
+
+        if (isMounted) {
+          if (remoteWashers && remoteWashers.length > 0) {
+            setFirestoreWashers(remoteWashers.filter((w) => w.id !== 'wsh_amit'));
+          }
+          if (socList && socList.length > 0) {
+            const map: Record<string, string> = {};
+            socList.forEach((s) => {
+              if (s.id) {
+                map[s.id] = s.name;
+                map[s.id.toLowerCase()] = s.name;
+              }
+            });
+            setSocietyMap(map);
+          }
+          if (custList && custList.length > 0) {
+            setAdminCustomers(custList);
+          }
         }
       } catch (err) {
-        console.warn('Error fetching washers from Firestore:', err);
+        console.warn('Error fetching washers and metadata from Firestore:', err);
       } finally {
         if (isMounted) setIsLoadingFirestore(false);
       }
@@ -66,7 +93,7 @@ export default function AdminWashersPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [currentAdminId]);
 
   const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false);
   const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
@@ -190,6 +217,28 @@ export default function AdminWashersPage() {
       </div>
     );
   }
+
+  // Dynamic car counts assigned to each washer based on live customers & vehicles
+  const washerAssignedCarCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    adminCustomers.forEach((c) => {
+      c.vehicles.forEach((v) => {
+        const wid = v.assignedWasherId || c.assignedWasherId;
+        const wname = v.assignedWasherName || c.assignedWasherName;
+        if (wid) counts[wid] = (counts[wid] || 0) + 1;
+        if (wname) counts[wname.toLowerCase().trim()] = (counts[wname.toLowerCase().trim()] || 0) + 1;
+      });
+    });
+    return counts;
+  }, [adminCustomers]);
+
+  const resolveSocietyName = (idOrName: string) => {
+    if (!idOrName) return '';
+    const trimmed = idOrName.trim();
+    if (societyMap[trimmed]) return societyMap[trimmed];
+    if (societyMap[trimmed.toLowerCase()]) return societyMap[trimmed.toLowerCase()];
+    return trimmed;
+  };
 
   const handleOpenAppoint = (e: React.MouseEvent, washerId?: string) => {
     e.preventDefault();
@@ -380,6 +429,23 @@ export default function AdminWashersPage() {
               const isDismissed = w.status === 'Dismissed';
               const isCreatedByMe = !w.createdBy || w.createdBy === currentAdminId;
 
+              const realCarsCount =
+                washerAssignedCarCounts[w.id] ||
+                (w.name ? washerAssignedCarCounts[w.name.toLowerCase().trim()] : 0) ||
+                totalStops ||
+                0;
+
+              const rawSocList =
+                w.societies && w.societies.length > 0
+                  ? w.societies
+                  : w.society
+                  ? w.society.split(',').map((s) => s.trim()).filter(Boolean)
+                  : [];
+              const resolvedSocietiesList =
+                rawSocList.length > 0
+                  ? rawSocList.map(resolveSocietyName).join(', ')
+                  : 'Unassigned';
+
               return (
                 <div
                   key={w.id}
@@ -518,22 +584,6 @@ export default function AdminWashersPage() {
                           ) : (
                             <span>Window: {w.routeWindow}</span>
                           )}
-                          <div className="flex items-center gap-1 flex-wrap justify-end">
-                            {(w.societies && w.societies.length > 0
-                              ? w.societies
-                              : w.society
-                              ? w.society.split(',').map((s) => s.trim()).filter(Boolean)
-                              : []
-                            ).map((soc, idx) => (
-                              <span
-                                key={idx}
-                                className="inline-flex items-center gap-1 font-mono text-[10px] bg-white text-slate-700 px-2 py-0.5 rounded-md border border-slate-200/80 shadow-2xs"
-                              >
-                                <Building2 className="w-2.5 h-2.5 text-emerald-600" />
-                                <span>{soc}</span>
-                              </span>
-                            ))}
-                          </div>
                         </div>
                       </div>
                     ) : (
@@ -548,7 +598,7 @@ export default function AdminWashersPage() {
                             : []
                           ).map((soc, idx) => (
                             <span key={idx} className="font-mono text-[10px] bg-slate-200 text-slate-600 px-2 py-0.5 rounded-md">
-                              {soc}
+                              {resolveSocietyName(soc)}
                             </span>
                           ))}
                         </div>
@@ -560,7 +610,7 @@ export default function AdminWashersPage() {
                       <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
                         <div className="text-[10px] text-slate-500 font-medium">Assigned Cars</div>
                         <div className="text-sm font-black text-slate-900 mt-0.5 font-mono">
-                          {w.assignedCarsPerDay} Cars
+                          {realCarsCount} {realCarsCount === 1 ? 'Car' : 'Cars'}
                         </div>
                       </div>
                       <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
@@ -615,10 +665,11 @@ export default function AdminWashersPage() {
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-slate-500">Assigned Societies:</span>
-                        <span className="font-semibold text-slate-800 text-right max-w-[65%] truncate">
-                          {w.societies && w.societies.length > 0
-                            ? w.societies.join(', ')
-                            : w.society || 'Unassigned'}
+                        <span
+                          className="font-semibold text-slate-800 text-right max-w-[65%] truncate"
+                          title={resolvedSocietiesList}
+                        >
+                          {resolvedSocietiesList}
                         </span>
                       </div>
                     </div>

@@ -23,16 +23,60 @@ import { useStore } from '@/lib/store';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 import OwnerProofCalendar from '@/components/OwnerProofCalendar';
 import ChangeWasherModal from '@/components/modals/ChangeWasherModal';
+import { fetchOwnerDashboardFromFirestore } from '@/lib/firebaseService';
 
 export default function WashHistoryPage() {
   const router = useRouter();
-  const { washes, isLoggedIn, isHydrated } = useStore();
+  const { washes, isLoggedIn, isHydrated, user, vehicles } = useStore();
   const [viewMode, setViewMode] = useState<'calendar' | 'timeline'>('calendar');
-  const [assignedWasher, setAssignedWasher] = useState('Amit Kumar');
+
+  const resolvedInitialWasher =
+    user?.assigned_washer_name ||
+    vehicles[0]?.assigned_washer_name ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null) ||
+    'Assigned Partner';
+
+  const [assignedWasher, setAssignedWasher] = useState(resolvedInitialWasher);
+  const [washerAvatar, setWasherAvatar] = useState('/images/washer_amit.jpg');
   const [showChangeWasherModal, setShowChangeWasherModal] = useState(false);
   const [activeFilter, setActiveFilter] = useState<
     'all' | 'home' | 'away' | 'detail' | 'sunday'
   >('all');
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadWasherData = async () => {
+      const localName =
+        user?.assigned_washer_name ||
+        vehicles[0]?.assigned_washer_name ||
+        (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null);
+
+      if (localName && localName !== 'Amit Kumar') {
+        setAssignedWasher(localName);
+      }
+
+      if (user?.id || user?.phone) {
+        try {
+          const fbData = await fetchOwnerDashboardFromFirestore(user.id, user.phone);
+          if (!isMounted) return;
+          if (fbData.assignedWasher?.name) {
+            setAssignedWasher(fbData.assignedWasher.name);
+            if (fbData.assignedWasher.avatar) {
+              setWasherAvatar(fbData.assignedWasher.avatar);
+            }
+          } else if (fbData.user?.assigned_washer_name) {
+            setAssignedWasher(fbData.user.assigned_washer_name);
+          }
+        } catch (err) {
+          console.warn('History washer lookup notice:', err);
+        }
+      }
+    };
+    loadWasherData();
+    return () => {
+      isMounted = false;
+    };
+  }, [user.id, user.phone, user.assigned_washer_name, vehicles]);
 
   useEffect(() => {
     if (isHydrated && !isLoggedIn) {
@@ -123,7 +167,7 @@ export default function WashHistoryPage() {
           <div className="flex items-center gap-3.5">
             <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-white/10 shrink-0">
               <Image
-                src="/images/washer_amit.jpg"
+                src={washerAvatar || '/images/washer_amit.jpg'}
                 alt={assignedWasher}
                 fill
                 className="object-cover"

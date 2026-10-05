@@ -36,6 +36,7 @@ import {
   fetchAllSocieties,
   fetchWashersBySocietyId,
   validateWasherForSociety,
+  resolveInchargeAdminId,
   FirestoreSociety,
   DirectoryWasher,
 } from '@/lib/firebaseService';
@@ -715,12 +716,24 @@ export default function SignUpPage() {
       0
     );
 
+    const inchargeAdminId =
+      chosenWasher.createdBy ||
+      selectedSocietyObj?.createdBy ||
+      (await resolveInchargeAdminId(chosenWasher.id, selectedSocietyId)) ||
+      '';
+
+    const effectiveFlat = flatNumber.trim() || address.trim() || undefined;
+
     const enrichedVehicles = vehicles.map((v) => ({
       ...v,
       society_id: selectedSocietyId,
       society_name: effectiveSocietyName || selectedSocietyObj?.name || '',
       assigned_washer_id: chosenWasher.id,
       assigned_washer_name: chosenWasher.name || 'Assigned Route Partner',
+      adminId: inchargeAdminId || undefined,
+      assignedAdminId: inchargeAdminId || undefined,
+      flat: effectiveFlat,
+      flatNumber: flatNumber.trim() || undefined,
       price: getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
       subscription_price: getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
     }));
@@ -728,16 +741,22 @@ export default function SignUpPage() {
     const primaryPhoneUid = formatPhoneE164(phone);
     const effectiveUid = verifiedUid || auth.currentUser?.uid || primaryPhoneUid;
 
-    // Call store action with canonical fields (societyId, selectedWasherId) and snapshot fields
+    // Call store action with canonical fields (societyId, selectedWasherId, inchargeAdminId) and snapshot fields
     registerOwner(
       {
         uid: effectiveUid,
         name: name.trim(),
         phone: primaryPhoneUid,
+        state: selectedState || undefined,
+        city: selectedCity || undefined,
         society: effectiveSocietyName || undefined,
         societyId: selectedSocietyId,
         societyName: effectiveSocietyName || undefined,
+        flat: effectiveFlat,
+        flatNumber: flatNumber.trim() || undefined,
         address: address.trim() || undefined,
+        adminId: inchargeAdminId || undefined,
+        assignedAdminId: inchargeAdminId || undefined,
         alt_phone: altPhone.trim() || undefined,
         selectedPlan: selectedPlan.name,
         selectedWasherId: chosenWasher.id,

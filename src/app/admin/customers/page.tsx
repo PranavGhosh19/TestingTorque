@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import {
   Users,
@@ -26,8 +26,13 @@ import {
   RotateCcw,
   ChevronDown,
   FileSpreadsheet,
+  RefreshCw,
+  Loader2,
+  Building2,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
+import { useStore } from '@/lib/store';
+import { fetchAdminCustomers, AdminCustomer } from '@/lib/firebaseService';
 
 interface CustomerVehicle {
   id: string;
@@ -37,6 +42,9 @@ interface CustomerVehicle {
   parkingLocation: string;
   preferredTime: string;
   color?: string;
+  type?: string;
+  assignedWasherName?: string;
+  assignedWasherId?: string;
 }
 
 interface Customer {
@@ -44,13 +52,20 @@ interface Customer {
   name: string;
   phone: string;
   society: string;
+  societyId?: string;
+  state?: string;
+  city?: string;
   flat: string;
   status: 'Active' | 'Paused';
   plan: string;
   vehicles: CustomerVehicle[];
+  adminId?: string;
+  assignedAdminId?: string;
+  assignedWasherId?: string;
+  assignedWasherName?: string;
+  price?: number;
+  createdAt?: string;
 }
-
-const customerList: Customer[] = [];
 
 interface SelectedCalendarContext {
   customer: Customer;
@@ -72,6 +87,18 @@ interface CalendarDayRecord {
 }
 
 export default function AdminCustomersPage() {
+  const { user } = useStore();
+  const currentAdminId =
+    user?.uid ||
+    user?.id ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_admin_uid') : null) ||
+    '';
+
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [adminScope, setAdminScope] = useState<'all' | 'my_area'>('all');
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedContext, setSelectedContext] = useState<SelectedCalendarContext | null>(null);
   const [selectedMonth, setSelectedMonth] = useState<'Sep' | 'Oct'>('Sep');
@@ -86,6 +113,30 @@ export default function AdminCustomersPage() {
   const [vehicleCountFilter, setVehicleCountFilter] = useState<string>('all');
   const [openFilterDropdown, setOpenFilterDropdown] = useState<string | null>(null);
 
+  // Load customer records from Firestore
+  const loadCustomers = useCallback(async (showRefreshIndicator = false) => {
+    if (showRefreshIndicator) setIsRefreshing(true);
+    else setIsLoading(true);
+
+    try {
+      const data = await fetchAdminCustomers();
+      if (data && data.length > 0) {
+        setCustomers(data as Customer[]);
+      } else {
+        setCustomers([]);
+      }
+    } catch (err) {
+      console.warn('Error loading customers from Firestore:', err);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCustomers();
+  }, [loadCustomers]);
+
   // Close dropdown on outside click
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -98,19 +149,34 @@ export default function AdminCustomersPage() {
     return () => window.removeEventListener('click', handleOutsideClick);
   }, []);
 
+  // In-charge territory customer count
+  const myTerritoryCount = useMemo(() => {
+    if (!currentAdminId) return 0;
+    return customers.filter(
+      (c) => c.adminId === currentAdminId || c.assignedAdminId === currentAdminId
+    ).length;
+  }, [customers, currentAdminId]);
+
   // Unique lists for column filters
   const uniqueSocieties = useMemo(
-    () => Array.from(new Set(customerList.map((c) => c.society))),
-    []
+    () => Array.from(new Set(customers.map((c) => c.society).filter(Boolean))),
+    [customers]
   );
   const uniquePlans = useMemo(
-    () => Array.from(new Set(customerList.map((c) => c.plan))),
-    []
+    () => Array.from(new Set(customers.map((c) => c.plan).filter(Boolean))),
+    [customers]
   );
 
   // Search and multi-column filtering
   const filteredCustomers = useMemo(() => {
-    let result = customerList;
+    let result = customers;
+
+    // 0. Territory filter (if set to my_area)
+    if (adminScope === 'my_area' && currentAdminId) {
+      result = result.filter(
+        (c) => c.adminId === currentAdminId || c.assignedAdminId === currentAdminId
+      );
+    }
 
     // 1. Search bar filtering
     if (searchQuery.trim()) {
@@ -172,7 +238,7 @@ export default function AdminCustomersPage() {
     }
 
     return result;
-  }, [searchQuery, societyFilter, planFilter, statusFilter, vehicleCountFilter, sortOrder]);
+  }, [customers, adminScope, currentAdminId, searchQuery, societyFilter, planFilter, statusFilter, vehicleCountFilter, sortOrder]);
 
   const hasActiveFilters =
     societyFilter !== 'all' ||
@@ -195,8 +261,12 @@ export default function AdminCustomersPage() {
     const headers = [
       'Owner Name',
       'Phone Number',
+      'State',
+      'City',
       'Society',
       'Residence Flat',
+      'Assigned Washer',
+      'In-Charge Admin ID',
       'Vehicles',
       'Number Plates (Last 4 Digits)',
       'Subscription Plan',
@@ -206,12 +276,20 @@ export default function AdminCustomersPage() {
     const rows = filteredCustomers.map((c) => {
       const vehicleNames = c.vehicles.map((v) => v.name).join('; ');
       const platesAndLast4 = c.vehicles.map((v) => `${v.plate} (Last 4: #${v.last4})`).join('; ');
+      const washer =
+        c.assignedWasherName ||
+        (c.vehicles[0] as any)?.assignedWasherName ||
+        'Assigned Route Partner';
 
       return [
         `"${c.name.replace(/"/g, '""')}"`,
         `"${c.phone.replace(/"/g, '""')}"`,
+        `"${(c.state || '').replace(/"/g, '""')}"`,
+        `"${(c.city || '').replace(/"/g, '""')}"`,
         `"${c.society.replace(/"/g, '""')}"`,
         `"${c.flat.replace(/"/g, '""')}"`,
+        `"${washer.replace(/"/g, '""')}"`,
+        `"${(c.adminId || c.assignedAdminId || '').replace(/"/g, '""')}"`,
         `"${vehicleNames.replace(/"/g, '""')}"`,
         `"${platesAndLast4.replace(/"/g, '""')}"`,
         `"${c.plan.replace(/"/g, '""')}"`,
@@ -340,6 +418,53 @@ export default function AdminCustomersPage() {
           </div>
 
           <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Territory Filter (All vs In-Charge Admin Area) */}
+            {currentAdminId && (
+              <div className="inline-flex items-center rounded-xl bg-slate-200/70 p-1 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setAdminScope('all')}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                    adminScope === 'all'
+                      ? 'bg-white text-[#0B132B] shadow-2xs font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  All ({customers.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdminScope('my_area')}
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                    adminScope === 'my_area'
+                      ? 'bg-emerald-600 text-white shadow-2xs font-extrabold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  <span>My Area</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                      adminScope === 'my_area' ? 'bg-emerald-700 text-white' : 'bg-slate-300 text-slate-700'
+                    }`}
+                  >
+                    {myTerritoryCount}
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Refresh Button */}
+            <button
+              type="button"
+              onClick={() => loadCustomers(true)}
+              disabled={isRefreshing || isLoading}
+              className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-extrabold text-xs flex items-center gap-1.5 shadow-2xs transition-all active:scale-95 cursor-pointer disabled:opacity-50"
+              title="Refresh customer registry from Firestore"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin text-emerald-600' : ''}`} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+
             {/* Export to CSV Action Button */}
             <button
               type="button"
@@ -352,7 +477,7 @@ export default function AdminCustomersPage() {
             </button>
 
             <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-2 rounded-xl border border-slate-200">
-              {filteredCustomers.length} of {customerList.length} Accounts
+              {filteredCustomers.length} of {customers.length} Accounts
             </span>
           </div>
         </div>
@@ -467,27 +592,33 @@ export default function AdminCustomersPage() {
 
             <div className="text-slate-600 font-medium">
               Showing <strong className="text-slate-900">{filteredCustomers.length}</strong> of{' '}
-              {customerList.length} customers
+              {customers.length} customers
             </div>
           </div>
         </div>
 
         {/* Customer Table with Column Filter Controls */}
         <div className="premium-card bg-white border-slate-200/90 shadow-xs overflow-visible">
-          {filteredCustomers.length === 0 ? (
+          {isLoading ? (
+            <div className="p-16 text-center space-y-3">
+              <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
+              <h3 className="font-bold text-slate-800 text-base">Loading Customer Accounts...</h3>
+              <p className="text-xs text-slate-500">Fetching verified owner registrations and vehicles from Firestore</p>
+            </div>
+          ) : filteredCustomers.length === 0 ? (
             <div className="p-12 text-center space-y-3">
               <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
                 <Users className="w-6 h-6" />
               </div>
               <h3 className="font-bold text-slate-800 text-base">
-                {customerList.length === 0 ? 'No Customer Accounts Registered' : 'No matching customers found'}
+                {customers.length === 0 ? 'No Customer Accounts Registered' : 'No matching customers found'}
               </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                {customerList.length === 0
+                {customers.length === 0
                   ? 'Customer registrations and vehicle subscription records will automatically appear here once owners onboard.'
-                  : 'Try adjusting your search query or reset the column filter options.'}
+                  : 'Try adjusting your search query, territory scope, or reset the column filter options.'}
               </p>
-              {customerList.length > 0 && (
+              {customers.length > 0 && (
                 <button
                   type="button"
                   onClick={handleResetFilters}
@@ -827,38 +958,67 @@ export default function AdminCustomersPage() {
                       <td className="p-4">
                         <div className="font-semibold text-slate-800">{c.society}</div>
                         <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-slate-400" />
-                          {c.flat}
+                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span>{c.flat}</span>
                         </div>
+                        {(c.city || c.state) && (
+                          <div className="text-[10px] text-slate-400 mt-0.5">
+                            {[c.city, c.state].filter(Boolean).join(', ')}
+                          </div>
+                        )}
+                        {c.adminId && (
+                          <div className="mt-1 flex items-center gap-1">
+                            <span
+                              className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                                c.adminId === currentAdminId
+                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                  : 'bg-slate-100 text-slate-500 border-slate-200'
+                              }`}
+                            >
+                              {c.adminId === currentAdminId
+                                ? 'In Your Territory'
+                                : `Admin: ${c.adminId.length > 10 ? `${c.adminId.slice(0, 8)}…` : c.adminId}`}
+                            </span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Vehicles (Click Plate to Open Calendar) */}
                       <td className="p-4">
-                        <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
-                          {c.vehicles.map((v) => (
-                            <button
-                              key={v.id}
-                              type="button"
-                              onClick={() => handleOpenCalendar(c, v)}
-                              className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-400 text-left transition-all cursor-pointer group/btn shadow-2xs hover:scale-[1.02]"
-                              title={`Click to open ${v.name} (${v.plate}) service calendar`}
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-mono font-black text-slate-800 group-hover/btn:text-emerald-800 text-xs">
-                                  {v.plate}
-                                </span>
-                                <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100/60 px-1.5 py-0.2 rounded font-mono">
-                                  #{v.last4}
-                                </span>
-                              </div>
-                              <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
-                                <Car className="w-2.5 h-2.5" />
-                                <span>{v.name}</span>
-                                <span className="text-emerald-600 font-bold ml-1">📅 Calendar</span>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
+                        {c.vehicles.length === 0 ? (
+                          <span className="text-slate-400 italic text-xs">No vehicles registered</span>
+                        ) : (
+                          <div className="flex flex-col sm:flex-row gap-2 flex-wrap">
+                            {c.vehicles.map((v) => (
+                              <button
+                                key={v.id}
+                                type="button"
+                                onClick={() => handleOpenCalendar(c, v)}
+                                className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-emerald-50 border border-slate-200 hover:border-emerald-400 text-left transition-all cursor-pointer group/btn shadow-2xs hover:scale-[1.02]"
+                                title={`Click to open ${v.name} (${v.plate}) service calendar`}
+                              >
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-black text-slate-800 group-hover/btn:text-emerald-800 text-xs">
+                                    {v.plate}
+                                  </span>
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-100/60 px-1.5 py-0.2 rounded font-mono">
+                                    #{v.last4}
+                                  </span>
+                                </div>
+                                <div className="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                  <Car className="w-2.5 h-2.5" />
+                                  <span>{v.name}</span>
+                                  <span className="text-emerald-600 font-bold ml-1">📅 Calendar</span>
+                                </div>
+                                {(v.assignedWasherName || c.assignedWasherName) && (
+                                  <div className="text-[9px] text-emerald-700 font-bold mt-0.5">
+                                    Route: {v.assignedWasherName || c.assignedWasherName}
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </td>
 
                       {/* Plan */}
