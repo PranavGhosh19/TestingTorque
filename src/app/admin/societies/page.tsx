@@ -42,6 +42,7 @@ function OnboardModal({
   onCreated: (s: FirestoreSociety) => void;
 }) {
   const [name, setName] = useState('');
+  const [district, setDistrict] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
   const [loading, setLoading] = useState(false);
@@ -49,13 +50,13 @@ function OnboardModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !city.trim() || !state.trim()) {
+    if (!name.trim() || !district.trim() || !city.trim() || !state.trim()) {
       setError('All fields are required.');
       return;
     }
     setLoading(true);
     setError('');
-    const result = await createSociety({ name, city, state });
+    const result = await createSociety({ name, district, city, state });
     setLoading(false);
     if (!result.success) {
       setError(result.error || 'Failed to create society.');
@@ -64,6 +65,7 @@ function OnboardModal({
     onCreated({
       societyId: result.societyId,
       name: name.trim(),
+      district: district.trim(),
       city: city.trim(),
       state: state.trim(),
       status: 'active',
@@ -87,30 +89,39 @@ function OnboardModal({
           </div>
           <div>
             <h2 className="text-base font-extrabold text-[#0B132B]">Onboard Society</h2>
-            <p className="text-xs text-slate-500">Firestore structure: Societies/{'{societyId}'}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 text-[11px] text-slate-500 font-mono flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-            <span>Firestore: Societies / {'{societyId}'}</span>
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
+              Society Name <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Green Valley Residency"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
+              District <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              placeholder="e.g. Thane"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
+              required
+            />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
-                State <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder="e.g. Maharashtra"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
-                required
-              />
-            </div>
             <div>
               <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
                 City <span className="text-rose-500">*</span>
@@ -124,20 +135,19 @@ function OnboardModal({
                 required
               />
             </div>
-          </div>
-
-          <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
-              Society Name <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Green Valley Residency"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
-              required
-            />
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
+                State <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                placeholder="e.g. Maharashtra"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
+                required
+              />
+            </div>
           </div>
 
           {error && (
@@ -183,6 +193,7 @@ function EditSocietyModal({
   onUpdated: (updated: FirestoreSociety) => void;
 }) {
   const [name, setName] = useState(society.name);
+  const [district, setDistrict] = useState(society.district || '');
   const [city, setCity] = useState(society.city);
   const [state, setState] = useState(society.state);
   const [status, setStatus] = useState<'active' | 'inactive'>(society.status);
@@ -191,7 +202,7 @@ function EditSocietyModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !city.trim() || !state.trim()) {
+    if (!name.trim() || !district.trim() || !city.trim() || !state.trim()) {
       setError('All fields are required.');
       return;
     }
@@ -199,6 +210,7 @@ function EditSocietyModal({
     setError('');
     const result = await updateSociety(society.societyId, {
       name: name.trim(),
+      district: district.trim(),
       city: city.trim(),
       state: state.trim(),
       status,
@@ -211,6 +223,7 @@ function EditSocietyModal({
     onUpdated({
       ...society,
       name: name.trim(),
+      district: district.trim(),
       city: city.trim(),
       state: state.trim(),
       status,
@@ -238,10 +251,6 @@ function EditSocietyModal({
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 text-[11px] text-slate-500 font-mono flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-            <span>Firestore: State (Collection) &rarr; City &rarr; Society</span>
-          </div>
           <div>
             <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
               Society ID (Immutable)
@@ -263,6 +272,20 @@ function EditSocietyModal({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Green Valley Residency"
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
+              District <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={district}
+              onChange={(e) => setDistrict(e.target.value)}
+              placeholder="e.g. Thane"
               className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
               required
             />
@@ -680,7 +703,7 @@ export default function AdminSocietiesPage() {
                           <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3" />
-                              {society.city}, {society.state}
+                              {society.district ? `${society.district}, ` : ''}{society.city}, {society.state}
                             </span>
                             <span className="font-mono text-slate-400">{society.societyId}</span>
                             <span className="flex items-center gap-1 text-slate-500 font-medium">

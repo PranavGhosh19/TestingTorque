@@ -2343,6 +2343,7 @@ export interface FirestoreSociety {
   societyId: string;
   id?: string; // Convenience alias for societyId
   name: string;
+  district?: string;
   city: string;
   state: string;
   status: 'active' | 'inactive';
@@ -2378,6 +2379,7 @@ export async function fetchAllSocieties(): Promise<FirestoreSociety[]> {
         societyId: sId,
         id: sId,
         name: data.name || '',
+        district: data.district || '',
         state: data.state || '',
         city: data.city || '',
         status: (data.status as 'active' | 'inactive') || 'active',
@@ -2407,6 +2409,7 @@ export async function fetchActiveSocieties(): Promise<FirestoreSociety[]> {
         societyId: sId,
         id: sId,
         name: data.name || '',
+        district: data.district || '',
         state: data.state || '',
         city: data.city || '',
         status: 'active' as const,
@@ -2477,6 +2480,7 @@ export async function fetchSocietiesByAdmin(adminId?: string): Promise<Firestore
  */
 export async function createSociety(data: {
   name: string;
+  district?: string;
   city: string;
   state: string;
   createdBy?: string;
@@ -2490,12 +2494,14 @@ export async function createSociety(data: {
 
     const societyId = generateSocietyId();
     const cleanState = data.state.trim();
+    const cleanDistrict = (data.district || '').trim();
     const cleanCity = data.city.trim();
     const cleanName = data.name.trim();
 
     const societyPayload = {
       societyId,
       name: cleanName,
+      district: cleanDistrict,
       state: cleanState,
       city: cleanCity,
       status: 'active' as const,
@@ -2515,11 +2521,11 @@ export async function createSociety(data: {
 }
 
 /**
- * Update an existing society (name, city, state, or status).
+ * Update an existing society (name, district, city, state, or status).
  */
 export async function updateSociety(
   societyId: string,
-  updates: Partial<{ name: string; city: string; state: string; status: 'active' | 'inactive' }>
+  updates: Partial<{ name: string; district: string; city: string; state: string; status: 'active' | 'inactive' }>
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const rootRef = doc(db, 'Societies', societyId);

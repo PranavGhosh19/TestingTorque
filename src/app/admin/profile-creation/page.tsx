@@ -110,6 +110,16 @@ export default function AdminProfileCreationPage() {
             setAadhaarPhotoUrl(existingData.aadhaarPhotoUrl);
             setAadhaarFileName('aadhaar_card_verified.jpg');
           }
+
+          // If profile has already been saved in Firestore once and not in edit mode, route directly to dashboard
+          if (typeof window !== 'undefined' && existingData.fullName && (existingData.aadhaarNumber || existingData.phoneNumber)) {
+            localStorage.setItem('torque_admin_profile_completed', 'true');
+            const searchParams = new URLSearchParams(window.location.search);
+            if (!searchParams.get('edit')) {
+              router.replace('/admin/dashboard');
+              return;
+            }
+          }
         } else if (effectiveEmail) {
           // Pre-populate sensible defaults from admin email prefix
           const emailPrefix = effectiveEmail.split('@')[0];

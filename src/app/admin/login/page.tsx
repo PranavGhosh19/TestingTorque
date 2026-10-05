@@ -135,8 +135,20 @@ export default function DedicatedAdminLoginPage() {
       recordAdminLoginToFirestore(adminUser, authUserEmail).catch(console.warn);
       recordUserLogin(adminUser, 'admin_console').catch(console.warn);
 
-      // 3. Redirect to dedicated Profile Creation page to complete / verify profile details
-      router.push('/admin/profile-creation');
+      // 3. If admin has already saved profile data in Firestore, go straight to dashboard
+      const hasSavedProfile = Boolean(
+        existingManagerData &&
+          (existingManagerData.fullName || existingManagerData.aadhaarNumber || existingManagerData.phoneNumber)
+      );
+
+      if (hasSavedProfile) {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('torque_admin_profile_completed', 'true');
+        }
+        router.push('/admin/dashboard');
+      } else {
+        router.push('/admin/profile-creation');
+      }
     } catch (err: any) {
       console.error('Admin login error:', err);
       setError(err?.message || 'Authentication failed. Please check your credentials.');
