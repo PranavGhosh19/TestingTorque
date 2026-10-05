@@ -430,7 +430,6 @@ function ManageWashersModal({
           <p className="text-xs text-slate-500 mt-0.5">
             Toggle washers for{' '}
             <span className="font-bold text-[#0B132B]">{society.name}</span>
-            <span className="ml-1.5 text-[10px] font-mono text-slate-400">({society.societyId})</span>
           </p>
         </div>
 
@@ -474,7 +473,6 @@ function ManageWashersModal({
 
                 <div className="flex-1 min-w-0">
                   <div className="font-bold text-sm text-[#0B132B] truncate">{washer.name}</div>
-                  <div className="text-[10px] text-slate-400 font-mono truncate">{washer.id}</div>
                   {isAssigned && (
                     <div className="text-[10px] text-emerald-600 font-semibold mt-0.5 flex items-center gap-1">
                       <CheckCircle2 className="w-3 h-3" />
@@ -705,7 +703,6 @@ export default function AdminSocietiesPage() {
                               <MapPin className="w-3 h-3" />
                               {society.district ? `${society.district}, ` : ''}{society.city}, {society.state}
                             </span>
-                            <span className="font-mono text-slate-400">{society.societyId}</span>
                             <span className="flex items-center gap-1 text-slate-500 font-medium">
                               <Users className="w-3 h-3" />
                               {loadingWashers ? '…' : washerCount} washer{washerCount !== 1 ? 's' : ''} assigned

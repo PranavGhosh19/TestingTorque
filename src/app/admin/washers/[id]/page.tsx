@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useParams } from 'next/navigation';
@@ -35,25 +35,141 @@ import {
   Eye,
   UserCheck,
   Lock,
+  Plus,
+  Loader2,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
-import { washerPartners, getWasherById } from '@/lib/washerPartners';
+import { washerPartners, getWasherById, WasherPartner } from '@/lib/washerPartners';
 import { useStore } from '@/lib/store';
 import AppointWasherModal from '@/components/modals/AppointWasherModal';
 import DismissWasherModal from '@/components/modals/DismissWasherModal';
+import { encryptWasherId, decryptWasherId } from '@/lib/idSecurity';
+import {
+  fetchAllSocieties,
+  fetchAllWashersFromFirestore,
+  assignWasherToSociety,
+  removeWasherFromSociety,
+  FirestoreSociety,
+} from '@/lib/firebaseService';
 
 export default function WasherProfileDetailPage() {
   const params = useParams();
-  const id = (params?.id as string) || '';
-  const { washers, vehicles, routeStops, reinstateWasher, user, role } = useStore();
-  const washer = washers.find((w) => w.id === id) || getWasherById(id);
+  const rawParam = (params?.id as string) || '';
+  const id = decryptWasherId(rawParam);
+
+  const { washers, setWashers, vehicles, routeStops, reinstateWasher, user, role } = useStore();
+
+  const [remoteWasher, setRemoteWasher] = useState<WasherPartner | null>(null);
+  const [loadingRemote, setLoadingRemote] = useState(true);
+  const [allSocieties, setAllSocieties] = useState<FirestoreSociety[]>([]);
+  const [isAddSocietyModalOpen, setIsAddSocietyModalOpen] = useState(false);
+  const [selectedSocietyToAdd, setSelectedSocietyToAdd] = useState('');
+  const [isAddingSociety, setIsAddingSociety] = useState(false);
+  const [addSocietyError, setAddSocietyError] = useState('');
+  const [removingSocietyId, setRemovingSocietyId] = useState<string | null>(null);
+
+  // Automatically ensure URL in address bar is encrypted without reload
+  useEffect(() => {
+    if (rawParam && !rawParam.startsWith('enc_') && id) {
+      const encrypted = encryptWasherId(id);
+      if (typeof window !== 'undefined') {
+        window.history.replaceState(null, '', `/admin/washers/${encrypted}`);
+      }
+    }
+  }, [rawParam, id]);
+
+  // Load latest washer and societies from Firestore
+  useEffect(() => {
+    let isMounted = true;
+    async function loadRemoteData() {
+      if (!id) {
+        setLoadingRemote(false);
+        return;
+      }
+      try {
+        const [washersList, societiesList] = await Promise.all([
+          fetchAllWashersFromFirestore(),
+          fetchAllSocieties(),
+        ]);
+        if (isMounted) {
+          if (societiesList && societiesList.length > 0) {
+            setAllSocieties(societiesList);
+          }
+          const matched = washersList.find((w) => w.id === id);
+          if (matched) {
+            setRemoteWasher(matched);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch washer or societies from Firestore:', err);
+      } finally {
+        if (isMounted) setLoadingRemote(false);
+      }
+    }
+    loadRemoteData();
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  const baseWasher = washers.find((w) => w.id === id) || getWasherById(id);
+  const washer: WasherPartner | null = remoteWasher || baseWasher || null;
+
+  // Build mapping from society ID to Society Name
+  const societyMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    allSocieties.forEach((s) => {
+      if (s.societyId) {
+        map[s.societyId] = s.name;
+        map[s.societyId.toLowerCase()] = s.name;
+      }
+    });
+    return map;
+  }, [allSocieties]);
+
+  const resolveSocietyName = useCallback(
+    (idOrName: string) => {
+      if (!idOrName) return '';
+      const trimmed = idOrName.trim();
+      if (societyMap[trimmed]) return societyMap[trimmed];
+      if (societyMap[trimmed.toLowerCase()]) return societyMap[trimmed.toLowerCase()];
+      const match = allSocieties.find(
+        (s) =>
+          s.societyId.toLowerCase() === trimmed.toLowerCase() ||
+          s.name.toLowerCase() === trimmed.toLowerCase()
+      );
+      if (match) return match.name;
+      return trimmed;
+    },
+    [societyMap, allSocieties]
+  );
+
+  const assignedSocietyIds = useMemo(() => {
+    if (!washer) return [];
+    if (washer.societies && washer.societies.length > 0) {
+      return washer.societies;
+    }
+    if (washer.society) {
+      return washer.society.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+  }, [washer]);
+
+  const availableSocietiesToAdd = useMemo(() => {
+    const assignedLower = new Set(assignedSocietyIds.map((s) => s.toLowerCase()));
+    return allSocieties.filter(
+      (s) =>
+        !assignedLower.has(s.societyId.toLowerCase()) &&
+        !assignedLower.has(s.name.toLowerCase())
+    );
+  }, [allSocieties, assignedSocietyIds]);
 
   const currentAdminId =
     user?.uid ||
     user?.id ||
     (typeof window !== 'undefined' ? localStorage.getItem('torque_admin_uid') : null) ||
     'admin-lead-1';
-  const isCreatedByMe = washer ? (!washer.createdBy || washer.createdBy === currentAdminId) : false;
+  const isCreatedByMe = washer ? !washer.createdBy || washer.createdBy === currentAdminId : false;
 
   const [selectedDisbursement, setSelectedDisbursement] = useState<string | null>(null);
   const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
@@ -76,9 +192,25 @@ export default function WasherProfileDetailPage() {
   const appointedVehicles = useMemo(() => {
     if (!washer) return [];
     return vehicles.filter(
-      (v) => v.assigned_washer_id === washer.id || (v as unknown as { washerId?: string }).washerId === washer.id
+      (v) =>
+        v.assigned_washer_id === washer.id ||
+        (v as unknown as { washerId?: string }).washerId === washer.id
     );
   }, [vehicles, washer]);
+
+  if (!washer && loadingRemote) {
+    return (
+      <div className="flex min-h-screen bg-[#F5F7FA]">
+        <AdminSidebar />
+        <main className="flex-1 p-10 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 text-emerald-600 animate-spin" />
+            <p className="text-xs text-slate-500 font-medium">Loading washer profile…</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!washer) {
     return (
@@ -113,12 +245,81 @@ export default function WasherProfileDetailPage() {
     setIsAppointModalOpen(true);
   };
 
+  const handleAddSocietySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedSocietyToAdd || !washer) return;
+    setIsAddingSociety(true);
+    setAddSocietyError('');
+
+    const res = await assignWasherToSociety(washer.id, selectedSocietyToAdd);
+    setIsAddingSociety(false);
+
+    if (!res.success) {
+      setAddSocietyError(res.error || 'Failed to assign society.');
+      return;
+    }
+
+    const updatedSocieties = Array.from(new Set([...assignedSocietyIds, selectedSocietyToAdd]));
+    const updatedWasher: WasherPartner = {
+      ...washer,
+      societies: updatedSocieties,
+      society: updatedSocieties.map(resolveSocietyName).join(', '),
+    };
+    setRemoteWasher(updatedWasher);
+
+    const updatedStore = washers.map((w) => (w.id === washer.id ? updatedWasher : w));
+    setWashers(updatedStore);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('torque_washers', JSON.stringify(updatedStore));
+      } catch (err) {}
+    }
+
+    setSelectedSocietyToAdd('');
+    setIsAddSocietyModalOpen(false);
+  };
+
+  const handleRemoveSociety = async (socId: string) => {
+    if (!washer) return;
+    const socName = resolveSocietyName(socId);
+    if (!confirm(`Are you sure you want to remove "${socName}" from ${washer.name}'s profile?`)) {
+      return;
+    }
+
+    setRemovingSocietyId(socId);
+    const res = await removeWasherFromSociety(washer.id, socId);
+    setRemovingSocietyId(null);
+
+    if (!res.success) {
+      alert(res.error || 'Failed to remove society.');
+      return;
+    }
+
+    const updatedSocieties = assignedSocietyIds.filter(
+      (s) => s.toLowerCase() !== socId.toLowerCase()
+    );
+    const updatedWasher: WasherPartner = {
+      ...washer,
+      societies: updatedSocieties,
+      society: updatedSocieties.map(resolveSocietyName).join(', '),
+    };
+    setRemoteWasher(updatedWasher);
+
+    const updatedStore = washers.map((w) => (w.id === washer.id ? updatedWasher : w));
+    setWashers(updatedStore);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('torque_washers', JSON.stringify(updatedStore));
+      } catch (err) {}
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-[#F5F7FA]">
       <AdminSidebar />
 
       <main className="flex-1 pt-9 px-4 pb-6 sm:p-6 lg:p-10 space-y-8 overflow-y-auto pt-[max(env(safe-area-inset-top),2.25rem)]">
-        {/* Breadcrumb Navigation */}
+        {/* Breadcrumb Navigation - Partner ID is hidden from the UI */}
         <div className="flex items-center justify-between">
           <Link
             href="/admin/washers"
@@ -127,10 +328,6 @@ export default function WasherProfileDetailPage() {
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
             <span>Back to Washer Network</span>
           </Link>
-
-          <span className="text-[11px] font-mono font-bold text-slate-400 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-            Partner ID: {washer.id}
-          </span>
         </div>
 
         {/* DISMISSAL BANNER (If Dismissed) */}
@@ -179,7 +376,9 @@ export default function WasherProfileDetailPage() {
             <div className="flex items-center gap-2.5">
               <Lock className="w-4 h-4 text-amber-600 shrink-0" />
               <span>
-                <strong>Ownership Restriction:</strong> This washer partner was onboarded by Admin <strong>{washer.createdBy}</strong>. You have read-only audit access. Only the creating Admin can appoint vehicles or dismiss this partner.
+                <strong>Ownership Restriction:</strong> This washer partner was onboarded by Admin{' '}
+                <strong>{washer.createdBy}</strong>. You have read-only audit access. Only the creating
+                Admin can appoint vehicles or dismiss this partner.
               </span>
             </div>
             <span className="font-mono text-[10px] bg-white text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold shrink-0">
@@ -189,20 +388,28 @@ export default function WasherProfileDetailPage() {
         )}
 
         {/* Profile Hero Header Card */}
-        <div className={`premium-card p-6 sm:p-8 bg-white border shadow-xs relative overflow-hidden ${
-          isDismissed ? 'border-red-300' : 'border-slate-200/90'
-        }`}>
+        <div
+          className={`premium-card p-6 sm:p-8 bg-white border shadow-xs relative overflow-hidden ${
+            isDismissed ? 'border-red-300' : 'border-slate-200/90'
+          }`}
+        >
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
             <div className="flex items-center gap-5">
-              <div className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl overflow-hidden border-3 shadow-md shrink-0 ${
-                isDismissed ? 'border-red-500 grayscale' : 'border-emerald-500'
-              }`}>
-                <Image
-                  src={washer.avatar}
-                  alt={washer.name}
-                  fill
-                  className="object-cover"
-                />
+              <div
+                className={`relative w-20 h-20 sm:w-24 sm:h-24 rounded-3xl overflow-hidden border-3 shadow-md shrink-0 flex items-center justify-center font-black text-xl text-white ${
+                  isDismissed ? 'border-red-500 bg-slate-400 grayscale' : 'border-emerald-500 bg-blue-600'
+                }`}
+              >
+                {washer.avatar && !washer.avatar.includes('washer_amit') ? (
+                  <Image
+                    src={washer.avatar}
+                    alt={washer.name}
+                    fill
+                    className="object-cover"
+                  />
+                ) : (
+                  <span>{washer.name.charAt(0).toUpperCase()}</span>
+                )}
               </div>
 
               <div className="space-y-1.5">
@@ -228,19 +435,36 @@ export default function WasherProfileDetailPage() {
                   <span className="flex items-center gap-1 text-amber-600 font-bold">
                     <Star className="w-4 h-4 fill-amber-500" /> {washer.rating} Rating ({washer.reviewsCount} reviews)
                   </span>
+
+                  {/* Assigned Societies Display (Names instead of IDs) */}
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <Building2 className="w-3.5 h-3.5 text-emerald-600" />
-                    {(washer.societies && washer.societies.length > 0
-                      ? washer.societies
-                      : washer.society
-                      ? washer.society.split(',').map((s) => s.trim()).filter(Boolean)
-                      : []
-                    ).map((soc, idx) => (
-                      <span key={idx} className="font-semibold text-slate-800 bg-slate-100 px-2 py-0.5 rounded-md text-xs border border-slate-200">
-                        {soc}
-                      </span>
-                    ))}
+                    <Building2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    {assignedSocietyIds.length > 0 ? (
+                      assignedSocietyIds.map((socId, idx) => (
+                        <span
+                          key={idx}
+                          className="font-semibold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded-md text-xs border border-slate-200"
+                        >
+                          {resolveSocietyName(socId)}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-slate-400 text-xs italic">No societies assigned</span>
+                    )}
+
+                    {isCreatedByMe && !isDismissed && (
+                      <button
+                        type="button"
+                        onClick={() => setIsAddSocietyModalOpen(true)}
+                        className="inline-flex items-center gap-1 px-2.5 py-0.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md cursor-pointer transition-colors"
+                        title="Add society to washer partner"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>Add Society</span>
+                      </button>
+                    )}
                   </div>
+
                   <span className="font-mono text-slate-600 flex items-center gap-1">
                     <Phone className="w-3.5 h-3.5 text-slate-400" /> {washer.phone}
                   </span>
@@ -335,6 +559,104 @@ export default function WasherProfileDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* SECTION: ASSIGNED SOCIETIES & SERVICE COVERAGE */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between text-xs font-mono font-bold uppercase tracking-wider text-slate-400 px-1">
+            <span className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-emerald-600" />
+              <span>Assigned Societies & Service Coverage</span>
+            </span>
+            {isCreatedByMe && !isDismissed && (
+              <button
+                type="button"
+                onClick={() => setIsAddSocietyModalOpen(true)}
+                className="text-emerald-700 font-sans font-bold hover:underline cursor-pointer flex items-center gap-1 text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Society to Profile</span>
+              </button>
+            )}
+          </div>
+
+          <div className="premium-card bg-white border border-slate-200/90 shadow-xs p-5 sm:p-6 rounded-2xl">
+            {assignedSocietyIds.length === 0 ? (
+              <div className="text-center py-8 space-y-2">
+                <Building2 className="w-10 h-10 text-slate-300 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-800">No Societies Assigned to {washer.name}</h4>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                  Assign societies to this partner profile so they can serve vehicle owners in those locations.
+                </p>
+                {isCreatedByMe && !isDismissed && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddSocietyModalOpen(true)}
+                    className="px-4 py-2 rounded-xl bg-[#0B132B] hover:bg-slate-800 text-white text-xs font-bold inline-flex items-center gap-1.5 mt-2 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4 text-emerald-400" />
+                    <span>Assign First Society</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {assignedSocietyIds.map((socId) => {
+                  const socMeta = allSocieties.find(
+                    (s) =>
+                      s.societyId.toLowerCase() === socId.toLowerCase() ||
+                      s.name.toLowerCase() === socId.toLowerCase()
+                  );
+                  const displayName = socMeta?.name || resolveSocietyName(socId);
+                  const locationStr = [socMeta?.district, socMeta?.city, socMeta?.state]
+                    .filter(Boolean)
+                    .join(', ');
+                  const isRemovingThis = removingSocietyId === socId;
+
+                  return (
+                    <div
+                      key={socId}
+                      className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-start justify-between gap-3 hover:border-emerald-300 transition-all"
+                    >
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 mt-0.5">
+                          <Building2 className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <h4 className="text-sm font-bold text-[#0B132B] truncate">{displayName}</h4>
+                          {locationStr && (
+                            <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                              <span className="truncate">{locationStr}</span>
+                            </p>
+                          )}
+                          <span className="inline-block text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 mt-2">
+                            Assigned Partner
+                          </span>
+                        </div>
+                      </div>
+
+                      {isCreatedByMe && !isDismissed && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveSociety(socId)}
+                          disabled={isRemovingThis}
+                          title="Remove society from washer profile"
+                          className="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                        >
+                          {isRemovingThis ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-500" />
+                          ) : (
+                            <X className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* SECTION: LIVE ROUTE & TODAY'S WASH PROOFS TRACKING */}
         <section className="space-y-4">
@@ -809,6 +1131,87 @@ export default function WasherProfileDetailPage() {
         washer={washer}
       />
 
+      {/* Add Society to Profile Modal */}
+      {isAddSocietyModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 relative animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => {
+                setIsAddSocietyModalOpen(false);
+                setAddSocietyError('');
+              }}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 rounded-xl bg-[#0B132B] text-white flex items-center justify-center shrink-0">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-[#0B132B]">Add Society to Profile</h3>
+                <p className="text-xs text-slate-500">Assign a new society to {washer.name}</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleAddSocietySubmit} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
+                  Select Society <span className="text-rose-500">*</span>
+                </label>
+                <select
+                  value={selectedSocietyToAdd}
+                  onChange={(e) => setSelectedSocietyToAdd(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] transition-all cursor-pointer"
+                  required
+                >
+                  <option value="">-- Choose a Society --</option>
+                  {availableSocietiesToAdd.map((s) => (
+                    <option key={s.societyId} value={s.societyId}>
+                      {s.name} ({[s.district, s.city].filter(Boolean).join(', ')})
+                    </option>
+                  ))}
+                </select>
+                {availableSocietiesToAdd.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1.5">
+                    All available societies are already assigned to this partner.
+                  </p>
+                )}
+              </div>
+
+              {addSocietyError && (
+                <div className="flex items-center gap-2 text-rose-600 text-xs font-medium bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{addSocietyError}</span>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsAddSocietyModalOpen(false);
+                    setAddSocietyError('');
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAddingSociety || !selectedSocietyToAdd || availableSocietiesToAdd.length === 0}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#0B132B] hover:bg-slate-800 disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer"
+                >
+                  {isAddingSociety && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>{isAddingSociety ? 'Assigning…' : 'Add Society'}</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Full Photo Audit Lightbox */}
       {previewPhoto && (
         <div
@@ -827,7 +1230,7 @@ export default function WasherProfileDetailPage() {
               <button
                 type="button"
                 onClick={() => setPreviewPhoto(null)}
-                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white"
+                className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -850,4 +1253,3 @@ export default function WasherProfileDetailPage() {
     </div>
   );
 }
-

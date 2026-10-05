@@ -20,6 +20,7 @@ import {
 import AdminSidebar from '@/components/AdminSidebar';
 import { WasherPartner, PayoutDisbursement } from '@/lib/washerPartners';
 import { useStore } from '@/lib/store';
+import { encryptWasherId } from '@/lib/idSecurity';
 
 interface FlatDisbursement extends PayoutDisbursement {
   washerId: string;
@@ -255,7 +256,7 @@ export default function AdminPayoutsPage() {
                 {topEarner ? (
                   <>
                     <Link
-                      href={`/admin/washers/${topEarner.id}`}
+                      href={`/admin/washers/${encryptWasherId(topEarner.id)}`}
                       className="font-bold text-amber-900 hover:text-amber-700 flex items-center gap-1 group-hover:underline"
                     >
                       <span>{topEarner.name}</span>
@@ -354,7 +355,7 @@ export default function AdminPayoutsPage() {
                       <tr key={d.id} className="hover:bg-slate-50/80 transition-colors">
                         <td className="px-5 py-4">
                           <Link
-                            href={`/admin/washers/${d.washerId}`}
+                            href={`/admin/washers/${encryptWasherId(d.washerId)}`}
                             className="font-extrabold text-slate-900 hover:text-blue-600 flex items-center gap-1.5"
                           >
                             <span>{d.washerName}</span>

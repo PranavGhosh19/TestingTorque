@@ -41,6 +41,7 @@ import {
 import OnboardWasherModal from '@/components/modals/OnboardWasherModal';
 import AppointWasherModal from '@/components/modals/AppointWasherModal';
 import DismissWasherModal from '@/components/modals/DismissWasherModal';
+import { encryptWasherId } from '@/lib/idSecurity';
 
 export default function AdminWashersPage() {
   const { washers, setWashers, routeStops, reinstateWasher, deleteWasher, user, role } = useStore();
@@ -470,7 +471,7 @@ export default function AdminWashersPage() {
                     {/* Header Info */}
                     <div className="flex items-start justify-between gap-3">
                       <Link
-                        href={`/admin/washers/${w.id}`}
+                        href={`/admin/washers/${encryptWasherId(w.id)}`}
                         className="flex items-center gap-3.5 group/link cursor-pointer"
                       >
                         <div className={`relative w-14 h-14 rounded-2xl overflow-hidden border-2 shadow-xs shrink-0 flex items-center justify-center font-extrabold text-base ${
@@ -689,7 +690,7 @@ export default function AdminWashersPage() {
                   {/* MANAGER ACTIONS BAR */}
                   <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-2 flex-wrap">
                     <Link
-                      href={`/admin/washers/${w.id}`}
+                      href={`/admin/washers/${encryptWasherId(w.id)}`}
                       className="text-xs font-bold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 group/btn"
                     >
                       <span>Full Audit & Proofs</span>
