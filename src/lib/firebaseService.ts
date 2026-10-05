@@ -695,46 +695,91 @@ export async function findWasherByPhoneInFirestore(phone: string): Promise<Washe
 
     const washersRef = collection(db, 'Washers');
 
-    // 1. Direct phone query
-    const q = query(washersRef, where('phone', '==', phone));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const docSnap = snap.docs[0];
-      return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+    // 1. Direct phone query on Washers
+    try {
+      const q = query(washersRef, where('phone', '==', phone));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const docSnap = snap.docs[0];
+        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+      }
+    } catch (e: any) {
+      console.warn('findWasherByPhone query 1 warning:', e?.message || e);
     }
 
     if (last10) {
-      // 2. Query with +91 format
-      const q2 = query(washersRef, where('phone', '==', `+91 ${last10}`));
-      const snap2 = await getDocs(q2);
-      if (!snap2.empty) {
-        const docSnap = snap2.docs[0];
-        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+      const variants = [`+91 ${last10}`, `+91${last10}`, last10];
+      for (const variant of variants) {
+        try {
+          const qVar = query(washersRef, where('phone', '==', variant));
+          const snapVar = await getDocs(qVar);
+          if (!snapVar.empty) {
+            const docSnap = snapVar.docs[0];
+            return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+          }
+        } catch (e) {}
       }
 
-      // 3. Query with +91 without space
-      const q3 = query(washersRef, where('phone', '==', `+91${last10}`));
-      const snap3 = await getDocs(q3);
-      if (!snap3.empty) {
-        const docSnap = snap3.docs[0];
-        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
-      }
+      try {
+        const qRaw = query(washersRef, where('phone_raw', '==', last10));
+        const snapRaw = await getDocs(qRaw);
+        if (!snapRaw.empty) {
+          const docSnap = snapRaw.docs[0];
+          return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+        }
+      } catch (e) {}
+    }
 
-      // 4. Query with phone_raw field
-      const q4 = query(washersRef, where('phone_raw', '==', last10));
-      const snap4 = await getDocs(q4);
-      if (!snap4.empty) {
-        const docSnap = snap4.docs[0];
-        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
-      }
+    // 2. Fallback: check washer_directory
+    try {
+      const dirRef = collection(db, 'washer_directory');
+      const dirSnap = await getDocs(dirRef);
+      for (const d of dirSnap.docs) {
+        const data = d.data();
+        const dPhone = (data.phone || '').replace(/\D/g, '');
+        if (last10 && dPhone.endsWith(last10)) {
+          const washerId = d.id || data.washerId || data.id;
+          try {
+            const fullDoc = await getDoc(doc(db, 'Washers', washerId));
+            if (fullDoc.exists()) {
+              return { id: fullDoc.id, ...fullDoc.data() } as WasherPartner;
+            }
+          } catch (err) {}
 
-      // 5. Query with raw 10 digits
-      const q5 = query(washersRef, where('phone', '==', last10));
-      const snap5 = await getDocs(q5);
-      if (!snap5.empty) {
-        const docSnap = snap5.docs[0];
-        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+          return {
+            id: washerId,
+            name: data.name || 'Washer Partner',
+            phone: data.phone || phone,
+            email: data.email || null,
+            society: data.society || (Array.isArray(data.societies) ? data.societies.join(', ') : ''),
+            societies: Array.isArray(data.societies) ? data.societies : [],
+            status: data.status || 'Active on Route',
+            rating: data.rating || '5.0',
+            reviewsCount: data.reviewsCount || 1,
+            routeWindow: data.routeWindow || '06:30 AM - 09:30 AM',
+            completionRate: data.completionRate || '100%',
+            avatar: data.avatar || data.photoURL || '/images/washer_amit.jpg',
+            password: data.password,
+            hasPassword: Boolean(data.hasPassword || data.has_password || data.password),
+          } as WasherPartner;
+        }
       }
+    } catch (e: any) {
+      console.warn('findWasherByPhone directory fallback warning:', e?.message || e);
+    }
+
+    // 3. Fallback: collection scan of Washers
+    try {
+      const allWashers = await getDocs(washersRef);
+      for (const d of allWashers.docs) {
+        const data = d.data();
+        const dPhone = (data.phone || data.phone_raw || '').replace(/\D/g, '');
+        if (last10 && dPhone.endsWith(last10)) {
+          return { id: d.id, ...data } as WasherPartner;
+        }
+      }
+    } catch (e: any) {
+      console.warn('findWasherByPhone full scan warning:', e?.message || e);
     }
 
     return null;
@@ -746,19 +791,134 @@ export async function findWasherByPhoneInFirestore(phone: string): Promise<Washe
 
 /**
  * Finds an onboarded WasherPartner by email address in Firestore.
+ * Performs multi-layer resolution across Washers collection and washer_directory.
  */
 export async function findWasherByEmailInFirestore(email: string): Promise<WasherPartner | null> {
   try {
-    const cleanEmail = email.toLowerCase().trim();
+    const rawEmail = (email || '').trim();
+    const cleanEmail = rawEmail.toLowerCase();
     if (!cleanEmail) return null;
 
     const washersRef = collection(db, 'Washers');
-    const q = query(washersRef, where('email', '==', cleanEmail));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      const docSnap = snap.docs[0];
-      return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+
+    // 1. Direct query in Washers collection by lowercase email
+    try {
+      const q = query(washersRef, where('email', '==', cleanEmail));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        const docSnap = snap.docs[0];
+        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+      }
+    } catch (e: any) {
+      console.warn('findWasherByEmail query 1 warning:', e?.message || e);
     }
+
+    // 2. Direct query with raw email casing
+    if (rawEmail !== cleanEmail) {
+      try {
+        const qRaw = query(washersRef, where('email', '==', rawEmail));
+        const snapRaw = await getDocs(qRaw);
+        if (!snapRaw.empty) {
+          const docSnap = snapRaw.docs[0];
+          return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+        }
+      } catch (e: any) {
+        console.warn('findWasherByEmail query 2 warning:', e?.message || e);
+      }
+    }
+
+    // 3. Query public-readable washer_directory collection
+    try {
+      const dirRef = collection(db, 'washer_directory');
+      const qDir = query(dirRef, where('email', '==', cleanEmail));
+      const snapDir = await getDocs(qDir);
+      if (!snapDir.empty) {
+        const dirData = snapDir.docs[0].data();
+        const washerId = snapDir.docs[0].id || dirData.washerId || dirData.id;
+
+        // Attempt to fetch full operational record from Washers
+        if (washerId) {
+          try {
+            const fullDoc = await getDoc(doc(db, 'Washers', washerId));
+            if (fullDoc.exists()) {
+              return { id: fullDoc.id, ...fullDoc.data() } as WasherPartner;
+            }
+          } catch (e) {}
+        }
+
+        // Return synthesized WasherPartner from washer_directory
+        return {
+          id: washerId,
+          name: dirData.name || 'Washer Partner',
+          phone: dirData.phone || '',
+          email: dirData.email || cleanEmail,
+          society: dirData.society || (Array.isArray(dirData.societies) ? dirData.societies.join(', ') : ''),
+          societies: Array.isArray(dirData.societies) ? dirData.societies : [],
+          status: dirData.status || 'Active on Route',
+          rating: dirData.rating || '5.0',
+          reviewsCount: dirData.reviewsCount || 1,
+          routeWindow: dirData.routeWindow || '06:30 AM - 09:30 AM',
+          completionRate: dirData.completionRate || '100%',
+          avatar: dirData.avatar || dirData.photoURL || '/images/washer_amit.jpg',
+          password: dirData.password,
+          hasPassword: Boolean(dirData.hasPassword || dirData.has_password || dirData.password),
+        } as WasherPartner;
+      }
+    } catch (e: any) {
+      console.warn('findWasherByEmail directory warning:', e?.message || e);
+    }
+
+    // 4. Fallback: collection scan of Washers (in case of whitespace, index lag or casing)
+    try {
+      const allWashers = await getDocs(washersRef);
+      for (const d of allWashers.docs) {
+        const data = d.data();
+        const docEmail = (data.email || '').toString().toLowerCase().trim();
+        if (docEmail === cleanEmail) {
+          return { id: d.id, ...data } as WasherPartner;
+        }
+      }
+    } catch (e: any) {
+      console.warn('findWasherByEmail scan 1 warning:', e?.message || e);
+    }
+
+    // 5. Fallback: collection scan of washer_directory
+    try {
+      const allDir = await getDocs(collection(db, 'washer_directory'));
+      for (const d of allDir.docs) {
+        const data = d.data();
+        const docEmail = (data.email || '').toString().toLowerCase().trim();
+        if (docEmail === cleanEmail) {
+          const washerId = d.id || data.washerId || data.id;
+          try {
+            const fullDoc = await getDoc(doc(db, 'Washers', washerId));
+            if (fullDoc.exists()) {
+              return { id: fullDoc.id, ...fullDoc.data() } as WasherPartner;
+            }
+          } catch (err) {}
+
+          return {
+            id: washerId,
+            name: data.name || 'Washer Partner',
+            phone: data.phone || '',
+            email: data.email || cleanEmail,
+            society: data.society || (Array.isArray(data.societies) ? data.societies.join(', ') : ''),
+            societies: Array.isArray(data.societies) ? data.societies : [],
+            status: data.status || 'Active on Route',
+            rating: data.rating || '5.0',
+            reviewsCount: data.reviewsCount || 1,
+            routeWindow: data.routeWindow || '06:30 AM - 09:30 AM',
+            completionRate: data.completionRate || '100%',
+            avatar: data.avatar || data.photoURL || '/images/washer_amit.jpg',
+            password: data.password,
+            hasPassword: Boolean(data.hasPassword || data.has_password || data.password),
+          } as WasherPartner;
+        }
+      }
+    } catch (e: any) {
+      console.warn('findWasherByEmail scan 2 warning:', e?.message || e);
+    }
+
     return null;
   } catch (error: any) {
     console.warn('Firebase findWasherByEmailInFirestore notice:', error?.message || error);
@@ -767,7 +927,7 @@ export async function findWasherByEmailInFirestore(email: string): Promise<Washe
 }
 
 /**
- * Saves or updates a Washer Partner's secret password in Firestore Washers collection.
+ * Saves or updates a Washer Partner's secret password in Firestore Washers & washer_directory collections.
  */
 export async function setWasherPasswordInFirestore(
   phoneOrIdOrEmail: string,
@@ -775,54 +935,47 @@ export async function setWasherPasswordInFirestore(
 ): Promise<{ success: boolean; washerId?: string; washerName?: string; error?: string }> {
   try {
     const rawInput = phoneOrIdOrEmail.trim();
-    const cleanDigits = rawInput.replace(/\D/g, '');
-    const washersRef = collection(db, 'Washers');
-
     let targetDocId: string | null = null;
     let existingData: any = null;
 
-    // 1. Check if email
-    if (rawInput.includes('@')) {
-      const qEmail = query(washersRef, where('email', '==', rawInput.toLowerCase()));
-      const snapEmail = await getDocs(qEmail);
-      if (!snapEmail.empty) {
-        targetDocId = snapEmail.docs[0].id;
-        existingData = snapEmail.docs[0].data();
-      }
-    }
-
-    // 2. Check if direct doc ID
-    if (!targetDocId && !rawInput.startsWith('+') && cleanDigits.length !== 10) {
-      const docRef = doc(db, 'Washers', rawInput);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        targetDocId = docSnap.id;
-        existingData = docSnap.data();
-      }
-    }
-
-    // 3. Query by phone if not found by direct ID or email
-    if (!targetDocId && cleanDigits.length >= 10) {
-      const last10 = cleanDigits.slice(-10);
-      const q = query(washersRef, where('phone', '==', `+91 ${last10}`));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        targetDocId = snap.docs[0].id;
-        existingData = snap.docs[0].data();
-      } else {
-        const q2 = query(washersRef, where('phone_raw', '==', last10));
-        const snap2 = await getDocs(q2);
-        if (!snap2.empty) {
-          targetDocId = snap2.docs[0].id;
-          existingData = snap2.docs[0].data();
-        } else {
-          const q3 = query(washersRef, where('phone', '==', `+91${last10}`));
-          const snap3 = await getDocs(q3);
-          if (!snap3.empty) {
-            targetDocId = snap3.docs[0].id;
-            existingData = snap3.docs[0].data();
-          }
+    // 1. Direct doc ID check
+    if (!rawInput.includes('@') && !rawInput.startsWith('+') && rawInput.replace(/\D/g, '').length !== 10) {
+      try {
+        const docRef = doc(db, 'Washers', rawInput);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          targetDocId = docSnap.id;
+          existingData = docSnap.data();
         }
+      } catch (e) {}
+
+      if (!targetDocId) {
+        try {
+          const dirRef = doc(db, 'washer_directory', rawInput);
+          const dirSnap = await getDoc(dirRef);
+          if (dirSnap.exists()) {
+            targetDocId = dirSnap.id;
+            existingData = dirSnap.data();
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 2. Email lookup
+    if (!targetDocId && rawInput.includes('@')) {
+      const washer = await findWasherByEmailInFirestore(rawInput);
+      if (washer?.id) {
+        targetDocId = washer.id;
+        existingData = washer;
+      }
+    }
+
+    // 3. Phone lookup
+    if (!targetDocId) {
+      const washer = await findWasherByPhoneInFirestore(rawInput);
+      if (washer?.id) {
+        targetDocId = washer.id;
+        existingData = washer;
       }
     }
 
@@ -830,19 +983,41 @@ export async function setWasherPasswordInFirestore(
       return { success: false, error: 'Washer partner record not found in database.' };
     }
 
-    const targetRef = doc(db, 'Washers', targetDocId);
-    await setDoc(
-      targetRef,
-      {
-        password: newPassword,
-        hasPassword: true,
-        has_password: true,
-        password_set_at: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    // 4. Save to Washers collection
+    try {
+      const targetRef = doc(db, 'Washers', targetDocId);
+      await setDoc(
+        targetRef,
+        {
+          password: newPassword,
+          hasPassword: true,
+          has_password: true,
+          password_set_at: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          updated_at: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (wErr: any) {
+      console.warn('Saving password to Washers warning:', wErr?.message || wErr);
+    }
+
+    // 5. Also sync password state to washer_directory
+    try {
+      const dirRef = doc(db, 'washer_directory', targetDocId);
+      await setDoc(
+        dirRef,
+        {
+          password: newPassword,
+          hasPassword: true,
+          has_password: true,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (dirErr: any) {
+      console.warn('Saving password to washer_directory notice:', dirErr?.message || dirErr);
+    }
 
     return {
       success: true,

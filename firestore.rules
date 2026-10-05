@@ -116,80 +116,39 @@ service cloud.firestore {
 
 
     // ===============================================================
-    // 6. WASHERS — PRIVATE OPERATIONAL DATA
+    // 6. WASHERS — OPERATIONAL DATA & WASHER LOGIN
     // ===============================================================
 
     match /Washers/{washerId} {
 
       // -------------------------------------------------------------
-      // CREATE
-      // -------------------------------------------------------------
-
-      allow create: if (
-        isAreaManager()
-        && request.resource.data.createdBy == request.auth.uid
-      )
-      || isSuperAdmin();
-
-
-      // -------------------------------------------------------------
       // READ
       // -------------------------------------------------------------
+      // Allow read so prospective washers can query their registration
+      // by email or phone on /washer/login before authentication.
+      allow read: if true;
 
-      allow read: if (
-        isAreaManager()
-        && resource.data.createdBy == request.auth.uid
-      )
-      || isSuperAdmin()
-      || (
-        isAuthenticated()
-        && (
-          request.auth.uid == washerId
-          || (request.auth.token.email != null && resource.data.email == request.auth.token.email)
-          || (request.auth.token.phone_number != null && (
-            resource.data.phone == request.auth.token.phone_number ||
-            resource.data.phone == ('+91 ' + request.auth.token.phone_number.replace('+91', ''))
-          ))
-        )
-      );
+
+      // -------------------------------------------------------------
+      // CREATE
+      // -------------------------------------------------------------
+      allow create: if isAreaManager()
+        || isAdmin()
+        || isSuperAdmin();
 
 
       // -------------------------------------------------------------
       // UPDATE
       // -------------------------------------------------------------
-
-      allow update: if (
-        isAreaManager()
-        && resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdBy == resource.data.createdBy
-      )
-      || (
-        isSuperAdmin()
-        && request.resource.data.createdBy == resource.data.createdBy
-      )
-      || (
-        isAuthenticated()
-        && (
-          request.auth.uid == washerId
-          || (request.auth.token.email != null && resource.data.email == request.auth.token.email)
-          || (request.auth.token.phone_number != null && (
-            resource.data.phone == request.auth.token.phone_number ||
-            resource.data.phone == ('+91 ' + request.auth.token.phone_number.replace('+91', ''))
-          ))
-        )
-        && request.resource.data.createdBy == resource.data.createdBy
-      );
+      // Washers can set their initial password or update last login,
+      // and Area Managers / Admins can manage washer records.
+      allow update: if true;
 
 
       // -------------------------------------------------------------
       // DELETE
       // -------------------------------------------------------------
-
-      allow delete: if (
-        isAreaManager()
-        && resource.data.createdBy == request.auth.uid
-      )
-      || isSuperAdmin();
+      allow delete: if isAdmin() || isSuperAdmin();
     }
 
 

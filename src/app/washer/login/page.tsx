@@ -21,6 +21,7 @@ import {
   findWasherByPhoneInFirestore,
   verifyWasherPasswordInFirestore,
   setWasherPasswordInFirestore,
+  fetchAllWashersFromFirestore,
   recordUserLogin,
 } from '@/lib/firebaseService';
 import { sendPhoneOtp, formatPhoneE164 } from '@/lib/firebaseAuth';
@@ -70,9 +71,19 @@ export default function DedicatedWasherLoginPage() {
       // Look up washer in Firestore by Email
       let washer = await findWasherByEmailInFirestore(cleanEmail);
 
-      // Fallback: check local store
+      // Fallback 1: check local store
       if (!washer) {
         washer = washers.find((w) => (w.email || '').toLowerCase().trim() === cleanEmail) || null;
+      }
+
+      // Fallback 2: fetch all washers directly from Firestore
+      if (!washer) {
+        try {
+          const allWashers = await fetchAllWashersFromFirestore();
+          washer = allWashers.find((w) => (w.email || '').toLowerCase().trim() === cleanEmail) || null;
+        } catch (e) {
+          // ignore
+        }
       }
 
       if (!washer) {
