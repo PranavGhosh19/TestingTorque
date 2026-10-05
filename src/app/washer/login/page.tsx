@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
   ShieldCheck,
@@ -10,7 +9,6 @@ import {
   Phone,
   CheckCircle2,
   AlertCircle,
-  CreditCard,
   Building2,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
@@ -123,20 +121,18 @@ export default function DedicatedWasherLoginPage() {
             </button>
           </form>
 
-          {/* New Washer Onboarding Link */}
-          <div className="pt-4 border-t border-white/10 text-center space-y-2">
-            <p className="text-[11px] text-slate-400 font-medium">
-              Not an active partner yet?
-            </p>
-            <div>
-              <Link
-                href="/auth/washer-onboarding"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
-              >
-                <CreditCard className="w-3.5 h-3.5" />
-                <span>Onboard with Aadhaar Card →</span>
-              </Link>
+          {/* Admin Onboarding Info */}
+          <div className="pt-4 border-t border-white/10 text-center space-y-1.5">
+            <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Verified Partner Network</span>
             </div>
+            <p className="text-[11px] text-slate-400 font-medium">
+              Washer partners are onboarded directly by Area Managers with verified Aadhaar e-KYC.
+            </p>
+            <p className="text-[10px] text-slate-500">
+              Contact your society operations supervisor for route activation.
+            </p>
           </div>
         </div>
       </div>

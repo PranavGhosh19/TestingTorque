@@ -14,7 +14,7 @@ export default function OnboardingPage() {
     if (selectedRole === 'owner') {
       router.push('/auth/signup');
     } else {
-      router.push('/auth/washer-onboarding');
+      router.push('/washer/login');
     }
   };
 
