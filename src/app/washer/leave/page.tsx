@@ -19,6 +19,7 @@ import {
   fetchWasherFromFirestore,
   fetchPeerWashersInSameSocieties,
   markWasherAbsentTodayInFirestore,
+  assignBackupWasherInFirestore,
 } from '@/lib/firebaseService';
 
 export default function WasherLeavePage() {
@@ -26,14 +27,16 @@ export default function WasherLeavePage() {
   const [currentWasher, setCurrentWasher] = useState<WasherPartner | null>(null);
   const [startDate, setStartDate] = useState('Today');
   const [endDate, setEndDate] = useState('Tomorrow');
+  const [leaveReason, setLeaveReason] = useState('Personal Leave / Route Coverage');
   const [selectedBackup, setSelectedBackup] = useState('');
   const [backupNetwork, setBackupNetwork] = useState<
-    { name: string; rating: string; activeCars: number | string; status: string }[]
+    { id: string; name: string; rating: string; activeCars: number | string; status: string }[]
   >([]);
   const [loadingPeers, setLoadingPeers] = useState(false);
   const [isAbsentTodayOnly, setIsAbsentTodayOnly] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
+  const [affectedCarsCount, setAffectedCarsCount] = useState<number>(0);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -65,6 +68,7 @@ export default function WasherLeavePage() {
             if (isSubscribed) {
               if (peers.length > 0) {
                 const mapped = peers.map((p) => ({
+                  id: p.id,
                   name: p.name,
                   rating: p.rating || '5.0',
                   activeCars: p.assignedCarsPerDay || 0,
@@ -82,7 +86,7 @@ export default function WasherLeavePage() {
               } else {
                 // Fallback default peer options if single washer in cluster
                 setBackupNetwork([
-                  { name: 'Society Area Backup', rating: '5.0', activeCars: 25, status: 'On Standby' }
+                  { id: 'wsh_area_backup', name: 'Society Area Backup', rating: '5.0', activeCars: 25, status: 'On Standby' }
                 ]);
                 setSelectedBackup('Society Area Backup');
               }
@@ -108,21 +112,42 @@ export default function WasherLeavePage() {
     setStartDate(todayFormatted);
     setEndDate(todayFormatted);
     setIsAbsentTodayOnly(true);
+    setLeaveReason('Absent Today (Single Day Absence)');
   };
 
   const handleConfirmLeave = async () => {
     setIsSubmitting(true);
     try {
       washerRequestLeave(startDate, endDate, selectedBackup || 'Society Area Backup');
-      
-      // If absent today only, also record in Firestore
-      if (isAbsentTodayOnly && currentWasher?.id) {
-        const todayIso = new Date().toISOString().split('T')[0];
-        await markWasherAbsentTodayInFirestore(currentWasher.id, todayIso);
+
+      const chosenBackup = backupNetwork.find((b) => b.name === selectedBackup) || backupNetwork[0];
+      const backupWasherId = chosenBackup?.id || (selectedBackup ? `wsh_${selectedBackup.toLowerCase().replace(/\s+/g, '_')}` : 'wsh_backup');
+
+      if (currentWasher?.id) {
+        const res = await assignBackupWasherInFirestore({
+          primaryWasherId: currentWasher.id,
+          primaryWasherName: currentWasher.name,
+          backupWasherId,
+          backupWasherName: selectedBackup || chosenBackup?.name || 'Backup Partner',
+          startDate,
+          endDate,
+          reason: leaveReason || (isAbsentTodayOnly ? 'Absent Today (1-Day Route Coverage)' : 'Planned Leave'),
+          initiatedBy: `${currentWasher.name} (Assigned Washer)`,
+        });
+
+        if (res.success) {
+          setAffectedCarsCount(res.affectedCount);
+        }
+
+        // If absent today only, also record in Firestore absentDates
+        if (isAbsentTodayOnly) {
+          const todayIso = new Date().toISOString().split('T')[0];
+          await markWasherAbsentTodayInFirestore(currentWasher.id, todayIso);
+        }
       }
       setConfirmed(true);
     } catch (e) {
-      console.error('Error confirming leave:', e);
+      console.error('Error confirming leave and assigning backup:', e);
       setConfirmed(true);
     } finally {
       setIsSubmitting(false);
@@ -317,6 +342,15 @@ export default function WasherLeavePage() {
               <div className="flex justify-between items-center">
                 <span className="text-slate-500">Assigned Society:</span>
                 <span className="font-bold text-slate-900" suppressHydrationWarning>{societyName}</span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-slate-200/60">
+                <span className="text-slate-500">Route Delegation:</span>
+                <span className="font-bold text-emerald-700">
+                  {affectedCarsCount > 0 ? `${affectedCarsCount} Vehicles Reassigned` : 'Live Route Reassigned'}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500 bg-white p-2.5 rounded-xl border border-slate-200/80">
+                ⚡ <strong>Instant Real-time Update:</strong> Admin notified, {selectedBackup} received new worklist, and customer dashboards updated.
               </div>
             </div>
 

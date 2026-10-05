@@ -1579,12 +1579,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       started_at: '7:40 AM',
       completed_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       location_verified: true,
-      latitude: 28.5355,
-      longitude: 77.3910,
       after_photo: afterImg,
       captured_at: new Date().toISOString(),
       is_sunday_priority: false,
-      is_backup_covered: false,
+      is_backup_covered: Boolean(currentStop?.is_backup_covered),
+      backup_washer_name: currentStop?.backup_washer_name || (currentStop?.is_backup_covered ? activeWasherName : undefined),
+      original_washer_name: currentStop?.original_washer_name,
+      original_washer_id: currentStop?.original_washer_id,
       offline_queued: isOffline,
     };
 

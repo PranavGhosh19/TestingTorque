@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage, auth } from './firebase';
-import { User, Vehicle, WashRecord, RouteStop } from './types';
+import { User, Vehicle, WashRecord, RouteStop, WasherSubstitutionAudit } from './types';
 import { WasherPartner } from './washerPartners';
 import { isWashFromToday, getTodayISTDate } from './washUtils';
 
@@ -1328,6 +1328,14 @@ export interface WasherDashboardData {
     earnedSoFar: number;
     totalExpectedPayout: number;
   };
+  isCoveredByBackup?: boolean;
+  backupCoverageDetails?: {
+    backupWasherName?: string;
+    backupWasherId?: string;
+    dates?: string;
+    reason?: string;
+  };
+  isCoveringBackup?: boolean;
 }
 
 /**
@@ -1362,15 +1370,39 @@ export async function fetchWasherDashboardDataFromFirestore(
         const vData = vDoc.data();
         const vId = vDoc.id;
 
-        // Check if assigned to this washer
-        const isAssigned = (
-          vData.washerId === assignedWasherId ||
-          vData.assigned_washer_id === assignedWasherId ||
-          (assignedWasherName && vData.washerName?.toLowerCase() === assignedWasherName.toLowerCase()) ||
-          (assignedWasherName && vData.assigned_washer_name?.toLowerCase() === assignedWasherName.toLowerCase()) ||
-          oData.assignedWasherId === assignedWasherId ||
-          (assignedWasherName && oData.assignedWasherName?.toLowerCase() === assignedWasherName.toLowerCase())
-        );
+        // Check if assigned to this washer (including backup active assignments)
+        let isAssigned = false;
+        let isBackupCovering = false;
+        let isCoveredForMe = false;
+
+        if (vData.isBackupActive) {
+          if (
+            vData.backupWasherId === assignedWasherId ||
+            vData.activeWasherId === assignedWasherId ||
+            (assignedWasherName && vData.backupWasherName?.toLowerCase() === assignedWasherName.toLowerCase())
+          ) {
+            // This washer IS the active backup washer covering this vehicle
+            isAssigned = true;
+            isBackupCovering = true;
+          } else if (
+            vData.primaryWasherId === assignedWasherId ||
+            (assignedWasherName && vData.primaryWasherName?.toLowerCase() === assignedWasherName.toLowerCase())
+          ) {
+            // This washer IS the primary washer who is on leave/covered
+            isAssigned = true;
+            isCoveredForMe = true;
+          }
+        } else {
+          isAssigned = Boolean(
+            vData.activeWasherId === assignedWasherId ||
+            vData.washerId === assignedWasherId ||
+            vData.assigned_washer_id === assignedWasherId ||
+            (assignedWasherName && vData.washerName?.toLowerCase() === assignedWasherName.toLowerCase()) ||
+            (assignedWasherName && vData.assigned_washer_name?.toLowerCase() === assignedWasherName.toLowerCase()) ||
+            oData.assignedWasherId === assignedWasherId ||
+            (assignedWasherName && oData.assignedWasherName?.toLowerCase() === assignedWasherName.toLowerCase())
+          );
+        }
 
         if (isAssigned) {
           // Fetch wash record for this vehicle (check both Washes and current Month)
@@ -1420,7 +1452,12 @@ export async function fetchWasherDashboardDataFromFirestore(
             completed_at: washRecord.completedAt,
           } as any));
 
-          const status = isCompletedToday ? 'completed' : 'pending';
+          const status = isCompletedToday
+            ? 'completed'
+            : isCoveredForMe
+            ? 'covered_by_backup'
+            : 'pending';
+
           const proofPhoto = isCompletedToday ? (washRecord?.proof?.photoUrl || washRecord?.after_photo) : undefined;
           const payoutAmount = getWasherPayoutPerWash(vData);
 
@@ -1441,6 +1478,12 @@ export async function fetchWasherDashboardDataFromFirestore(
             proof_photo: proofPhoto,
             washer_id: assignedWasherId,
             washer_name: assignedWasherName,
+            is_backup_covered: Boolean(vData.isBackupActive && isBackupCovering),
+            backup_washer_name: vData.backupWasherName,
+            original_washer_name: vData.primaryWasherName,
+            original_washer_id: vData.primaryWasherId,
+            is_covered_for_me: Boolean(vData.isBackupActive && isCoveredForMe),
+            covered_by_washer_name: vData.backupWasherName,
           });
         }
       }
@@ -1449,20 +1492,33 @@ export async function fetchWasherDashboardDataFromFirestore(
     console.warn('Error fetching washer vehicles from Firestore:', err);
   }
 
-  // 3. Compute metrics: target is the count of vehicles assigned to this washer
+  // 3. Compute metrics: target is the count of actionable vehicles
   const targetQuota = stops.length;
   const completedCount = stops.filter((s) => s.status === 'completed').length;
   const unavailableCount = stops.filter((s) => s.status === 'vehicle_unavailable').length;
-  const pendingCount = Math.max(0, targetQuota - completedCount - unavailableCount);
+  const pendingCount = Math.max(0, stops.filter((s) => s.status === 'pending' && !s.is_covered_for_me).length);
   const progressPercent = targetQuota > 0 ? Math.min(100, Math.round((completedCount / targetQuota) * 100)) : 0;
-  const earnedSoFar = stops
+  const actionableStops = stops.filter((s) => !s.is_covered_for_me);
+  const earnedSoFar = actionableStops
     .filter((s) => s.status === 'completed' || s.status === 'vehicle_unavailable')
     .reduce((sum, s) => sum + (s.payout_amount || 12), 0);
-  const totalExpectedPayout = stops.reduce((sum, s) => sum + (s.payout_amount || 12), 0);
+  const totalExpectedPayout = actionableStops.reduce((sum, s) => sum + (s.payout_amount || 12), 0);
 
   // 4. Compute live earnings
   const availableEarnings = Number(washer?.availableBalance ?? washer?.availableEarnings ?? earnedSoFar);
   const weeklyEarnings = Number(washer?.weeklyEarnings ?? (availableEarnings || earnedSoFar));
+
+  const hasCoveredStops = stops.some((s) => s.is_covered_for_me);
+  const isCovered = Boolean(washer?.isCoveredByBackup || hasCoveredStops);
+  const coveredStop = stops.find((s) => s.is_covered_for_me);
+  const backupCoverageDetails = isCovered ? {
+    backupWasherName: washer?.backupWasherName || coveredStop?.covered_by_washer_name || 'Backup Partner',
+    backupWasherId: washer?.backupWasherId,
+    dates: washer?.currentSubstitutionStartDate
+      ? `${washer.currentSubstitutionStartDate} → ${washer.currentSubstitutionEndDate || 'Tomorrow'}`
+      : 'Active Coverage',
+    reason: washer?.leaveReason || 'Leave / Unavailable',
+  } : undefined;
 
   return {
     washer,
@@ -1484,6 +1540,9 @@ export async function fetchWasherDashboardDataFromFirestore(
       earnedSoFar,
       totalExpectedPayout,
     },
+    isCoveredByBackup: isCovered,
+    backupCoverageDetails,
+    isCoveringBackup: Boolean(washer?.isCoveringBackup || stops.some((s) => s.is_backup_covered)),
   };
 }
 
@@ -1595,6 +1654,10 @@ export async function syncWashRecordToFirestore(
         vehicleId: wash.vehicle_id,
         washerId: wash.washer_id || 'wsh_amit',
         washerName: wash.washer_name || 'Washer Partner',
+        is_backup_covered: Boolean(wash.is_backup_covered),
+        backup_washer_name: wash.backup_washer_name || (wash.is_backup_covered ? (wash.washer_name || null) : null),
+        original_washer_name: wash.original_washer_name || null,
+        original_washer_id: wash.original_washer_id || null,
         scheduledDate: dateIso,
         completedAt: completedTime,
         status: wash.status || 'completed',
@@ -1646,6 +1709,34 @@ export async function syncWashRecordToFirestore(
         );
       } catch (vehUpdateErr) {
         console.warn('Could not update vehicle lastWash in Firestore:', vehUpdateErr);
+      }
+
+      // 4. Update the active washer's completed count and available balance
+      if (wash.washer_id) {
+        try {
+          const washerRef = doc(db, 'Washers', wash.washer_id);
+          const washerSnap = await getDoc(washerRef);
+          if (washerSnap.exists()) {
+            const wData = washerSnap.data();
+            const curBalance = Number(wData.availableBalance ?? wData.availableEarnings ?? 0);
+            const curWeekly = Number(wData.weeklyEarnings ?? 0);
+            const curCompleted = Number(wData.completedToday ?? 0);
+            const payoutToAdd = 16;
+            await setDoc(
+              washerRef,
+              {
+                availableBalance: curBalance + payoutToAdd,
+                availableEarnings: curBalance + payoutToAdd,
+                weeklyEarnings: curWeekly + payoutToAdd,
+                completedToday: curCompleted + 1,
+                updated_at: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          }
+        } catch (wErr) {
+          // non-critical
+        }
       }
     }
     return { success: true };
@@ -1851,11 +1942,32 @@ export async function fetchOwnerDashboardFromFirestore(
             subscription_status: 'active',
             washes_this_month: sub.washesUsed ?? vData.washes_this_month ?? 0,
             selected_plan: sub.planId || vData.selected_plan || result.user.selected_plan || 'HOME BASIC',
-            assigned_washer_id: vData.washerId || vData.assigned_washer_id || result.user.assigned_washer_id || 'wsh_1790795559023',
-            assigned_washer_name: vData.washerName || vData.assigned_washer_name || result.user.assigned_washer_name || 'Shubham G',
+            assigned_washer_id: vData.isBackupActive
+              ? (vData.backupWasherId || vData.activeWasherId || vData.assigned_washer_id)
+              : (vData.activeWasherId || vData.washerId || vData.assigned_washer_id || result.user.assigned_washer_id || 'wsh_1790795559023'),
+            assigned_washer_name: vData.isBackupActive
+              ? (vData.backupWasherName || vData.activeWasherName || vData.assigned_washer_name)
+              : (vData.activeWasherName || vData.washerName || vData.assigned_washer_name || result.user.assigned_washer_name || 'Shubham G'),
             price: vPrice,
             subscription_price: vPrice,
+            primaryWasherId: vData.primaryWasherId,
+            primaryWasherName: vData.primaryWasherName,
+            activeWasherId: vData.activeWasherId,
+            activeWasherName: vData.activeWasherName,
+            isBackupActive: Boolean(vData.isBackupActive),
+            backupWasherId: vData.backupWasherId,
+            backupWasherName: vData.backupWasherName,
+            backupStartDate: vData.backupStartDate,
+            backupEndDate: vData.backupEndDate,
+            backupReason: vData.backupReason,
+            backupInitiatedBy: vData.backupInitiatedBy,
+            backupAssignedAt: vData.backupAssignedAt,
           };
+
+          if (vData.isBackupActive) {
+            result.user.assigned_washer_id = vData.backupWasherId || vData.activeWasherId || result.user.assigned_washer_id;
+            result.user.assigned_washer_name = vData.backupWasherName || vData.activeWasherName || result.user.assigned_washer_name;
+          }
 
           // 3. Fetch Month and Washes subcollections:
           // Car_Owners/{ownerId}/Vehicles/{vehicleId}/{monthKey}/{dateIso}
@@ -3251,6 +3363,312 @@ export async function markWasherAbsentTodayInFirestore(
       absentDates: [],
       error: err?.message || 'Failed to update absence',
     };
+  }
+}
+
+export interface AssignBackupParams {
+  primaryWasherId: string;
+  primaryWasherName?: string;
+  backupWasherId: string;
+  backupWasherName?: string;
+  startDate: string;
+  endDate: string;
+  reason?: string;
+  initiatedBy?: string;
+}
+
+/**
+ * Assigns a Backup Washer for an Assigned Washer on leave or unavailable.
+ *
+ * Requirements guaranteed:
+ * 1. Updates assignment immediately so Backup Washer becomes the active washer for affected vehicles/service schedule.
+ * 2. Notifies the Admin with original Assigned Washer, Backup Washer, society, affected vehicles, date, and reason.
+ * 3. Preserves original Assigned Washer as primary/original washer (primaryWasherId/primaryWasherName) for historical & audit purposes.
+ * 4. Records assignment timestamp, effective dates, reason, and initiator in Substitutions audit trail.
+ * 5. Ensures exactly ONE active washer per vehicle at any time.
+ * 6. Propagates immediately across Firestore so all dashboards (Owner, Primary Washer, Backup Washer, Admin) reflect real-time state.
+ */
+export async function assignBackupWasherInFirestore(params: AssignBackupParams): Promise<{
+  success: boolean;
+  substitutionId?: string;
+  affectedCount: number;
+  originalWasherName: string;
+  backupWasherName: string;
+  society: string;
+  error?: string;
+}> {
+  try {
+    const { primaryWasherId, backupWasherId, startDate, endDate, reason } = params;
+
+    // 1. Fetch Primary & Backup washers from Firestore
+    let primaryWasher = await fetchWasherFromFirestore(primaryWasherId);
+    let backupWasher = await fetchWasherFromFirestore(backupWasherId);
+
+    const primaryWasherName = params.primaryWasherName || primaryWasher?.name || 'Assigned Washer';
+    const backupWasherName = params.backupWasherName || backupWasher?.name || 'Backup Partner';
+    const initiatedBy = params.initiatedBy || `${primaryWasherName} (Assigned Washer)`;
+    const societyName = primaryWasher?.society || backupWasher?.society || 'Assigned Society';
+
+    // 2. Scan all vehicles across Car_Owners collection to find vehicles assigned to primaryWasherId
+    const ownersSnap = await getDocs(collection(db, 'Car_Owners'));
+    const affectedVehicles: { ownerId: string; vehicleId: string; regNumber: string }[] = [];
+
+    for (const oDoc of ownersSnap.docs) {
+      const ownerId = oDoc.id;
+      const oData = oDoc.data();
+      const vSnap = await getDocs(collection(db, 'Car_Owners', ownerId, 'Vehicles'));
+
+      let ownerHasMatchingVehicle = false;
+
+      for (const vDoc of vSnap.docs) {
+        const vData = vDoc.data();
+        const vId = vDoc.id;
+
+        const isMatch =
+          vData.assigned_washer_id === primaryWasherId ||
+          vData.activeWasherId === primaryWasherId ||
+          vData.washerId === primaryWasherId ||
+          vData.primaryWasherId === primaryWasherId ||
+          (primaryWasherName && vData.assigned_washer_name?.toLowerCase() === primaryWasherName.toLowerCase()) ||
+          oData.assignedWasherId === primaryWasherId ||
+          (primaryWasherName && oData.assignedWasherName?.toLowerCase() === primaryWasherName.toLowerCase());
+
+        if (isMatch) {
+          affectedVehicles.push({
+            ownerId,
+            vehicleId: vId,
+            regNumber: vData.registrationNumber || vData.registration_number || vId,
+          });
+          ownerHasMatchingVehicle = true;
+
+          // Update vehicle document immediately:
+          // PRESERVE original washer in primaryWasherId (Rule 4),
+          // SET backup washer as currently active washer (Rule 1 & Rule 8)
+          const vehicleDocRef = doc(db, 'Car_Owners', ownerId, 'Vehicles', vId);
+          await setDoc(
+            vehicleDocRef,
+            {
+              primaryWasherId: vData.primaryWasherId || primaryWasherId,
+              primaryWasherName: vData.primaryWasherName || primaryWasherName,
+              assigned_washer_id: backupWasherId,
+              assigned_washer_name: backupWasherName,
+              activeWasherId: backupWasherId,
+              activeWasherName: backupWasherName,
+              isBackupActive: true,
+              backupWasherId,
+              backupWasherName,
+              backupStartDate: startDate,
+              backupEndDate: endDate,
+              backupReason: reason || 'Washer Leave / Unavailable',
+              backupInitiatedBy: initiatedBy,
+              backupAssignedAt: new Date().toISOString(),
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+      }
+
+      if (ownerHasMatchingVehicle) {
+        // Also update the Car_Owners document to reflect the active washer
+        await setDoc(
+          doc(db, 'Car_Owners', ownerId),
+          {
+            primaryWasherId: oData.primaryWasherId || primaryWasherId,
+            primaryWasherName: oData.primaryWasherName || primaryWasherName,
+            assignedWasherId: backupWasherId,
+            assignedWasherName: backupWasherName,
+            isBackupActive: true,
+            backupWasherId,
+            backupWasherName,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    }
+
+    // 3. Update Primary Washer in Washers collection
+    const primaryRef = doc(db, 'Washers', primaryWasherId);
+    await setDoc(
+      primaryRef,
+      {
+        status: 'On Leave / Backup Active',
+        isCoveredByBackup: true,
+        backupWasherId,
+        backupWasherName,
+        currentSubstitutionStartDate: startDate,
+        currentSubstitutionEndDate: endDate,
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // 4. Update Backup Washer in Washers collection
+    const backupRef = doc(db, 'Washers', backupWasherId);
+    await setDoc(
+      backupRef,
+      {
+        isCoveringBackup: true,
+        coveringForWasherId: primaryWasherId,
+        coveringForWasherName: primaryWasherName,
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // 5. Create Substitution Audit Record in Substitutions collection (Rule 2, 4, 5)
+    const subId = `sub_${Date.now()}`;
+    const subRecord: WasherSubstitutionAudit = {
+      id: subId,
+      originalWasherId: primaryWasherId,
+      originalWasher: primaryWasherName,
+      backupWasherId,
+      backupWasher: backupWasherName,
+      society: societyName,
+      dates: `${startDate} → ${endDate}`,
+      startDate,
+      endDate,
+      reason: reason || 'Washer Leave / Unavailable',
+      initiatedBy,
+      timestamp: new Date().toISOString(),
+      carsAffected: affectedVehicles.length,
+      affectedVehicleIds: affectedVehicles.map((v) => v.vehicleId),
+      status: 'Active',
+    };
+    await setDoc(doc(db, 'Substitutions', subId), {
+      ...subRecord,
+      createdAt: serverTimestamp(),
+    });
+
+    // 6. Notify Admin in Admin_Notifications collection (Rule 2)
+    const notifId = `notif_sub_${Date.now()}`;
+    const adminNotif = {
+      id: notifId,
+      title: '⚡ Washer Substitution Assigned',
+      body: `${primaryWasherName} has assigned ${backupWasherName} to cover ${affectedVehicles.length} vehicles in ${societyName} (${startDate} to ${endDate}). Reason: ${reason || 'Leave / Unavailable'}. Initiated by: ${initiatedBy}.`,
+      type: 'washer_substitution',
+      originalWasher: primaryWasherName,
+      originalWasherId: primaryWasherId,
+      backupWasher: backupWasherName,
+      backupWasherId,
+      society: societyName,
+      affectedCarsCount: affectedVehicles.length,
+      startDate,
+      endDate,
+      reason: reason || 'Leave / Unavailable',
+      initiatedBy,
+      timestamp: new Date().toISOString(),
+      read: false,
+      createdAt: serverTimestamp(),
+    };
+    await setDoc(doc(db, 'Admin_Notifications', notifId), adminNotif);
+
+    return {
+      success: true,
+      substitutionId: subId,
+      affectedCount: affectedVehicles.length,
+      originalWasherName: primaryWasherName,
+      backupWasherName,
+      society: societyName,
+    };
+  } catch (err: any) {
+    console.error('assignBackupWasherInFirestore error:', err);
+    return {
+      success: false,
+      affectedCount: 0,
+      originalWasherName: '',
+      backupWasherName: '',
+      society: '',
+      error: err?.message || 'Failed to assign backup washer',
+    };
+  }
+}
+
+/**
+ * Fetches all substitution & leave records from Substitutions collection for the Admin audit trail.
+ */
+export async function fetchSubstitutionsFromFirestore(): Promise<WasherSubstitutionAudit[]> {
+  try {
+    const snap = await getDocs(collection(db, 'Substitutions'));
+    const list: WasherSubstitutionAudit[] = [];
+    snap.forEach((d) => {
+      list.push({ id: d.id, ...d.data() } as WasherSubstitutionAudit);
+    });
+    // Sort newest first
+    list.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return list;
+  } catch (err) {
+    console.warn('fetchSubstitutionsFromFirestore error:', err);
+    return [];
+  }
+}
+
+/**
+ * Reverts an active backup assignment back to the original primary washer.
+ */
+export async function revertBackupAssignmentInFirestore(substitutionId: string): Promise<boolean> {
+  try {
+    const subDoc = await getDoc(doc(db, 'Substitutions', substitutionId));
+    if (!subDoc.exists()) return false;
+    const sub = subDoc.data() as WasherSubstitutionAudit;
+
+    // Scan vehicles and restore original washer
+    const ownersSnap = await getDocs(collection(db, 'Car_Owners'));
+    for (const oDoc of ownersSnap.docs) {
+      const ownerId = oDoc.id;
+      const vSnap = await getDocs(collection(db, 'Car_Owners', ownerId, 'Vehicles'));
+      for (const vDoc of vSnap.docs) {
+        const vData = vDoc.data();
+        if (
+          vData.isBackupActive &&
+          vData.backupWasherId === sub.backupWasherId &&
+          (vData.primaryWasherId === sub.originalWasherId || vData.assigned_washer_id === sub.backupWasherId)
+        ) {
+          await setDoc(
+            doc(db, 'Car_Owners', ownerId, 'Vehicles', vDoc.id),
+            {
+              assigned_washer_id: sub.originalWasherId,
+              assigned_washer_name: sub.originalWasher,
+              activeWasherId: sub.originalWasherId,
+              activeWasherName: sub.originalWasher,
+              isBackupActive: false,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          );
+        }
+      }
+    }
+
+    // Restore primary washer status
+    await setDoc(
+      doc(db, 'Washers', sub.originalWasherId),
+      {
+        status: 'Active on Route',
+        isCoveredByBackup: false,
+        backupWasherId: null,
+        backupWasherName: null,
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Update substitution status
+    await setDoc(
+      doc(db, 'Substitutions', substitutionId),
+      {
+        status: 'Completed',
+        completedAt: new Date().toISOString(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return true;
+  } catch (err) {
+    console.error('revertBackupAssignmentInFirestore error:', err);
+    return false;
   }
 }
 

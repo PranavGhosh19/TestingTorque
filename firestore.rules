@@ -397,6 +397,19 @@ service cloud.firestore {
 
 
     // ===============================================================
+    // 8E. SUBSTITUTIONS & AUDIT TRAILS
+    // ===============================================================
+
+    match /Substitutions/{subId} {
+      allow read, write: if true;
+    }
+
+    match /Admin_Notifications/{notifId} {
+      allow read, write: if true;
+    }
+
+
+    // ===============================================================
     // 9. LEGACY USERS COLLECTION
     // ===============================================================
 

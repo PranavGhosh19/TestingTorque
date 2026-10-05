@@ -86,6 +86,18 @@ export interface Vehicle {
   selected_plan?: string;
   assigned_washer_id?: string;
   assigned_washer_name?: string;
+  primaryWasherId?: string;
+  primaryWasherName?: string;
+  activeWasherId?: string;
+  activeWasherName?: string;
+  isBackupActive?: boolean;
+  backupWasherId?: string;
+  backupWasherName?: string;
+  backupStartDate?: string;
+  backupEndDate?: string;
+  backupReason?: string;
+  backupInitiatedBy?: string;
+  backupAssignedAt?: string;
   price?: number;
   subscription_price?: number;
   flat?: string;
@@ -129,6 +141,8 @@ export interface WashRecord {
   priority_price?: number;
   is_backup_covered: boolean;
   backup_washer_name?: string;
+  original_washer_name?: string;
+  original_washer_id?: string;
   notes?: string;
   attempt_reason?: string;
   attempt_evidence?: string;
@@ -145,7 +159,7 @@ export interface RouteStop {
   registration_number: string;
   parking_location: string;
   scheduled_time: string;
-  status: 'completed' | 'current' | 'pending' | 'vehicle_unavailable';
+  status: 'completed' | 'current' | 'pending' | 'vehicle_unavailable' | 'covered_by_backup';
   washer_present?: boolean;
   service_possible?: boolean;
   payout_protected?: boolean;
@@ -159,6 +173,31 @@ export interface RouteStop {
   owner_id?: string;
   washer_id?: string;
   washer_name?: string;
+  is_backup_covered?: boolean;
+  backup_washer_name?: string;
+  original_washer_name?: string;
+  original_washer_id?: string;
+  is_covered_for_me?: boolean;
+  covered_by_washer_name?: string;
+}
+
+export interface WasherSubstitutionAudit {
+  id: string;
+  originalWasherId: string;
+  originalWasher: string;
+  backupWasherId: string;
+  backupWasher: string;
+  society: string;
+  societyId?: string;
+  dates: string;
+  startDate: string;
+  endDate: string;
+  reason: string;
+  initiatedBy: string;
+  timestamp: string;
+  carsAffected: number;
+  affectedVehicleIds?: string[];
+  status: 'Active' | 'Completed' | 'Reverted';
 }
 
 export interface WasherEarnings {

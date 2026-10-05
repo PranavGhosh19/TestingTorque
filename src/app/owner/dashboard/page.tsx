@@ -190,12 +190,14 @@ export default function OwnerDashboardPage() {
     typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_id') : null;
 
   const targetWasherId =
+    (primaryVehicle?.isBackupActive ? (primaryVehicle.backupWasherId || primaryVehicle.activeWasherId) : null) ||
     firebaseWasher?.id ||
     primaryVehicle?.assigned_washer_id ||
     user.assigned_washer_id ||
     storedAssignedWasherId;
 
   const targetWasherName =
+    (primaryVehicle?.isBackupActive ? (primaryVehicle.backupWasherName || primaryVehicle.activeWasherName) : null) ||
     firebaseWasher?.name ||
     primaryVehicle?.assigned_washer_name ||
     user.assigned_washer_name ||
@@ -585,7 +587,21 @@ export default function OwnerDashboardPage() {
             </div>
           </div>
 
-          {/* Regular Washer Info */}
+          {/* Backup Coverage Alert if active */}
+          {primaryVehicle?.isBackupActive && (
+            <div className="p-4 rounded-[20px] bg-gradient-to-r from-amber-500/15 via-[#11161D] to-[#11161D] border border-amber-500/30 text-amber-200 text-xs shadow-xl flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                <div>
+                  <span className="font-bold text-white">Temporary Backup Coverage Active:</span>{' '}
+                  Certified Specialist <strong>{assignedWasher.name}</strong> is handling your vehicle while{' '}
+                  <strong>{primaryVehicle.primaryWasherName || 'your primary specialist'}</strong> is unavailable. Service schedule remains 100% active.
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Regular Washer Info / Backup Specialist Info */}
           <div className="p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl flex items-center justify-between">
             <div className="flex items-center gap-3.5">
               <div className="relative w-12 h-12 rounded-2xl overflow-hidden border border-white/10 shrink-0 shadow-md bg-neutral-900">
@@ -597,11 +613,23 @@ export default function OwnerDashboardPage() {
                 />
               </div>
               <div>
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 font-bold block mb-0.5">
-                  ASSIGNED SPECIALIST
-                </span>
-                <div className="text-base font-bold text-white">
-                  {assignedWasher.name}
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 font-bold block">
+                    {primaryVehicle?.isBackupActive ? 'BACKUP SPECIALIST (ACTIVE)' : 'ASSIGNED SPECIALIST'}
+                  </span>
+                  {primaryVehicle?.isBackupActive && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      Covering for {primaryVehicle.primaryWasherName || 'Primary Washer'}
+                    </span>
+                  )}
+                </div>
+                <div className="text-base font-bold text-white flex items-center gap-2">
+                  <span>{assignedWasher.name}</span>
+                  {primaryVehicle?.isBackupActive && (
+                    <span className="text-[11px] font-normal text-emerald-400 font-mono">
+                      (Active Today)
+                    </span>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-white/70 font-medium mt-0.5">
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />

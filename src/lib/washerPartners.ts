@@ -54,6 +54,13 @@ export interface WasherPartner {
   sundayBonusEarned: number;
   disbursements: PayoutDisbursement[];
   created_at?: string;
+  isCoveredByBackup?: boolean;
+  backupWasherId?: string;
+  currentSubstitutionStartDate?: string;
+  currentSubstitutionEndDate?: string;
+  isCoveringBackup?: boolean;
+  coveringForWasherId?: string;
+  coveringForWasherName?: string;
 }
 
 

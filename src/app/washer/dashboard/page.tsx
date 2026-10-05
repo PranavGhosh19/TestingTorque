@@ -62,6 +62,14 @@ export default function WasherDashboardPage() {
     ifsc_code: string;
   } | null>(null);
   const [isLoadingWasher, setIsLoadingWasher] = useState(true);
+  const [backupCoverage, setBackupCoverage] = useState<{
+    isCovered: boolean;
+    backupWasherName?: string;
+    backupWasherId?: string;
+    dates?: string;
+    reason?: string;
+  } | null>(null);
+  const [isCoveringBackup, setIsCoveringBackup] = useState(false);
 
   // Fetch real washer partner details and assigned vehicles directly from Firebase Firestore
   const loadWasherDashboard = React.useCallback(async () => {
@@ -100,6 +108,19 @@ export default function WasherDashboardPage() {
         bank_account_last4: (data.earnings.bank_account || '').slice(-4),
         recent_payouts: [],
       });
+
+      if (data.isCoveredByBackup) {
+        setBackupCoverage({
+          isCovered: true,
+          backupWasherName: data.backupCoverageDetails?.backupWasherName,
+          backupWasherId: data.backupCoverageDetails?.backupWasherId,
+          dates: data.backupCoverageDetails?.dates,
+          reason: data.backupCoverageDetails?.reason,
+        });
+      } else {
+        setBackupCoverage(null);
+      }
+      setIsCoveringBackup(Boolean(data.isCoveringBackup));
     } catch (err) {
       console.warn('Could not fetch washer dashboard from Firebase:', err);
     } finally {
@@ -280,6 +301,69 @@ export default function WasherDashboardPage() {
             <span className="text-[10px] font-mono font-bold bg-[#11161D] px-2.5 py-1 rounded-full border border-amber-500/30 text-amber-200 shrink-0">
               Auto-syncing to cloud
             </span>
+          </div>
+        )}
+
+        {/* 1A. PRIMARY WASHER ON LEAVE / ROUTE COVERED BANNER */}
+        {backupCoverage?.isCovered && (
+          <div className="p-5 sm:p-6 rounded-[20px] bg-gradient-to-r from-amber-500/15 via-[#11161D] to-[#11161D] border border-amber-500/30 text-amber-200 shadow-xl backdrop-blur-md">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-amber-500/20 text-amber-300 flex items-center justify-center shrink-0 border border-amber-500/30">
+                  <ShieldCheck className="w-6 h-6 text-amber-400" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-amber-400 font-bold">
+                      PEER COVERAGE ACTIVE
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                      On Leave / Covered
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold text-white">
+                    {backupCoverage.backupWasherName || 'Backup Partner'} is covering your daily assignment
+                  </h3>
+                  <p className="text-xs text-white/70 mt-0.5">
+                    Dates: <strong className="text-amber-300 font-mono">{backupCoverage.dates}</strong>
+                    {backupCoverage.reason && <> • Reason: <span className="text-white/90">{backupCoverage.reason}</span></>}
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/washer/leave"
+                className="px-4 py-2.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/40 text-xs font-bold transition-all shrink-0 self-start sm:self-center whitespace-nowrap"
+              >
+                View Coverage Details →
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* 1B. BACKUP WASHER COVERING PEER BANNER */}
+        {isCoveringBackup && (
+          <div className="p-5 sm:p-6 rounded-[20px] bg-gradient-to-r from-emerald-500/15 via-[#11161D] to-[#11161D] border border-emerald-500/30 text-emerald-200 shadow-xl backdrop-blur-md">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-[#2DD4A0]/20 text-[#2DD4A0] flex items-center justify-center shrink-0 border border-[#2DD4A0]/30">
+                <Sparkles className="w-6 h-6 text-[#2DD4A0]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#2DD4A0] font-bold">
+                    PEER COVERAGE ASSIGNMENT
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/40">
+                    Active Coverage Specialist
+                  </span>
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-white">
+                  You are covering peer vehicles on your morning route today
+                </h3>
+                <p className="text-xs text-white/70 mt-0.5">
+                  Assigned vehicles have been added to your worklist below. All completed washes and proofs will be credited to you with full shift payouts.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -493,9 +577,21 @@ export default function WasherDashboardPage() {
 
                       {/* Number Plate & Brand */}
                       <div className="flex flex-col items-start gap-0.5 sm:gap-1 min-w-0">
-                        <span className="text-sm sm:text-base font-bold text-white font-mono tracking-wider bg-[#161C25] px-2.5 py-0.5 rounded-lg border border-white/[0.08]">
-                          {stop.registration_number}
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm sm:text-base font-bold text-white font-mono tracking-wider bg-[#161C25] px-2.5 py-0.5 rounded-lg border border-white/[0.08]">
+                            {stop.registration_number}
+                          </span>
+                          {stop.is_backup_covered && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-emerald-500/20 text-[#2DD4A0] border border-emerald-400/30">
+                              Covering for {stop.original_washer_name || 'Peer'}
+                            </span>
+                          )}
+                          {stop.is_covered_for_me && (
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                              Covered by {stop.covered_by_washer_name || 'Backup'}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-xs sm:text-sm font-medium text-white/70 truncate">
                           {stop.vehicle_name}
                         </span>
@@ -508,6 +604,10 @@ export default function WasherDashboardPage() {
                         className={`w-11 h-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 shadow-md ${
                           isUnavailable
                             ? 'bg-amber-400 text-[#0A0D12]'
+                            : stop.is_covered_for_me
+                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                            : stop.is_backup_covered
+                            ? 'bg-emerald-500/20 text-[#2DD4A0] border border-emerald-500/30'
                             : 'bg-[#161C25] text-white border border-white/[0.08]'
                         }`}
                       >
@@ -520,6 +620,18 @@ export default function WasherDashboardPage() {
                           <span className="text-base sm:text-lg font-bold text-white font-mono tracking-wider bg-[#161C25] px-2.5 py-0.5 rounded-lg border border-white/[0.08]">
                             {stop.registration_number}
                           </span>
+
+                          {stop.is_backup_covered && (
+                            <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-[#2DD4A0] border border-emerald-400/30 flex items-center gap-1 font-bold">
+                              <Sparkles className="w-3 h-3 text-[#2DD4A0]" /> Peer Coverage (for {stop.original_washer_name || 'Peer'})
+                            </span>
+                          )}
+
+                          {stop.is_covered_for_me && (
+                            <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1 font-bold">
+                              <ShieldCheck className="w-3 h-3 text-amber-400" /> Covered by {stop.covered_by_washer_name || 'Backup Partner'}
+                            </span>
+                          )}
 
                           {isUnavailable && (
                             <span className="text-[10px] font-mono uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 flex items-center gap-1">
@@ -577,6 +689,12 @@ export default function WasherDashboardPage() {
                         <ShieldCheck className="w-4 h-4 text-amber-400" />
                         <span>Bay Empty Proof</span>
                       </button>
+                    ) : stop.is_covered_for_me ? (
+                      /* PRIMARY WASHER IS COVERED: ACTION DISABLED TO PREVENT DUPLICATE SUBMISSION */
+                      <div className="px-4 py-2.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs font-bold font-mono whitespace-nowrap flex items-center gap-1.5 shadow-sm">
+                        <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />
+                        <span>Covered by {stop.covered_by_washer_name || 'Backup'}</span>
+                      </div>
                     ) : (
                       /* PENDING OR CURRENT: BUTTON TO UPLOAD WASH PROOF PHOTO */
                       <div className="flex items-center gap-2">
