@@ -22,6 +22,7 @@ import {
   syncWasherToFirestore,
   dismissWasherInFirestore,
   reinstateWasherInFirestore,
+  deleteWasherInFirestore,
   appointWasherToVehicleInFirestore,
   recordUserLogin,
   resetOwnerFirestoreData,
@@ -94,6 +95,7 @@ interface StoreContextType {
   routeStops: RouteStop[];
   setRouteStops: React.Dispatch<React.SetStateAction<RouteStop[]>>;
   washers: WasherPartner[];
+  setWashers: React.Dispatch<React.SetStateAction<WasherPartner[]>>;
   onboardWasher: (washerData: {
     id?: string;
     washerFirebaseUID?: string;
@@ -114,6 +116,7 @@ interface StoreContextType {
   setWasherPassword: (washerIdOrPhoneOrEmail: string, newPassword: string) => void;
   dismissWasher: (washerId: string, reason?: string) => Promise<boolean>;
   reinstateWasher: (washerId: string) => Promise<boolean>;
+  deleteWasher: (washerId: string) => Promise<boolean>;
   appointWasherToVehicle: (vehicleId: string, washerId: string, ownerId?: string) => Promise<boolean>;
   eraseAllData: () => void;
   resetOwnerData: () => Promise<void>;
@@ -1351,6 +1354,57 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  const deleteWasher = async (washerId: string): Promise<boolean> => {
+    const targetWasher = washers.find((w) => w.id === washerId);
+    const washerName = targetWasher?.name || 'Washer Partner';
+
+    // 1. Remove from in-memory store
+    setWashers((prev) => prev.filter((w) => w.id !== washerId));
+
+    // 2. Remove from route stops
+    setRouteStops((prev) =>
+      prev.map((s) =>
+        s.washer_id === washerId
+          ? { ...s, washer_name: 'Unassigned', washer_id: '' }
+          : s
+      )
+    );
+
+    // 3. Remove from localStorage
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('torque_washers');
+        if (stored) {
+          const list = JSON.parse(stored);
+          const updated = list.filter((w: any) => w.id !== washerId);
+          localStorage.setItem('torque_washers', JSON.stringify(updated));
+        }
+      } catch (err) {
+        console.warn('LocalStorage error on deleteWasher:', err);
+      }
+    }
+
+    // 4. Delete from Firestore (Washers & washer_directory)
+    deleteWasherInFirestore(washerId).catch((err) => {
+      console.warn('Firebase deleteWasher error:', err);
+    });
+
+    // 5. Notify admin
+    setNotifications((prev) => [
+      {
+        id: `notif_del_${Date.now()}`,
+        title: `Washer Partner Deleted: ${washerName}`,
+        body: `${washerName} record was removed from the database and local registry.`,
+        timestamp: 'Just now',
+        read: false,
+        category: 'system',
+      },
+      ...prev,
+    ]);
+
+    return true;
+  };
+
   const appointWasherToVehicle = async (
     vehicleId: string,
     washerId: string,
@@ -1837,10 +1891,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         routeStops,
         setRouteStops,
         washers,
+        setWashers,
         onboardWasher,
         setWasherPassword,
         dismissWasher,
         reinstateWasher,
+        deleteWasher,
         appointWasherToVehicle,
         eraseAllData,
         resetOwnerData,

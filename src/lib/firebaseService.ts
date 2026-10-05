@@ -468,6 +468,39 @@ export async function reinstateWasherInFirestore(
 }
 
 /**
+ * Permanently deletes a washer partner from Firestore:
+ * - Deletes Washers/{washerId}
+ * - Deletes washer_directory/{washerId}
+ */
+export async function deleteWasherInFirestore(
+  washerId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanId = washerId.trim();
+    if (!cleanId) return { success: false, error: 'Invalid washer ID' };
+
+    // 1. Delete from Washers
+    try {
+      await deleteDoc(doc(db, 'Washers', cleanId));
+    } catch (e: any) {
+      console.warn('Delete from Washers notice:', e?.message || e);
+    }
+
+    // 2. Delete from washer_directory
+    try {
+      await deleteDoc(doc(db, 'washer_directory', cleanId));
+    } catch (e: any) {
+      console.warn('Delete from washer_directory notice:', e?.message || e);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('deleteWasherInFirestore error:', error);
+    return { success: false, error: error?.message || 'Failed to delete washer' };
+  }
+}
+
+/**
  * Appoints / reassigns a washer partner to an owner's vehicle in Firestore:
  * Updates Car_Owners/{ownerId}/Vehicles/{vehicleId}
  */

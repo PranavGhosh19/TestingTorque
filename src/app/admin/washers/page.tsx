@@ -27,6 +27,7 @@ import {
   Building2,
   Lock,
   ShieldAlert,
+  Trash2,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
 import { useStore } from '@/lib/store';
@@ -42,7 +43,7 @@ import AppointWasherModal from '@/components/modals/AppointWasherModal';
 import DismissWasherModal from '@/components/modals/DismissWasherModal';
 
 export default function AdminWashersPage() {
-  const { washers, routeStops, reinstateWasher, user, role } = useStore();
+  const { washers, setWashers, routeStops, reinstateWasher, deleteWasher, user, role } = useStore();
   const currentAdminId =
     user?.uid ||
     user?.id ||
@@ -50,6 +51,7 @@ export default function AdminWashersPage() {
     'admin-lead-1';
 
   const [firestoreWashers, setFirestoreWashers] = useState<WasherPartner[]>([]);
+  const [firestoreLoaded, setFirestoreLoaded] = useState(false);
   const [isLoadingFirestore, setIsLoadingFirestore] = useState(false);
   const [societyMap, setSocietyMap] = useState<Record<string, string>>({});
   const [adminCustomers, setAdminCustomers] = useState<AdminCustomer[]>([]);
@@ -60,15 +62,16 @@ export default function AdminWashersPage() {
       try {
         setIsLoadingFirestore(true);
         const [remoteWashers, socList, custList] = await Promise.all([
-          fetchAllWashersFromFirestore(currentAdminId),
+          fetchAllWashersFromFirestore(),
           fetchAllSocieties(),
           fetchAdminCustomers(),
         ]);
 
         if (isMounted) {
-          if (remoteWashers && remoteWashers.length > 0) {
-            setFirestoreWashers(remoteWashers.filter((w) => w.id !== 'wsh_amit'));
-          }
+          const cleanRemote = (remoteWashers || []).filter((w) => !isDummyWasher(w));
+          setFirestoreWashers(cleanRemote);
+          setFirestoreLoaded(true);
+
           if (socList && socList.length > 0) {
             const map: Record<string, string> = {};
             socList.forEach((s) => {
@@ -83,6 +86,23 @@ export default function AdminWashersPage() {
           if (custList && custList.length > 0) {
             setAdminCustomers(custList);
           }
+
+          // Reconcile browser localStorage & in-memory store so deleted Firestore washers do not linger
+          if (typeof window !== 'undefined') {
+            const remoteIds = new Set(cleanRemote.map((w) => w.id));
+            try {
+              const stored = localStorage.getItem('torque_washers');
+              if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed)) {
+                  // Keep only washers that currently exist in Firestore
+                  const reconciled = parsed.filter((w: any) => !isDummyWasher(w) && remoteIds.has(w.id));
+                  localStorage.setItem('torque_washers', JSON.stringify(reconciled));
+                  setWashers(reconciled);
+                }
+              }
+            } catch (e) {}
+          }
         }
       } catch (err) {
         console.warn('Error fetching washers and metadata from Firestore:', err);
@@ -94,7 +114,7 @@ export default function AdminWashersPage() {
     return () => {
       isMounted = false;
     };
-  }, [currentAdminId]);
+  }, [currentAdminId, setWashers]);
 
   const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false);
   const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
@@ -120,41 +140,22 @@ export default function AdminWashersPage() {
     );
   };
 
-  // One-time cleanup for any dummy records in browser storage
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('torque_washers');
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            const cleaned = parsed.filter((w) => !isDummyWasher(w));
-            if (cleaned.length !== parsed.length) {
-              localStorage.setItem('torque_washers', JSON.stringify(cleaned));
-            }
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-  }, []);
-
-  // Combined real washers (excluding test/dummy records like Lijo, Pranav Ghosh, Amit Kumar)
+  // Combined real washers: Firestore is the single source of truth once loaded
   const combinedWashers = useMemo(() => {
+    if (firestoreLoaded) {
+      return firestoreWashers.filter((w) => !isDummyWasher(w));
+    }
     const map = new Map<string, WasherPartner>();
-    // First from store
     washers.forEach((w) => {
       if (!isDummyWasher(w)) map.set(w.id, w);
     });
-    // Then merge from firestore
     firestoreWashers.forEach((w) => {
       if (!isDummyWasher(w) && !map.has(w.id)) {
         map.set(w.id, w);
       }
     });
     return Array.from(map.values());
-  }, [washers, firestoreWashers]);
+  }, [washers, firestoreWashers, firestoreLoaded]);
 
   // Admin scoped washers: washers created/onboarded by this admin
   const adminWashers = useMemo(() => {
@@ -260,6 +261,15 @@ export default function AdminWashersPage() {
     e.stopPropagation();
     if (confirm('Are you sure you want to reinstate this washer partner back to active duty?')) {
       await reinstateWasher(washerId);
+    }
+  };
+
+  const handleDeleteWasher = async (e: React.MouseEvent, washer: WasherPartner) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (confirm(`Are you sure you want to permanently delete "${washer.name}"? This removes the record from Firestore and all local registries.`)) {
+      await deleteWasher(washer.id);
+      setFirestoreWashers((prev) => prev.filter((w) => w.id !== washer.id));
     }
   };
 
@@ -708,17 +718,35 @@ export default function AdminWashersPage() {
                               <UserX className="w-3.5 h-3.5 text-red-600" />
                               <span>Dismiss</span>
                             </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteWasher(e, w)}
+                              className="p-1.5 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 cursor-pointer transition-colors"
+                              title="Delete washer partner permanently"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={(e) => handleReinstate(e, w.id)}
-                            className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center gap-1.5 border border-blue-200 cursor-pointer transition-colors shadow-2xs"
-                            title="Reinstate washer partner"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
-                            <span>Reinstate Partner</span>
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => handleReinstate(e, w.id)}
+                              className="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-800 font-bold text-xs flex items-center gap-1.5 border border-blue-200 cursor-pointer transition-colors shadow-2xs"
+                              title="Reinstate washer partner"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Reinstate Partner</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteWasher(e, w)}
+                              className="p-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 cursor-pointer transition-colors"
+                              title="Delete washer partner permanently"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         )
                       ) : (
                         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 border border-slate-200/80 text-slate-500 text-xs">
