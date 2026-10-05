@@ -296,7 +296,7 @@ export default function WasherDashboardPage() {
                 Target: {totalTargetCount} {totalTargetCount === 1 ? 'Vehicle' : 'Vehicles'}
               </h2>
               <p className="text-xs text-white/60 mt-0.5" suppressHydrationWarning>
-                {washerSociety} basement cluster route • Shift: {washerRouteWindow} • Guaranteed ₹35/car payout
+                Shift: {washerRouteWindow}
               </p>
             </div>
 

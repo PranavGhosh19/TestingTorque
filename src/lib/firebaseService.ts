@@ -1471,7 +1471,7 @@ export async function fetchWasherDashboardDataFromFirestore(
       available: availableEarnings,
       this_week: weeklyEarnings,
       total_earnings: weeklyEarnings,
-      pending: pendingCount * 35,
+      pending: Number(washer?.pendingPayoutDue || 0),
       bank_account: washer?.bankAccount || '1111',
       ifsc_code: washer?.ifscCode || 'HDFC0001234',
     },
@@ -3106,6 +3106,151 @@ export async function fetchAdminCustomers(adminId?: string): Promise<AdminCustom
   } catch (err: any) {
     console.warn('fetchAdminCustomers error:', err?.message || err);
     return [];
+  }
+}
+
+/**
+ * Fetches other Washer Partners who operate in the same society / societies.
+ */
+export async function fetchPeerWashersInSameSocieties(
+  currentWasherId?: string,
+  societiesInput?: string[] | string
+): Promise<WasherPartner[]> {
+  try {
+    const allWashers = await fetchAllWashersFromFirestore();
+
+    const normalizedMySocieties: string[] = [];
+    if (Array.isArray(societiesInput)) {
+      societiesInput.forEach((s) => {
+        if (s && typeof s === 'string') {
+          normalizedMySocieties.push(s.toLowerCase().trim());
+        }
+      });
+    } else if (typeof societiesInput === 'string' && societiesInput.trim()) {
+      societiesInput.split(',').forEach((s) => {
+        if (s.trim()) normalizedMySocieties.push(s.toLowerCase().trim());
+      });
+    }
+
+    if (normalizedMySocieties.length === 0) {
+      // If washer has no society assigned yet, return other active washers (up to 3)
+      return allWashers.filter((w) => w.id !== currentWasherId).slice(0, 3);
+    }
+
+    return allWashers.filter((w) => {
+      if (w.id === currentWasherId) return false;
+      if (w.status === 'Dismissed') return false;
+
+      const otherSocieties: string[] = [];
+      if (Array.isArray(w.societies)) {
+        w.societies.forEach((s) => {
+          if (s) otherSocieties.push(String(s).toLowerCase().trim());
+        });
+      }
+      if (typeof w.society === 'string') {
+        w.society.split(',').forEach((s) => {
+          if (s.trim()) otherSocieties.push(s.toLowerCase().trim());
+        });
+      }
+
+      // Check for society overlap
+      return normalizedMySocieties.some((mySoc) =>
+        otherSocieties.some(
+          (otherSoc) =>
+            otherSoc === mySoc ||
+            otherSoc.includes(mySoc) ||
+            mySoc.includes(otherSoc)
+        )
+      );
+    });
+  } catch (err) {
+    console.warn('fetchPeerWashersInSameSocieties error:', err);
+    return [];
+  }
+}
+
+/**
+ * Marks a washer as absent specifically for the current day.
+ * Toggles today's absence on or off in Washers collection.
+ */
+export async function markWasherAbsentTodayInFirestore(
+  washerId: string,
+  dateIso?: string
+): Promise<{ success: boolean; isAbsent: boolean; absentDates: string[]; error?: string }> {
+  try {
+    const today = dateIso || new Date().toISOString().split('T')[0];
+    const washerRef = doc(db, 'Washers', washerId);
+    const snap = await getDoc(washerRef);
+
+    let absentDates: string[] = [];
+    let absentThisMonth = 0;
+
+    if (snap.exists()) {
+      const data = snap.data();
+      absentDates = Array.isArray(data.absentDates) ? [...data.absentDates] : [];
+      absentThisMonth = Number(data.absentThisMonth || 0);
+    }
+
+    const alreadyAbsent = absentDates.includes(today);
+    let newAbsentDates: string[];
+    let newCount: number;
+
+    if (alreadyAbsent) {
+      // Toggle off / revoke today's absence
+      newAbsentDates = absentDates.filter((d) => d !== today);
+      newCount = Math.max(0, absentThisMonth - 1);
+    } else {
+      // Mark absent today
+      newAbsentDates = [...absentDates, today];
+      newCount = absentThisMonth + 1;
+    }
+
+    await setDoc(
+      washerRef,
+      {
+        absentDates: newAbsentDates,
+        absentThisMonth: newCount,
+        leaveReason: alreadyAbsent ? 'Active on Route' : `Absent today (${today})`,
+        status: alreadyAbsent ? 'Active on Route' : 'On Leave',
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Also sync localStorage if available
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('torque_washers');
+        if (stored) {
+          const list: any[] = JSON.parse(stored);
+          const updated = list.map((w) =>
+            w.id === washerId
+              ? {
+                  ...w,
+                  absentDates: newAbsentDates,
+                  absentThisMonth: newCount,
+                  status: alreadyAbsent ? 'Active on Route' : 'On Leave',
+                }
+              : w
+          );
+          localStorage.setItem('torque_washers', JSON.stringify(updated));
+        }
+      } catch (e) {}
+    }
+
+    return {
+      success: true,
+      isAbsent: !alreadyAbsent,
+      absentDates: newAbsentDates,
+    };
+  } catch (err: any) {
+    console.error('markWasherAbsentTodayInFirestore error:', err);
+    return {
+      success: false,
+      isAbsent: false,
+      absentDates: [],
+      error: err?.message || 'Failed to update absence',
+    };
   }
 }
 

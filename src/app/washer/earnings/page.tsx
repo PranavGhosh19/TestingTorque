@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Wallet,
@@ -18,10 +18,38 @@ import {
 import { useStore } from '@/lib/store';
 import WasherBottomNav from '@/components/WasherBottomNav';
 import WasherWithdrawModal from '@/components/modals/WasherWithdrawModal';
+import { fetchWasherDashboardDataFromFirestore } from '@/lib/firebaseService';
 
 export default function WasherEarningsPage() {
-  const { washerEarnings } = useStore();
+  const { user, washerEarnings, setWasherEarnings } = useStore();
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function loadLiveEarnings() {
+      try {
+        const storedId = typeof window !== 'undefined' ? localStorage.getItem('torque_washer_id') : null;
+        const storedPhone = typeof window !== 'undefined' ? localStorage.getItem('torque_washer_phone') : null;
+        const queryId = (user?.role === 'washer' && user?.id && user.id !== 'usr_guest') ? user.id : (storedId || undefined);
+        const queryPhone = user?.phone || storedPhone || undefined;
+        const data = await fetchWasherDashboardDataFromFirestore(queryId, queryPhone);
+        if (isMounted && data.earnings) {
+          setWasherEarnings({
+            available: data.earnings.available,
+            this_week: data.earnings.this_week,
+            total_earnings: data.earnings.total_earnings,
+            pending: data.earnings.pending,
+            bank_account_last4: (data.earnings.bank_account || '').slice(-4) || '••••',
+            recent_payouts: [],
+          });
+        }
+      } catch (err) {
+        console.warn('Could not sync earnings from Firestore:', err);
+      }
+    }
+    loadLiveEarnings();
+    return () => { isMounted = false; };
+  }, [user?.id, user?.phone, setWasherEarnings]);
 
   return (
     <div className="min-h-screen bg-[#0A0D12] text-white selection:bg-[#2DD4A0] selection:text-black pb-28 md:pb-16 font-sans">
