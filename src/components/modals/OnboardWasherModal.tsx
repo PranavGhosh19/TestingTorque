@@ -20,6 +20,7 @@ import {
   FileCheck,
   Plus,
   Loader2,
+  Mail,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { WasherPartner } from '@/lib/washerPartners';
@@ -56,6 +57,7 @@ export default function OnboardWasherModal({
   // Form State
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
   const [selectedSocieties, setSelectedSocieties] = useState<string[]>([]);
   const [routeWindow, setRouteWindow] = useState('06:30 AM - 09:30 AM');
   const [bankAccount, setBankAccount] = useState('');
@@ -189,6 +191,10 @@ export default function OnboardWasherModal({
       setErrorMessage('Phone number is required');
       return;
     }
+    if (!email.trim() || !email.includes('@')) {
+      setErrorMessage('A valid Email ID is required for washer partner portal login');
+      return;
+    }
     if (aadhaarRaw.length !== 12) {
       setErrorMessage('12-digit Aadhaar number is required for official KYC verification');
       return;
@@ -211,6 +217,7 @@ export default function OnboardWasherModal({
       const newPartner = onboardWasher({
         name,
         phone: phone.trim(),
+        email: email.trim().toLowerCase(),
         society: chosenSocietyNames.join(', '),
         societies: selectedSocieties,
         createdBy: currentAdminId,
@@ -338,6 +345,26 @@ export default function OnboardWasherModal({
                       </span>
                     )}
                   </div>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="font-bold text-slate-700 block mb-1">
+                    Email ID (Used for Washer Portal Login) *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. ramesh.washer@torquecare.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full px-3.5 py-2.5 pl-9 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/10 focus:border-slate-900"
+                    />
+                    <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+                  <span className="text-[10px] text-slate-500 font-medium mt-1 block">
+                    The partner will log in using this email at /washer/login. On their first login, they will be prompted to set their password.
+                  </span>
                 </div>
               </div>
 

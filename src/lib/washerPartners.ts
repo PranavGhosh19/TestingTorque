@@ -14,6 +14,9 @@ export interface WasherPartner {
   id: string;
   name: string;
   phone: string;
+  email?: string;
+  password?: string;
+  hasPassword?: boolean;
   avatar: string;
   rating: string;
   reviewsCount: number;

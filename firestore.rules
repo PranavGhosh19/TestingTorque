@@ -143,7 +143,14 @@ service cloud.firestore {
       || isSuperAdmin()
       || (
         isAuthenticated()
-        && request.auth.uid == washerId
+        && (
+          request.auth.uid == washerId
+          || (request.auth.token.email != null && resource.data.email == request.auth.token.email)
+          || (request.auth.token.phone_number != null && (
+            resource.data.phone == request.auth.token.phone_number ||
+            resource.data.phone == ('+91 ' + request.auth.token.phone_number.replace('+91', ''))
+          ))
+        )
       );
 
 
@@ -162,7 +169,14 @@ service cloud.firestore {
       )
       || (
         isAuthenticated()
-        && request.auth.uid == washerId
+        && (
+          request.auth.uid == washerId
+          || (request.auth.token.email != null && resource.data.email == request.auth.token.email)
+          || (request.auth.token.phone_number != null && (
+            resource.data.phone == request.auth.token.phone_number ||
+            resource.data.phone == ('+91 ' + request.auth.token.phone_number.replace('+91', ''))
+          ))
+        )
         && request.resource.data.createdBy == resource.data.createdBy
       );
 

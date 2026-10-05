@@ -99,6 +99,7 @@ interface StoreContextType {
     washerFirebaseUID?: string;
     name: string;
     phone: string;
+    email?: string;
     society?: string;
     societies?: string[];
     assignedCarsPerDay?: number;
@@ -110,6 +111,7 @@ interface StoreContextType {
     address?: string;
     createdBy?: string;
   }) => WasherPartner;
+  setWasherPassword: (washerIdOrPhoneOrEmail: string, newPassword: string) => void;
   dismissWasher: (washerId: string, reason?: string) => Promise<boolean>;
   reinstateWasher: (washerId: string) => Promise<boolean>;
   appointWasherToVehicle: (vehicleId: string, washerId: string, ownerId?: string) => Promise<boolean>;
@@ -1076,6 +1078,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     washerFirebaseUID?: string;
     name: string;
     phone: string;
+    email?: string;
     society?: string;
     societies?: string[];
     assignedCarsPerDay?: number;
@@ -1104,6 +1107,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       id: newId,
       name: washerData.name,
       phone: cleanPhone,
+      email: washerData.email?.toLowerCase().trim() || undefined,
       avatar: '/images/washer_amit.jpg',
       rating: '5.0',
       reviewsCount: 1,
@@ -1177,6 +1181,55 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ]);
 
     return newPartner;
+  };
+
+  const setWasherPassword = (washerIdOrPhoneOrEmail: string, newPassword: string) => {
+    const cleanLower = washerIdOrPhoneOrEmail.toLowerCase().trim();
+    const cleanDigits = washerIdOrPhoneOrEmail.replace(/\D/g, '');
+    const last10 = cleanDigits.slice(-10);
+
+    setWashers((prev) =>
+      prev.map((w) => {
+        const wDigits = (w.phone || '').replace(/\D/g, '');
+        const wEmail = (w.email || '').toLowerCase().trim();
+        if (
+          w.id === washerIdOrPhoneOrEmail ||
+          (wEmail && wEmail === cleanLower) ||
+          (last10 && wDigits.includes(last10))
+        ) {
+          return {
+            ...w,
+            password: newPassword,
+            hasPassword: true,
+          };
+        }
+        return w;
+      })
+    );
+
+    if (typeof window !== 'undefined') {
+      try {
+        const existingStored = localStorage.getItem('torque_washers');
+        if (existingStored) {
+          const list: WasherPartner[] = JSON.parse(existingStored);
+          const updated = list.map((w) => {
+            const wDigits = (w.phone || '').replace(/\D/g, '');
+            const wEmail = (w.email || '').toLowerCase().trim();
+            if (
+              w.id === washerIdOrPhoneOrEmail ||
+              (wEmail && wEmail === cleanLower) ||
+              (last10 && wDigits.includes(last10))
+            ) {
+              return { ...w, password: newPassword, hasPassword: true };
+            }
+            return w;
+          });
+          localStorage.setItem('torque_washers', JSON.stringify(updated));
+        }
+      } catch (err) {
+        console.warn('localStorage error in setWasherPassword:', err);
+      }
+    }
   };
 
   const dismissWasher = async (washerId: string, reason = 'Administrative dismissal'): Promise<boolean> => {
@@ -1785,6 +1838,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         setRouteStops,
         washers,
         onboardWasher,
+        setWasherPassword,
         dismissWasher,
         reinstateWasher,
         appointWasherToVehicle,

@@ -303,6 +303,8 @@ export async function syncWasherToFirestore(
       name: washer.name,
       phone: phoneWithCountry,
       phone_raw: phoneRaw,
+      email: washer.email ? washer.email.toLowerCase().trim() : null,
+      ...(washer.password ? { password: washer.password, hasPassword: true } : {}),
       createdBy: createdBy,
       society: washer.society || societiesList.join(', '),
       societies: societiesList,
@@ -350,6 +352,7 @@ export async function syncWasherToFirestore(
       washerId: washer.id,
       id: washer.id,
       name: washer.name,
+      email: washer.email ? washer.email.toLowerCase().trim() : null,
       photoURL: washer.avatar || '/images/washer_amit.jpg',
       avatar: washer.avatar || '/images/washer_amit.jpg',
       societies: societiesList,
@@ -691,17 +694,46 @@ export async function findWasherByPhoneInFirestore(phone: string): Promise<Washe
     const last10 = cleanPhone.slice(-10);
 
     const washersRef = collection(db, 'Washers');
+
+    // 1. Direct phone query
     const q = query(washersRef, where('phone', '==', phone));
     const snap = await getDocs(q);
     if (!snap.empty) {
-      return snap.docs[0].data() as WasherPartner;
+      const docSnap = snap.docs[0];
+      return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
     }
 
     if (last10) {
+      // 2. Query with +91 format
       const q2 = query(washersRef, where('phone', '==', `+91 ${last10}`));
       const snap2 = await getDocs(q2);
       if (!snap2.empty) {
-        return snap2.docs[0].data() as WasherPartner;
+        const docSnap = snap2.docs[0];
+        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+      }
+
+      // 3. Query with +91 without space
+      const q3 = query(washersRef, where('phone', '==', `+91${last10}`));
+      const snap3 = await getDocs(q3);
+      if (!snap3.empty) {
+        const docSnap = snap3.docs[0];
+        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+      }
+
+      // 4. Query with phone_raw field
+      const q4 = query(washersRef, where('phone_raw', '==', last10));
+      const snap4 = await getDocs(q4);
+      if (!snap4.empty) {
+        const docSnap = snap4.docs[0];
+        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+      }
+
+      // 5. Query with raw 10 digits
+      const q5 = query(washersRef, where('phone', '==', last10));
+      const snap5 = await getDocs(q5);
+      if (!snap5.empty) {
+        const docSnap = snap5.docs[0];
+        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
       }
     }
 
@@ -709,6 +741,181 @@ export async function findWasherByPhoneInFirestore(phone: string): Promise<Washe
   } catch (error: any) {
     console.warn('Firebase findWasherByPhoneInFirestore notice:', error?.message || error);
     return null;
+  }
+}
+
+/**
+ * Finds an onboarded WasherPartner by email address in Firestore.
+ */
+export async function findWasherByEmailInFirestore(email: string): Promise<WasherPartner | null> {
+  try {
+    const cleanEmail = email.toLowerCase().trim();
+    if (!cleanEmail) return null;
+
+    const washersRef = collection(db, 'Washers');
+    const q = query(washersRef, where('email', '==', cleanEmail));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const docSnap = snap.docs[0];
+      return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+    }
+    return null;
+  } catch (error: any) {
+    console.warn('Firebase findWasherByEmailInFirestore notice:', error?.message || error);
+    return null;
+  }
+}
+
+/**
+ * Saves or updates a Washer Partner's secret password in Firestore Washers collection.
+ */
+export async function setWasherPasswordInFirestore(
+  phoneOrIdOrEmail: string,
+  newPassword: string
+): Promise<{ success: boolean; washerId?: string; washerName?: string; error?: string }> {
+  try {
+    const rawInput = phoneOrIdOrEmail.trim();
+    const cleanDigits = rawInput.replace(/\D/g, '');
+    const washersRef = collection(db, 'Washers');
+
+    let targetDocId: string | null = null;
+    let existingData: any = null;
+
+    // 1. Check if email
+    if (rawInput.includes('@')) {
+      const qEmail = query(washersRef, where('email', '==', rawInput.toLowerCase()));
+      const snapEmail = await getDocs(qEmail);
+      if (!snapEmail.empty) {
+        targetDocId = snapEmail.docs[0].id;
+        existingData = snapEmail.docs[0].data();
+      }
+    }
+
+    // 2. Check if direct doc ID
+    if (!targetDocId && !rawInput.startsWith('+') && cleanDigits.length !== 10) {
+      const docRef = doc(db, 'Washers', rawInput);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        targetDocId = docSnap.id;
+        existingData = docSnap.data();
+      }
+    }
+
+    // 3. Query by phone if not found by direct ID or email
+    if (!targetDocId && cleanDigits.length >= 10) {
+      const last10 = cleanDigits.slice(-10);
+      const q = query(washersRef, where('phone', '==', `+91 ${last10}`));
+      const snap = await getDocs(q);
+      if (!snap.empty) {
+        targetDocId = snap.docs[0].id;
+        existingData = snap.docs[0].data();
+      } else {
+        const q2 = query(washersRef, where('phone_raw', '==', last10));
+        const snap2 = await getDocs(q2);
+        if (!snap2.empty) {
+          targetDocId = snap2.docs[0].id;
+          existingData = snap2.docs[0].data();
+        } else {
+          const q3 = query(washersRef, where('phone', '==', `+91${last10}`));
+          const snap3 = await getDocs(q3);
+          if (!snap3.empty) {
+            targetDocId = snap3.docs[0].id;
+            existingData = snap3.docs[0].data();
+          }
+        }
+      }
+    }
+
+    if (!targetDocId) {
+      return { success: false, error: 'Washer partner record not found in database.' };
+    }
+
+    const targetRef = doc(db, 'Washers', targetDocId);
+    await setDoc(
+      targetRef,
+      {
+        password: newPassword,
+        hasPassword: true,
+        has_password: true,
+        password_set_at: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    return {
+      success: true,
+      washerId: targetDocId,
+      washerName: existingData?.name || 'Washer Partner',
+    };
+  } catch (err: any) {
+    console.error('setWasherPasswordInFirestore error:', err);
+    return { success: false, error: err?.message || 'Failed to save password in database' };
+  }
+}
+
+/**
+ * Validates a Washer Partner's credentials using email or phone and password.
+ */
+export async function verifyWasherPasswordInFirestore(
+  identifier: string,
+  passwordAttempt: string
+): Promise<{
+  success: boolean;
+  washer?: WasherPartner;
+  noPasswordSet?: boolean;
+  error?: string;
+}> {
+  try {
+    const cleanId = identifier.trim();
+    let washer: WasherPartner | null = null;
+
+    if (cleanId.includes('@')) {
+      washer = await findWasherByEmailInFirestore(cleanId);
+    } else {
+      washer = await findWasherByPhoneInFirestore(cleanId);
+    }
+
+    if (!washer) {
+      return {
+        success: false,
+        error: cleanId.includes('@')
+          ? 'No washer partner registered with this email address. Please contact your Society Area Manager.'
+          : 'Mobile number not found in verified partner network. Please contact your Society Area Manager.',
+      };
+    }
+
+    const storedPassword = (washer as any).password;
+    const hasPassword = Boolean(storedPassword || (washer as any).hasPassword || (washer as any).has_password);
+
+    if (!hasPassword || !storedPassword) {
+      return {
+        success: false,
+        noPasswordSet: true,
+        washer,
+        error: 'First-time partner: No password has been created for this account yet. Please set your password to continue.',
+      };
+    }
+
+    if (storedPassword !== passwordAttempt) {
+      return {
+        success: false,
+        washer,
+        error: 'Incorrect password. Please re-enter your password.',
+      };
+    }
+
+    return {
+      success: true,
+      washer,
+    };
+  } catch (err: any) {
+    console.error('verifyWasherPasswordInFirestore error:', err);
+    return {
+      success: false,
+      error: err?.message || 'Failed to verify washer credentials',
+    };
   }
 }
 

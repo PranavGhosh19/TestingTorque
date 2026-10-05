@@ -54,6 +54,9 @@ export interface WasherProfile {
   user_id: string;
   name: string;
   phone: string;
+  email?: string;
+  password?: string;
+  hasPassword?: boolean;
   rating: number;
   avatar_url: string;
   society_id: string;
