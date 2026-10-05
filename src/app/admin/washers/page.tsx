@@ -72,9 +72,10 @@ export default function AdminWashersPage() {
           if (socList && socList.length > 0) {
             const map: Record<string, string> = {};
             socList.forEach((s) => {
-              if (s.id) {
-                map[s.id] = s.name;
-                map[s.id.toLowerCase()] = s.name;
+              const sid = s.societyId;
+              if (sid) {
+                map[sid] = s.name;
+                map[sid.toLowerCase()] = s.name;
               }
             });
             setSocietyMap(map);

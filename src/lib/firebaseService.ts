@@ -1926,6 +1926,7 @@ export async function fetchAreaManagerByEmail(email: string): Promise<AreaManage
 
 export interface FirestoreSociety {
   societyId: string;
+  id?: string; // Convenience alias for societyId
   name: string;
   city: string;
   state: string;
@@ -1957,8 +1958,10 @@ export async function fetchAllSocieties(): Promise<FirestoreSociety[]> {
     const snap = await getDocs(colRef);
     return snap.docs.map((d) => {
       const data = d.data();
+      const sId = data.societyId || d.id;
       return {
-        societyId: data.societyId || d.id,
+        societyId: sId,
+        id: sId,
         name: data.name || '',
         state: data.state || '',
         city: data.city || '',
@@ -1984,8 +1987,10 @@ export async function fetchActiveSocieties(): Promise<FirestoreSociety[]> {
     const snap = await getDocs(q);
     const activeDocs = snap.docs.map((d) => {
       const data = d.data();
+      const sId = data.societyId || d.id;
       return {
-        societyId: data.societyId || d.id,
+        societyId: sId,
+        id: sId,
         name: data.name || '',
         state: data.state || '',
         city: data.city || '',
