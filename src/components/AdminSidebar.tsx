@@ -4,7 +4,6 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  Shield,
   Activity,
   Layers,
   Users,
@@ -107,21 +106,6 @@ export default function AdminSidebar() {
 
   return (
     <aside className="w-64 bg-[#0B132B] text-white shrink-0 hidden lg:flex flex-col border-r border-white/10 min-h-screen">
-      {/* Brand Header */}
-      <div className="p-6 border-b border-white/10 flex items-center gap-2.5">
-        <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-xs">
-          <Shield className="w-5 h-5 fill-white/20" />
-        </div>
-        <div>
-          <div className="text-base font-extrabold tracking-tight">
-            Torque<span className="text-blue-400">Care</span>
-          </div>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 block">
-            Operations Portal
-          </span>
-        </div>
-      </div>
-
       {/* Nav Items */}
       <div className="flex-1 p-4 overflow-y-auto space-y-6">
         {navGroups.map((group, idx) => (
