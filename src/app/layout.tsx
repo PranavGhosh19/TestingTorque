@@ -3,6 +3,7 @@ import { Manrope, Inter } from "next/font/google";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import Navbar from "@/components/Navbar";
+import PublicBottomNav from "@/components/PublicBottomNav";
 import PWAInstallPrompt from "@/components/shared/PWAInstallPrompt";
 
 const manrope = Manrope({
@@ -73,6 +74,7 @@ export default function RootLayout({
         <StoreProvider>
           <Navbar />
           <main className="flex-1">{children}</main>
+          <PublicBottomNav />
           <PWAInstallPrompt />
         </StoreProvider>
         <Script
@@ -85,12 +87,4 @@ export default function RootLayout({
                   navigator.serviceWorker.register('/sw.js').catch(function(err) {
                     console.log('SW registration failed: ', err);
                   });
-                });
-              }
-            `,
-          }}
-        />
-      </body>
-    </html>
-  );
-}
+                })

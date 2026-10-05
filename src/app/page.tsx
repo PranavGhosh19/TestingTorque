@@ -264,8 +264,8 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Bottom Bar: Scroll to explore indicator */}
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pb-6 flex items-center justify-between text-xs text-white/40">
+        {/* Bottom Bar: Scroll to explore indicator (hidden on smaller screens) */}
+        <div className="hidden sm:flex relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pb-6 items-center justify-between text-xs text-white/40">
           <div className="flex items-center gap-2.5">
             <div className="w-3.5 h-6 rounded-full border border-white/20 flex items-start justify-center p-1">
               <div className="w-1 h-1.5 rounded-full bg-[#2DD4A0] animate-bounce" />
@@ -882,7 +882,7 @@ export default function HomePage() {
       {/* ========================================================================= */}
       {/* 8. FOOTER */}
       {/* ========================================================================= */}
-      <footer className="bg-[#05080E] border-t border-white/[0.08] py-14 px-4 sm:px-6 lg:px-8 text-xs text-white/40">
+      <footer className="bg-[#05080E] border-t border-white/[0.08] pt-14 pb-28 md:py-14 px-4 sm:px-6 lg:px-8 text-xs text-white/40">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <Link href="/" className="hover:opacity-95 transition-opacity">

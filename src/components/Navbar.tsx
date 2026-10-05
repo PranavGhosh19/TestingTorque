@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Shield, Menu, X, ArrowRight, Bell, Sparkles, ChevronDown, Car, Lock, CalendarCheck, Wallet, UserCheck } from 'lucide-react';
+import { Shield, Menu, X, Bell, Sparkles, ChevronDown, Car, Lock, CalendarCheck, Wallet, UserCheck } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 
@@ -319,47 +319,6 @@ export default function Navbar() {
               About
             </Link>
           </nav>
-
-          <div className="pt-3 border-t border-white/10 flex flex-col gap-2">
-            <Link
-              href="/auth/signup"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-3 rounded-xl bg-white text-[#080D1A] text-center font-black text-xs shadow-md"
-            >
-              Get Started as Owner
-            </Link>
-
-            <div className="text-[10px] font-black uppercase tracking-wider text-slate-400 mt-2 px-1">
-              Dedicated Portals:
-            </div>
-
-            <Link
-              href="/auth/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-2.5 px-3 rounded-xl bg-white/5 border border-white/10 text-slate-200 text-xs font-bold flex items-center justify-between"
-            >
-              <span>🚗 Owner Sign In</span>
-              <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
-            </Link>
-
-            <Link
-              href="/washer/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-2.5 px-3 rounded-xl bg-white/5 border border-white/10 text-emerald-300 text-xs font-bold flex items-center justify-between"
-            >
-              <span>🧼 Washer Partner Login</span>
-              <ArrowRight className="w-3.5 h-3.5 text-emerald-400" />
-            </Link>
-
-            <Link
-              href="/admin/login"
-              onClick={() => setMobileMenuOpen(false)}
-              className="w-full py-2.5 px-3 rounded-xl bg-white/5 border border-white/10 text-amber-300 text-xs font-bold flex items-center justify-between"
-            >
-              <span>⚙️ Admin Operations Login</span>
-              <ArrowRight className="w-3.5 h-3.5 text-amber-400" />
-            </Link>
-          </div>
         </div>
       )}
     </header>
