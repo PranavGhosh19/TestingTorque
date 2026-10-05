@@ -302,7 +302,7 @@ export async function syncWasherToFirestore(
     await setDoc(washerRef, washerPayload, { merge: true });
 
     // 2. Public sanitized discovery document specifically for /auth/signup discovery: washer_directory/{washerId}
-    const isDismissed = washer.status === 'Dismissed' || washer.status === 'inactive';
+    const isDismissed = washer.status === 'Dismissed' || (washer.status as any) === 'inactive';
     const directoryPayload = {
       washerId: washer.id,
       id: washer.id,

@@ -35,24 +35,6 @@ export default function AdminPayoutsPage() {
   const [selectedSocietyFilter, setSelectedSocietyFilter] = useState('All');
   const [isExporting, setIsExporting] = useState(false);
 
-  // Compute stats dynamically from washer partners
-  const totalMonthPayout = useMemo(() => {
-    return washers.reduce((sum, w) => sum + (w.monthlyPayoutsGone || 0), 0);
-  }, [washers]);
-
-  // Lifetime cumulative disbursements dynamically calculated from recorded disbursements
-  const totalLifetimePayout = useMemo(() => {
-    return allDisbursements.reduce((sum, d) => sum + (d.netAmount || 0), 0);
-  }, [allDisbursements]);
-
-  // Partner with highest payout this month
-  const topEarner = useMemo(() => {
-    if (washers.length === 0) return null;
-    return washers.reduce((max, w) => {
-      return (w.monthlyPayoutsGone || 0) > (max.monthlyPayoutsGone || 0) ? w : max;
-    }, washers[0]);
-  }, [washers]);
-
   // Flatten all disbursements for the audit log
   const allDisbursements: FlatDisbursement[] = useMemo(() => {
     const list: FlatDisbursement[] = [];
@@ -71,7 +53,25 @@ export default function AdminPayoutsPage() {
     });
     // Sort latest first
     return list.sort((a, b) => b.utr.localeCompare(a.utr));
-  }, []);
+  }, [washers]);
+
+  // Compute stats dynamically from washer partners
+  const totalMonthPayout = useMemo(() => {
+    return washers.reduce((sum, w) => sum + (w.monthlyPayoutsGone || 0), 0);
+  }, [washers]);
+
+  // Lifetime cumulative disbursements dynamically calculated from recorded disbursements
+  const totalLifetimePayout = useMemo(() => {
+    return allDisbursements.reduce((sum, d) => sum + (d.netAmount || 0), 0);
+  }, [allDisbursements]);
+
+  // Partner with highest payout this month
+  const topEarner = useMemo(() => {
+    if (washers.length === 0) return null;
+    return washers.reduce((max, w) => {
+      return (w.monthlyPayoutsGone || 0) > (max.monthlyPayoutsGone || 0) ? w : max;
+    }, washers[0]);
+  }, [washers]);
 
   // Filtered disbursements
   const filteredDisbursements = useMemo(() => {

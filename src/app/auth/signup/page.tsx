@@ -40,6 +40,7 @@ import {
   DirectoryWasher,
 } from '@/lib/firebaseService';
 import { sendPhoneOtp, verifyPhoneOtp, formatPhoneE164 } from '@/lib/firebaseAuth';
+import { auth } from '@/lib/firebase';
 
 interface VehicleDraft {
   make: string;
@@ -724,6 +725,7 @@ export default function SignUpPage() {
       subscription_price: getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
     }));
 
+    const primaryPhoneUid = formatPhoneE164(phone);
     const effectiveUid = verifiedUid || auth.currentUser?.uid || primaryPhoneUid;
 
     // Call store action with canonical fields (societyId, selectedWasherId) and snapshot fields
@@ -1666,7 +1668,7 @@ export default function SignUpPage() {
               <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
                 <button
                   type="button"
-                  onClick={() => loadWashersForSocietyId(selectedSocietyId, effectiveSocietyName)}
+                  onClick={() => loadWashersForSocietyId(selectedSocietyId)}
                   disabled={isLoadingWashers}
                   className="px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] border border-white/[0.1] text-white/80 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                   title="Reload Live Washers from washer_directory"
@@ -1716,7 +1718,7 @@ export default function SignUpPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => loadWashersForSocietyId(selectedSocietyId, effectiveSocietyName)}
+                          onClick={() => loadWashersForSocietyId(selectedSocietyId)}
                           className="px-5 py-2.5 rounded-xl bg-[#2DD4A0]/10 hover:bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/30 text-xs font-bold transition-all cursor-pointer flex items-center gap-2"
                         >
                           <RefreshCw className="w-3.5 h-3.5" />
