@@ -304,7 +304,8 @@ export async function syncWasherToFirestore(
       phone: phoneWithCountry,
       phone_raw: phoneRaw,
       email: washer.email ? washer.email.toLowerCase().trim() : null,
-      ...(washer.password ? { password: washer.password, hasPassword: true } : {}),
+      passwordSet: Boolean(washer.passwordSet || false),
+      hasPassword: Boolean(washer.passwordSet || false),
       createdBy: createdBy,
       society: washer.society || societiesList.join(', '),
       societies: societiesList,
@@ -357,6 +358,8 @@ export async function syncWasherToFirestore(
       avatar: washer.avatar || '/images/washer_amit.jpg',
       societies: societiesList,
       society: washer.society || societiesList.join(', '),
+      passwordSet: Boolean(washer.passwordSet || false),
+      hasPassword: Boolean(washer.passwordSet || false),
       status: isDismissed ? 'inactive' : 'active',
       availableForSignup: !isDismissed,
       rating: String(washer.rating || '5.0'),
@@ -839,8 +842,14 @@ export async function findWasherByEmailInFirestore(email: string): Promise<Washe
       const q = query(washersRef, where('email', '==', cleanEmail));
       const snap = await getDocs(q);
       if (!snap.empty) {
-        const docSnap = snap.docs[0];
-        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+        const docData = snap.docs[0].data();
+        const pwdSet = docData.passwordSet === true || (docData.passwordSet === undefined && Boolean(docData.firebaseUid || docData.authUid));
+        return {
+          id: snap.docs[0].id,
+          ...docData,
+          passwordSet: pwdSet,
+          hasPassword: pwdSet,
+        } as WasherPartner;
       }
     } catch (e: any) {
       console.warn('findWasherByEmail query 1 warning:', e?.message || e);
@@ -852,8 +861,14 @@ export async function findWasherByEmailInFirestore(email: string): Promise<Washe
         const qRaw = query(washersRef, where('email', '==', rawEmail));
         const snapRaw = await getDocs(qRaw);
         if (!snapRaw.empty) {
-          const docSnap = snapRaw.docs[0];
-          return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+          const docData = snapRaw.docs[0].data();
+          const pwdSet = docData.passwordSet === true || (docData.passwordSet === undefined && Boolean(docData.firebaseUid || docData.authUid));
+          return {
+            id: snapRaw.docs[0].id,
+            ...docData,
+            passwordSet: pwdSet,
+            hasPassword: pwdSet,
+          } as WasherPartner;
         }
       } catch (e: any) {
         console.warn('findWasherByEmail query 2 warning:', e?.message || e);
@@ -874,11 +889,19 @@ export async function findWasherByEmailInFirestore(email: string): Promise<Washe
           try {
             const fullDoc = await getDoc(doc(db, 'Washers', washerId));
             if (fullDoc.exists()) {
-              return { id: fullDoc.id, ...fullDoc.data() } as WasherPartner;
+              const fullData = fullDoc.data();
+              const pwdSet = fullData.passwordSet === true || (fullData.passwordSet === undefined && Boolean(fullData.firebaseUid || fullData.authUid));
+              return {
+                id: fullDoc.id,
+                ...fullData,
+                passwordSet: pwdSet,
+                hasPassword: pwdSet,
+              } as WasherPartner;
             }
           } catch (e) {}
         }
 
+        const pwdSet = dirData.passwordSet === true || (dirData.passwordSet === undefined && Boolean(dirData.firebaseUid || dirData.authUid));
         // Return synthesized WasherPartner from washer_directory
         return {
           id: washerId,
@@ -893,8 +916,8 @@ export async function findWasherByEmailInFirestore(email: string): Promise<Washe
           routeWindow: dirData.routeWindow || '06:30 AM - 09:30 AM',
           completionRate: dirData.completionRate || '100%',
           avatar: dirData.avatar || dirData.photoURL || '/images/washer_amit.jpg',
-          password: dirData.password,
-          hasPassword: Boolean(dirData.hasPassword || dirData.has_password || dirData.password),
+          passwordSet: pwdSet,
+          hasPassword: pwdSet,
         } as WasherPartner;
       }
     } catch (e: any) {
@@ -908,7 +931,13 @@ export async function findWasherByEmailInFirestore(email: string): Promise<Washe
         const data = d.data();
         const docEmail = (data.email || '').toString().toLowerCase().trim();
         if (docEmail === cleanEmail) {
-          return { id: d.id, ...data } as WasherPartner;
+          const pwdSet = data.passwordSet === true || (data.passwordSet === undefined && Boolean(data.firebaseUid || data.authUid));
+          return {
+            id: d.id,
+            ...data,
+            passwordSet: pwdSet,
+            hasPassword: pwdSet,
+          } as WasherPartner;
         }
       }
     } catch (e: any) {
@@ -926,10 +955,18 @@ export async function findWasherByEmailInFirestore(email: string): Promise<Washe
           try {
             const fullDoc = await getDoc(doc(db, 'Washers', washerId));
             if (fullDoc.exists()) {
-              return { id: fullDoc.id, ...fullDoc.data() } as WasherPartner;
+              const fullData = fullDoc.data();
+              const pwdSet = fullData.passwordSet === true || (fullData.passwordSet === undefined && Boolean(fullData.firebaseUid || fullData.authUid));
+              return {
+                id: fullDoc.id,
+                ...fullData,
+                passwordSet: pwdSet,
+                hasPassword: pwdSet,
+              } as WasherPartner;
             }
           } catch (err) {}
 
+          const pwdSet = data.passwordSet === true || (data.passwordSet === undefined && Boolean(data.firebaseUid || data.authUid));
           return {
             id: washerId,
             name: data.name || 'Washer Partner',
@@ -943,13 +980,32 @@ export async function findWasherByEmailInFirestore(email: string): Promise<Washe
             routeWindow: data.routeWindow || '06:30 AM - 09:30 AM',
             completionRate: data.completionRate || '100%',
             avatar: data.avatar || data.photoURL || '/images/washer_amit.jpg',
-            password: data.password,
-            hasPassword: Boolean(data.hasPassword || data.has_password || data.password),
+            passwordSet: pwdSet,
+            hasPassword: pwdSet,
           } as WasherPartner;
         }
       }
     } catch (e: any) {
       console.warn('findWasherByEmail scan 2 warning:', e?.message || e);
+    }
+
+    // 6. Resilient browser cache fallback
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('torque_washers');
+        if (stored) {
+          const list: any[] = JSON.parse(stored);
+          const found = list.find((w) => (w.email || '').toLowerCase().trim() === cleanEmail);
+          if (found) {
+            const pwdSet = found.passwordSet === true || (found.passwordSet === undefined && Boolean(found.firebaseUid || found.authUid));
+            return {
+              ...found,
+              passwordSet: pwdSet,
+              hasPassword: pwdSet,
+            } as WasherPartner;
+          }
+        }
+      } catch (e) {}
     }
 
     return null;
@@ -960,7 +1016,78 @@ export async function findWasherByEmailInFirestore(email: string): Promise<Washe
 }
 
 /**
- * Saves or updates a Washer Partner's secret password in Firestore Washers & washer_directory collections.
+ * Updates a Washer Partner's record with `passwordSet: true` after they create their password
+ * in Firebase Authentication. Strictly never stores plaintext passwords in Firestore.
+ */
+export async function markWasherPasswordSetInFirestore(
+  washerId: string,
+  firebaseAuthUid?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { deleteField } = await import('firebase/firestore');
+
+    const updatePayload: Record<string, any> = {
+      passwordSet: true,
+      hasPassword: true,
+      updatedAt: serverTimestamp(),
+      updated_at: serverTimestamp(),
+      password: deleteField(),
+    };
+    if (firebaseAuthUid) {
+      updatePayload.firebaseUid = firebaseAuthUid;
+      updatePayload.authUid = firebaseAuthUid;
+    }
+
+    // 1. Update Washers operational record
+    try {
+      const washerRef = doc(db, 'Washers', washerId);
+      await setDoc(washerRef, updatePayload, { merge: true });
+    } catch (wErr: any) {
+      console.warn('markWasherPasswordSet Washers notice:', wErr?.message || wErr);
+    }
+
+    // 2. Update washer_directory record
+    try {
+      const dirRef = doc(db, 'washer_directory', washerId);
+      await setDoc(
+        dirRef,
+        {
+          passwordSet: true,
+          hasPassword: true,
+          updatedAt: serverTimestamp(),
+          password: deleteField(),
+        },
+        { merge: true }
+      );
+    } catch (dirErr: any) {
+      console.warn('markWasherPasswordSet washer_directory notice:', dirErr?.message || dirErr);
+    }
+
+    // 3. Update localStorage if present
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem('torque_washers');
+        if (stored) {
+          const list: any[] = JSON.parse(stored);
+          const updated = list.map((w) =>
+            w.id === washerId
+              ? { ...w, passwordSet: true, hasPassword: true, ...(firebaseAuthUid ? { firebaseUid: firebaseAuthUid } : {}) }
+              : w
+          );
+          localStorage.setItem('torque_washers', JSON.stringify(updated));
+        }
+      } catch (e) {}
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('markWasherPasswordSetInFirestore error:', err);
+    return { success: false, error: err?.message || 'Failed to update password flag' };
+  }
+}
+
+/**
+ * Saves or updates a Washer Partner's secret password flag in Firestore.
  */
 export async function setWasherPasswordInFirestore(
   phoneOrIdOrEmail: string,
@@ -1141,10 +1268,13 @@ export async function fetchWasherFromFirestore(
       const washerDocSnap = await getDoc(washerDocRef);
       if (washerDocSnap.exists()) {
         const data = washerDocSnap.data();
+        const pwdSet = data.passwordSet === true || (data.passwordSet === undefined && Boolean(data.firebaseUid || data.authUid));
         return {
           id: washerDocSnap.id,
           ...data,
           name: data.name || 'Washer Partner',
+          passwordSet: pwdSet,
+          hasPassword: pwdSet,
         } as WasherPartner;
       }
     }
@@ -1161,10 +1291,13 @@ export async function fetchWasherFromFirestore(
     if (!allWashersSnap.empty) {
       const docSnap = allWashersSnap.docs[0];
       const data = docSnap.data();
+      const pwdSet = data.passwordSet === true || (data.passwordSet === undefined && Boolean(data.firebaseUid || data.authUid));
       return {
         id: docSnap.id,
         ...data,
         name: data.name || 'Washer Partner',
+        passwordSet: pwdSet,
+        hasPassword: pwdSet,
       } as WasherPartner;
     }
 
@@ -2010,16 +2143,8 @@ export async function fetchAllWashersFromFirestore(adminUid?: string): Promise<W
       const data = docSnap.data();
       const name = String(data.name || '').toLowerCase();
       const id = String(docSnap.id || '').toLowerCase();
-      // Skip dummy mock and test partners (Lijo, Pranav Ghosh, Amit Kumar)
-      if (
-        id === 'wsh_amit' ||
-        name.includes('lijo') ||
-        name.includes('pranav ghosh') ||
-        name.includes('amit kumar') ||
-        id.includes('lijo') ||
-        id.includes('pranav') ||
-        id.includes('amit')
-      ) {
+      // Skip hardcoded mock partner wsh_amit
+      if (id === 'wsh_amit') {
         return;
       }
       if (!washersMap.has(docSnap.id)) {
@@ -2030,10 +2155,15 @@ export async function fetchAllWashersFromFirestore(adminUid?: string): Promise<W
             ? data.society.split(',').map((s: string) => s.trim()).filter(Boolean)
             : [];
 
+        const pwdSet = data.passwordSet === true || (data.passwordSet === undefined && Boolean(data.firebaseUid || data.authUid));
         washersMap.set(docSnap.id, {
           id: docSnap.id,
           name: data.name || 'Washer Partner',
           phone: data.phone || '',
+          email: data.email ? String(data.email).toLowerCase().trim() : undefined,
+          passwordSet: pwdSet,
+          hasPassword: pwdSet,
+          firebaseUid: data.firebaseUid || data.authUid,
           avatar: data.avatar || data.avatar_url || '/images/washer_amit.jpg',
           rating: String(data.rating || '5.0'),
           reviewsCount: Number(data.reviewsCount || data.reviews_count || 0),

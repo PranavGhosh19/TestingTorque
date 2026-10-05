@@ -17,6 +17,8 @@ export interface WasherPartner {
   email?: string;
   password?: string;
   hasPassword?: boolean;
+  passwordSet?: boolean;
+  firebaseUid?: string;
   avatar: string;
   rating: string;
   reviewsCount: number;

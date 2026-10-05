@@ -128,17 +128,8 @@ export default function AdminWashersPage() {
 
   const isDummyWasher = (w: WasherPartner | any) => {
     if (!w) return true;
-    const name = String(w.name || '').toLowerCase();
     const id = String(w.id || '').toLowerCase();
-    return (
-      id === 'wsh_amit' ||
-      name.includes('lijo') ||
-      name.includes('pranav ghosh') ||
-      name.includes('amit kumar') ||
-      id.includes('lijo') ||
-      id.includes('pranav') ||
-      id.includes('amit')
-    );
+    return id === 'wsh_amit';
   };
 
   // Combined real washers: Firestore is the single source of truth once loaded

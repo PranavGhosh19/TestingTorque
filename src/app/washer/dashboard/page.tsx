@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   Car,
   MapPin,
@@ -37,6 +38,7 @@ import { RouteStop, WasherPartner } from '@/lib/types';
 import { fetchWasherDashboardDataFromFirestore } from '@/lib/firebaseService';
 
 export default function WasherDashboardPage() {
+  const router = useRouter();
   const {
     user,
     setUser,
@@ -71,6 +73,11 @@ export default function WasherDashboardPage() {
 
       const data = await fetchWasherDashboardDataFromFirestore(queryId, queryPhone);
       if (data.washer) {
+        if (data.washer.passwordSet === false) {
+          router.replace(`/washer/set-password?email=${encodeURIComponent(data.washer.email || '')}`);
+          return;
+        }
+
         setFirebaseWasher(data.washer);
         if (user?.role === 'washer' && (!user.name || user.name === 'Amit Kumar' || user.name !== data.washer.name)) {
           setUser({

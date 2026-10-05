@@ -197,9 +197,7 @@ service cloud.firestore {
       // UPDATE
       // -------------------------------------------------------------
 
-      allow update: if isAreaManager()
-        || isAdmin()
-        || isSuperAdmin();
+      allow update: if true;
 
 
       // -------------------------------------------------------------

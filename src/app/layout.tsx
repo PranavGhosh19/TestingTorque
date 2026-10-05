@@ -80,15 +80,7 @@ export default function RootLayout({
           id="sw-register"
           strategy="afterInteractive"
           dangerouslySetInnerHTML={{
-            __html: `
-              if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').catch(function(err) {
-                    console.log('SW registration failed: ', err);
-                  });
-                });
-              }
-            `,
+            __html: "if (typeof window !== 'undefined' && 'serviceWorker' in navigator) { window.addEventListener('load', function() { navigator.serviceWorker.register('/sw.js').catch(function(err) { console.log('SW registration failed: ', err); }); }); }",
           }}
         />
       </body>

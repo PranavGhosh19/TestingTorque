@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   ShieldCheck,
   ArrowRight,
@@ -16,6 +17,8 @@ import {
   KeyRound,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import {
   findWasherByEmailInFirestore,
   findWasherByPhoneInFirestore,
@@ -92,36 +95,54 @@ export default function DedicatedWasherLoginPage() {
         return;
       }
 
-      const hasPassword = Boolean(
-        (washer as any).password ||
-        (washer as any).hasPassword ||
-        (washer as any).has_password
-      );
+      // 1. First-Time Detection:
+      // When the Washer logs in for the first time using the email created by the Admin,
+      // detect that this is their first login and redirect them to a "Set Password" page instead of the Washer Dashboard.
+      const isFirstLogin = washer.passwordSet !== true;
 
-      // If FIRST TIME (no password set yet): ask them to set a password!
-      if (!hasPassword) {
-        setMatchedWasher(washer);
-        setStep('set_password');
-        setInfoMessage(`Welcome ${washer.name}! As this is your first time logging in, please set a password for yourself.`);
+      if (isFirstLogin) {
         setLoading(false);
+        router.push(`/washer/set-password?email=${encodeURIComponent(cleanEmail)}`);
         return;
       }
 
-      // If returning partner with password:
+      // 2. Subsequent Logins:
+      // Washer enters email + password. Authenticate normally through Firebase Authentication.
       if (!password) {
         setError('Please enter your password to sign in.');
         setLoading(false);
         return;
       }
 
-      const storedPassword = (washer as any).password;
-      if (storedPassword && storedPassword !== password) {
-        setError('Incorrect password. Please verify your credentials or click Forgot Password.');
-        setLoading(false);
-        return;
+      try {
+        const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, password);
+        const authUid = userCredential?.user?.uid || washer.id;
+        await completeWasherLogin(washer, cleanEmail, authUid);
+      } catch (authErr: any) {
+        console.error('Washer Firebase Auth login error:', authErr);
+        if (
+          authErr.code === 'auth/wrong-password' ||
+          authErr.code === 'auth/invalid-credential'
+        ) {
+          setError('Incorrect password. Please verify your credentials or contact your Society Area Manager.');
+          setLoading(false);
+          return;
+        } else if (authErr.code === 'auth/user-not-found') {
+          // If no Firebase Auth record exists yet, route to set password
+          router.push(`/washer/set-password?email=${encodeURIComponent(cleanEmail)}`);
+          return;
+        } else {
+          // Fallback verify in case of network issue
+          const storedPassword = (washer as any).password;
+          if (storedPassword && storedPassword === password) {
+            await completeWasherLogin(washer, cleanEmail, washer.id);
+            return;
+          }
+          setError(authErr?.message || 'Authentication failed. Please verify your password.');
+          setLoading(false);
+          return;
+        }
       }
-
-      await completeWasherLogin(washer, washer.phone || cleanEmail);
     } catch (err: any) {
       console.error('Washer email login error:', err);
       setError(err?.message || 'Login failed. Please try again.');
@@ -280,11 +301,15 @@ export default function DedicatedWasherLoginPage() {
     }
   };
 
-  const completeWasherLogin = async (washer: WasherPartner, identifier: string) => {
+  const completeWasherLogin = async (
+    washer: WasherPartner,
+    identifier: string,
+    firebaseUid?: string
+  ) => {
     setRole('washer');
     const washerUser = {
       id: washer.id,
-      uid: washer.id,
+      uid: firebaseUid || washer.firebaseUid || washer.id,
       name: washer.name || 'Verified Washer Partner',
       phone: washer.phone || identifier,
       email: washer.email,
@@ -292,6 +317,7 @@ export default function DedicatedWasherLoginPage() {
       avatar_url: washer.avatar || '/images/washer_amit.jpg',
       status: 'active' as const,
       hasPassword: true,
+      passwordSet: true,
       created_at: washer.created_at || new Date().toISOString(),
     };
 
@@ -304,6 +330,7 @@ export default function DedicatedWasherLoginPage() {
       localStorage.setItem('torque_washer_id', washer.id);
       localStorage.setItem('torque_washer_name', washerUser.name);
       localStorage.setItem('torque_washer_has_password', 'true');
+      localStorage.setItem('torque_washer_password_set', 'true');
     }
 
     await recordUserLogin(washerUser, 'washer_login');
@@ -532,9 +559,12 @@ export default function DedicatedWasherLoginPage() {
                       <label className="text-[11px] font-black text-slate-300 uppercase tracking-wider block">
                         Password
                       </label>
-                      <span className="text-[10px] text-slate-400 font-medium">
-                        (First-time? Leave blank & click Continue)
-                      </span>
+                      <Link
+                        href={`/washer/set-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}
+                        className="text-[10px] text-emerald-400 hover:text-emerald-300 font-semibold"
+                      >
+                        First-time? Set Password →
+                      </Link>
                     </div>
                     <div className="flex items-center rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 focus-within:border-emerald-400 focus-within:ring-2 focus-within:ring-emerald-400/20 transition-all shadow-inner">
                       <Lock className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
@@ -563,17 +593,25 @@ export default function DedicatedWasherLoginPage() {
                     disabled={loading}
                     className="w-full py-4 px-4 rounded-2xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_10px_25px_rgba(16,185,129,0.25)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer disabled:opacity-50"
                   >
-                    <span>{loading ? 'Checking Partner Account...' : 'Continue to Washer Portal'}</span>
+                    <span>{loading ? 'Verifying Account...' : 'Continue to Washer Portal'}</span>
                     <ArrowRight className="w-4 h-4" />
                   </button>
 
                   <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-[11px] text-slate-300 space-y-1">
-                    <div className="flex items-center gap-1.5 font-bold text-emerald-400">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>First-Time Washer Login</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 font-bold text-emerald-400">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>First-Time Washer Login</span>
+                      </div>
+                      <Link
+                        href={`/washer/set-password${email ? `?email=${encodeURIComponent(email)}` : ''}`}
+                        className="text-emerald-400 hover:underline font-bold text-[10px]"
+                      >
+                        Create Password →
+                      </Link>
                     </div>
                     <p className="text-slate-400 leading-relaxed">
-                      If your supervisor onboarded you, enter your registered email address and click <strong>Continue</strong>. You will be prompted to create your secret password immediately.
+                      If your supervisor onboarded you, enter your registered email address and click <strong>Continue</strong>. You will be automatically redirected to set your password.
                     </p>
                   </div>
                 </form>

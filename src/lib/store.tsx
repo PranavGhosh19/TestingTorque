@@ -546,10 +546,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(savedWashers);
           if (Array.isArray(parsed)) {
             const isDummyWasher = (w: any) =>
-              !w ||
-              w.id === 'wsh_amit' ||
-              /lijo|pranav\s*ghosh|amit\s*kumar/i.test(w.name || '') ||
-              /lijo|pranav|amit/i.test(w.id || '');
+              !w || w.id === 'wsh_amit';
             const clean = parsed.filter((w) => !isDummyWasher(w));
             if (clean.length !== parsed.length) {
               localStorage.setItem('torque_washers', JSON.stringify(clean));
@@ -1111,6 +1108,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       name: washerData.name,
       phone: cleanPhone,
       email: washerData.email?.toLowerCase().trim() || undefined,
+      passwordSet: false,
+      hasPassword: false,
       avatar: '/images/washer_amit.jpg',
       rating: '5.0',
       reviewsCount: 1,
