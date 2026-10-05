@@ -207,22 +207,12 @@ export default function AboutPage() {
       </div>
 
       {/* FOOTER */}
-      <footer className="bg-[#05080E] border-t border-white/[0.08] py-14 px-4 sm:px-6 lg:px-8 text-xs text-white/40">
+      <footer className="bg-[#05080E] border-t border-white/[0.08] pt-14 pb-28 md:py-14 px-4 sm:px-6 lg:px-8 text-xs text-white/40">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <Link href="/" className="hover:opacity-95 transition-opacity">
               <TorqueLogo emblemSize={32} />
             </Link>
-            <span className="text-white/40 text-[11px] hidden md:inline font-mono">
-              — Verified Society Car Care
-            </span>
-          </div>
-
-          <div className="flex items-center gap-6 text-white/65">
-            <Link href="/how-it-works" className="hover:text-white transition-colors">How it works</Link>
-            <Link href="/for-owners" className="hover:text-white transition-colors">Car Owners</Link>
-            <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
-            <Link href="/about" className="hover:text-white transition-colors">About</Link>
           </div>
 
           <div>© 2026 Torque Care Technologies Inc. All rights reserved.</div>

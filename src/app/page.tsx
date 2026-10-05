@@ -888,16 +888,6 @@ export default function HomePage() {
             <Link href="/" className="hover:opacity-95 transition-opacity">
               <TorqueLogo emblemSize={32} />
             </Link>
-            <span className="text-white/40 text-[11px] hidden md:inline font-mono">
-              — Verified Society Car Care
-            </span>
-          </div>
-
-          <div className="flex items-center gap-6 text-white/65">
-            <Link href="/how-it-works" className="hover:text-white transition-colors">How it works</Link>
-            <Link href="/for-owners" className="hover:text-white transition-colors">Car Owners</Link>
-            <Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link>
-            <Link href="/about" className="hover:text-white transition-colors">About</Link>
           </div>
 
           <div>© 2026 Torque Care Technologies Inc. All rights reserved.</div>
