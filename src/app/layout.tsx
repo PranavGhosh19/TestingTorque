@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { StoreProvider } from "@/lib/store";
 import Navbar from "@/components/Navbar";
@@ -52,8 +53,6 @@ export const metadata: Metadata = {
   },
 };
 
-import Script from "next/script";
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -87,4 +86,12 @@ export default function RootLayout({
                   navigator.serviceWorker.register('/sw.js').catch(function(err) {
                     console.log('SW registration failed: ', err);
                   });
-                })
+                });
+              }
+            `,
+          }}
+        />
+      </body>
+    </html>
+  );
+}
