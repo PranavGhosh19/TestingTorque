@@ -742,7 +742,7 @@ export default function SignUpPage() {
     const effectiveUid = verifiedUid || auth.currentUser?.uid || primaryPhoneUid;
 
     // Call store action with canonical fields (societyId, selectedWasherId, inchargeAdminId) and snapshot fields
-    registerOwner(
+    await registerOwner(
       {
         uid: effectiveUid,
         name: name.trim(),
@@ -768,9 +768,7 @@ export default function SignUpPage() {
     );
 
     // Redirect to Owner Dashboard
-    setTimeout(() => {
-      router.push('/owner/dashboard');
-    }, 600);
+    router.push('/owner/dashboard');
   };  return (
     <div className="w-full min-h-screen bg-[#0A0D12] text-white overflow-hidden selection:bg-[#2DD4A0] selection:text-black py-16 sm:py-24 relative">
       {/* LUXURY AMBIENT GLOWS */}

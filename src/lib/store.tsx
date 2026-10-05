@@ -88,7 +88,7 @@ interface StoreContextType {
       price?: number;
       subscription_price?: number;
     }>
-  ) => void;
+  ) => Promise<void> | void;
   washes: WashRecord[];
   todayWash: WashRecord | undefined;
   routeStops: RouteStop[];
@@ -728,7 +728,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     ]);
   };
 
-  const registerOwner = (
+  const registerOwner = async (
     ownerData: {
       uid?: string;
       name: string;
@@ -918,10 +918,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     }));
     setRouteStops((prev) => [...prev, ...newStops]);
 
-    // Asynchronously sync new owner & vehicles to Firebase
-    syncOwnerToFirestore(newUser, createdVehicles).catch((err) => {
+    // Reliably sync new owner & vehicles to Firebase
+    try {
+      await syncOwnerToFirestore(newUser, createdVehicles);
+    } catch (err) {
       console.warn('Firebase syncOwner error:', err);
-    });
+    }
 
     setNotifications((prev) => [
       {

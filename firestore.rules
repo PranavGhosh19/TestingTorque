@@ -296,13 +296,13 @@ service cloud.firestore {
 
       // Car_Owners subcollection under Society: Societies/{societyId}/Car_Owners/{ownerId}
       match /Car_Owners/{ownerId} {
-        allow read: if isOwner(ownerId) || isAdmin() || isAreaManager() || true;
-        allow create, update: if isOwner(ownerId) || isAdmin() || isAreaManager();
+        allow read: if true;
+        allow create, update: if true;
         allow delete: if isAdmin() || isSuperAdmin();
 
         match /Vehicles/{vehicleId} {
-          allow read: if isOwner(ownerId) || isAdmin() || isAreaManager() || true;
-          allow create, update: if isOwner(ownerId) || isAdmin() || isAreaManager();
+          allow read: if true;
+          allow create, update: if true;
           allow delete: if isAdmin() || isSuperAdmin();
         }
       }
@@ -330,12 +330,12 @@ service cloud.firestore {
 
           match /Car_Owners/{ownerId} {
             allow read: if true;
-            allow create, update: if isOwner(ownerId) || isAdmin() || isAreaManager();
+            allow create, update: if true;
             allow delete: if isAdmin() || isSuperAdmin();
 
             match /Vehicles/{vehicleId} {
               allow read: if true;
-              allow create, update: if isOwner(ownerId) || isAdmin() || isAreaManager();
+              allow create, update: if true;
               allow delete: if isAdmin() || isSuperAdmin();
             }
           }
@@ -368,18 +368,11 @@ service cloud.firestore {
 
     match /Car_Owners/{ownerId} {
 
-      allow read: if isOwner(ownerId)
-        || isAdmin()
-        || isAreaManager()
-        || true;
+      allow read: if true;
 
-      allow create: if isOwner(ownerId)
-        || isAdmin();
+      allow create, update: if true;
 
-      allow update: if isOwner(ownerId)
-        || isAdmin();
-
-      allow delete: if isAdmin();
+      allow delete: if isAdmin() || isSuperAdmin();
 
 
       // =============================================================
@@ -388,18 +381,11 @@ service cloud.firestore {
 
       match /Vehicles/{vehicleId} {
 
-        allow read: if isOwner(ownerId)
-          || isAdmin()
-          || isAreaManager()
-          || true;
+        allow read: if true;
 
-        allow create: if isOwner(ownerId)
-          || isAdmin();
+        allow create, update: if true;
 
-        allow update: if isOwner(ownerId)
-          || isAdmin();
-
-        allow delete: if isAdmin();
+        allow delete: if isAdmin() || isSuperAdmin();
 
 
         // ===========================================================
@@ -408,16 +394,7 @@ service cloud.firestore {
 
         match /{monthCol}/{dateDoc} {
 
-          allow read: if isOwner(ownerId)
-            || isAdmin();
-
-          allow create: if isOwner(ownerId)
-            || isAdmin();
-
-          allow update: if isOwner(ownerId)
-            || isAdmin();
-
-          allow delete: if isAdmin();
+          allow read, write: if true;
         }
 
 
@@ -427,30 +404,11 @@ service cloud.firestore {
 
         match /Months/{monthDoc} {
 
-          allow read: if isOwner(ownerId)
-            || isAdmin();
-
-          allow create: if isOwner(ownerId)
-            || isAdmin();
-
-          allow update: if isOwner(ownerId)
-            || isAdmin();
-
-          allow delete: if isAdmin();
-
+          allow read, write: if true;
 
           match /Dates/{dateDoc} {
 
-            allow read: if isOwner(ownerId)
-              || isAdmin();
-
-            allow create: if isOwner(ownerId)
-              || isAdmin();
-
-            allow update: if isOwner(ownerId)
-              || isAdmin();
-
-            allow delete: if isAdmin();
+            allow read, write: if true;
           }
         }
 
@@ -461,16 +419,7 @@ service cloud.firestore {
 
         match /Washes/{washId} {
 
-          allow read: if isOwner(ownerId)
-            || isAdmin();
-
-          allow create: if isOwner(ownerId)
-            || isAdmin();
-
-          allow update: if isOwner(ownerId)
-            || isAdmin();
-
-          allow delete: if isAdmin();
+          allow read, write: if true;
         }
       }
     }
