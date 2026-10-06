@@ -123,9 +123,11 @@ export default function OwnerVehiclesPage() {
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1 text-white/50">
-                      <Clock className="w-3.5 h-3.5 text-[#2DD4A0]" /> Preferred Window:
+                      <Clock className="w-3.5 h-3.5 text-[#2DD4A0]" /> Need Before:
                     </span>
-                    <span className="font-mono text-white/90">{v.preferred_wash_time || '6:00 AM – 7:30 AM'}</span>
+                    <span className="font-mono text-white/90">
+                      Before {v.needWashBefore || (v.preferred_wash_time?.startsWith('Before') ? v.preferred_wash_time.replace(/^Before\s+/i, '') : (v.preferred_wash_time || '8:00 AM'))}
+                    </span>
                   </div>
                   <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
                     <span className="text-white/50">This Month:</span>

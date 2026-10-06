@@ -838,9 +838,9 @@ export default function OwnerProofCalendar({
                     </span>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <span className="text-white/50 block text-[11px]">Time Window:</span>
+                        <span className="text-white/50 block text-[11px]">Need Before:</span>
                         <span className="text-white font-bold">
-                          {currentVehicle?.preferred_wash_time || '07:30 AM'} (Morning Route)
+                          Before {currentVehicle?.needWashBefore || (currentVehicle?.preferred_wash_time?.startsWith('Before') ? currentVehicle.preferred_wash_time.replace(/^Before\s+/i, '') : (currentVehicle?.preferred_wash_time || '8:00 AM'))}
                         </span>
                       </div>
                       <div>

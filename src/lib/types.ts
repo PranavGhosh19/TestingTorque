@@ -33,6 +33,8 @@ export interface User {
   assigned_washer_name?: string;
   price?: number;
   subscription_price?: number;
+  needWashBefore?: string;
+  need_wash_before?: string;
 }
 
 export interface Society {
@@ -108,6 +110,9 @@ export interface Vehicle {
   lastWashStatus?: string;
   lastWashDate?: string;
   lastWashTime?: string;
+  needWashBefore?: string;
+  need_wash_before?: string;
+  subscriptionStartDate?: string;
 }
 
 export interface WashRecord {
@@ -179,6 +184,8 @@ export interface RouteStop {
   original_washer_id?: string;
   is_covered_for_me?: boolean;
   covered_by_washer_name?: string;
+  needWashBefore?: string;
+  need_wash_before?: string;
 }
 
 export interface WasherSubstitutionAudit {

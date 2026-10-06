@@ -31,7 +31,7 @@ import OwnerBottomNav from '@/components/OwnerBottomNav';
 import { useStore } from '@/lib/store';
 import { fetchOwnerDashboardFromFirestore, fetchAllSocieties } from '@/lib/firebaseService';
 import { Vehicle, WasherPartner, WashRecord } from '@/lib/types';
-import { isPresentDateProofBefore10AM, isWashFromToday } from '@/lib/washUtils';
+import { isPresentDateProofBefore10AM, isWashFromToday, getTodayISTDate } from '@/lib/washUtils';
 
 export default function OwnerDashboardPage() {
   const router = useRouter();
@@ -298,6 +298,20 @@ export default function OwnerDashboardPage() {
     return washerSocietiesCovered || parkingBayOnly;
   }, [washerSocietiesCovered, parkingBayOnly]);
 
+  // Check if owner subscribed today (effective next day onwards)
+  const isSubscriptionStartingTomorrow = useMemo(() => {
+    const startStr = primaryVehicle?.subscriptionStartDate || (primaryVehicle as any)?.subscription?.startDate || user?.created_at;
+    if (!startStr) return false;
+    try {
+      const todayIST = getTodayISTDate();
+      const startDate = new Date(startStr);
+      const startIST = getTodayISTDate(startDate);
+      return startIST.dateIso > todayIST.dateIso || (!activeTodayWash && !todayWash && isWashFromToday({ created_at: startStr } as any));
+    } catch {
+      return false;
+    }
+  }, [primaryVehicle, user, activeTodayWash, todayWash]);
+
   const activePlanName =
     primaryVehicle?.selected_plan ||
     user.selected_plan ||
@@ -441,6 +455,31 @@ export default function OwnerDashboardPage() {
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+        {/* NEXT-DAY SUBSCRIPTION ACTIVATION REASSURANCE BANNER */}
+        {isSubscriptionStartingTomorrow && (
+          <div className="p-4 sm:p-5 rounded-[20px] bg-gradient-to-r from-emerald-500/10 via-[#11161D] to-[#11161D] border border-[#2DD4A0]/30 shadow-lg flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/20 border border-[#2DD4A0]/30 text-[#2DD4A0] flex items-center justify-center shrink-0">
+                <Calendar className="w-5 h-5 text-[#2DD4A0]" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white">Subscription Active • Next-Day Activation</span>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30">
+                    Starts Tomorrow
+                  </span>
+                </div>
+                <p className="text-xs text-white/70 mt-0.5">
+                  Subscribed today! Your regular morning wash service is effective from <strong>tomorrow onwards</strong> (completed before <strong>{primaryVehicle?.needWashBefore || '8:00 AM'}</strong>). All washing is completed before 10:30 AM everyday.
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 text-right font-mono hidden sm:block">
+              <span className="text-[10px] uppercase font-bold text-white/50 block">First Wash</span>
+              <span className="text-xs font-bold text-[#2DD4A0]">Tomorrow Morning</span>
+            </div>
+          </div>
+        )}
         {!hasVehicles ? (
           /* CLEAN RESET / EMPTY GARAGE ONBOARDING HERO BANNER */
           <div className="p-8 sm:p-10 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-2xl text-center space-y-6 max-w-2xl mx-auto my-4">
@@ -575,7 +614,7 @@ export default function OwnerDashboardPage() {
                 NEXT CARE WINDOW
               </span>
               <div className="text-lg font-bold text-white tracking-tight">
-                Tomorrow • {primaryVehicle?.preferred_wash_time || '07:30 AM'}
+                Tomorrow • Before {primaryVehicle?.needWashBefore || (primaryVehicle?.preferred_wash_time?.startsWith('Before') ? primaryVehicle?.preferred_wash_time.replace(/^Before\s+/i, '') : (primaryVehicle?.preferred_wash_time || '8:00 AM'))}
               </div>
               <p className="text-xs text-white/60 mt-1 flex items-center gap-1.5 font-mono">
                 <MapPin className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />

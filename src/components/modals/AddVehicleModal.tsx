@@ -18,7 +18,7 @@ export default function AddVehicleModal({ isOpen, onClose }: Props) {
   const [regNo, setRegNo] = useState('DL 03 TR 9942');
   const [color, setColor] = useState('Obsidian Blue');
   const [parking, setParking] = useState('Block C • Parking 58');
-  const [preferredTime, setPreferredTime] = useState('07:30 AM');
+  const [preferredTime, setPreferredTime] = useState('8:00 AM');
   const [societyId, setSocietyId] = useState(societies[0]?.id || 'soc_green_valley');
   const [success, setSuccess] = useState(false);
 
@@ -27,6 +27,10 @@ export default function AddVehicleModal({ isOpen, onClose }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const soc = societies.find((s) => s.id === societyId) || societies[0];
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(6, 0, 0, 0);
+
     addVehicle({
       registration_number: regNo.toUpperCase(),
       make,
@@ -35,6 +39,9 @@ export default function AddVehicleModal({ isOpen, onClose }: Props) {
       color,
       parking_location: parking,
       preferred_wash_time: preferredTime,
+      needWashBefore: preferredTime,
+      need_wash_before: preferredTime,
+      subscriptionStartDate: tomorrow.toISOString(),
       society_id: soc.id,
       society_name: soc.name,
     });
@@ -193,17 +200,18 @@ export default function AddVehicleModal({ isOpen, onClose }: Props) {
                 </div>
                 <div>
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
-                    Preferred Time
+                    Need the Wash before:
                   </label>
                   <select
                     value={preferredTime}
                     onChange={(e) => setPreferredTime(e.target.value)}
-                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-600"
+                    className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold focus:outline-hidden focus:border-blue-600 font-mono"
                   >
-                    <option value="07:00 AM">07:00 AM</option>
-                    <option value="07:30 AM">07:30 AM</option>
-                    <option value="08:00 AM">08:00 AM</option>
-                    <option value="08:30 AM">08:30 AM</option>
+                    <option value="6:00 AM">6am</option>
+                    <option value="7:00 AM">7am</option>
+                    <option value="8:00 AM">8am</option>
+                    <option value="9:00 AM">9am</option>
+                    <option value="10:00 AM">10am</option>
                   </select>
                 </div>
               </div>

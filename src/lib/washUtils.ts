@@ -158,8 +158,8 @@ export function isPresentDateProofBefore10AM(wash?: WashRecord | null): ProofVer
         if (hours === 12) hours = 0;
       }
 
-      // Check strictly before or at 10:00 AM
-      if (hours < 10 || (hours === 10 && minutes === 0)) {
+      // Check strictly before or at 10:30 AM (Operational deadline is 10:30 AM everyday)
+      if (hours < 10 || (hours === 10 && minutes <= 30)) {
         isBefore10AM = true;
       } else {
         isBefore10AM = false;
@@ -178,7 +178,7 @@ export function isPresentDateProofBefore10AM(wash?: WashRecord | null): ProofVer
         const h = Number(parts.find((p) => p.type === 'hour')?.value);
         const m = Number(parts.find((p) => p.type === 'minute')?.value);
 
-        if (h < 10 || (h === 10 && m === 0)) {
+        if (h < 10 || (h === 10 && m <= 30)) {
           isBefore10AM = true;
         } else {
           isBefore10AM = false;

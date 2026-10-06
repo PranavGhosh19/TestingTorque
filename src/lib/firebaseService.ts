@@ -105,6 +105,13 @@ export async function syncOwnerToFirestore(
     const resolvedFlat = (owner as any).flat || (owner as any).flatNumber || owner.address || null;
     const resolvedFlatNumber = (owner as any).flatNumber || (owner as any).flat || null;
 
+    const ownerNeedBefore = (owner as any).needWashBefore || (owner as any).need_wash_before || '8:00 AM';
+    const tomorrowStart = new Date();
+    tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+    tomorrowStart.setHours(6, 0, 0, 0);
+    const subStartDate = (owner as any).subscriptionStartDate || tomorrowStart.toISOString();
+    const subEndDate = new Date(new Date(subStartDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
     // 1. CAR OWNER: Car_Owners/{ownerId}
     const carOwnerRef = doc(db, 'Car_Owners', ownerId);
     const carOwnerPayload = {
@@ -137,8 +144,12 @@ export async function syncOwnerToFirestore(
         price: subscriptionPrice,
         billingCycle: 'monthly',
         status: 'active',
-        startDate: new Date().toISOString(),
+        startDate: subStartDate,
+        endDate: subEndDate,
       },
+      needWashBefore: ownerNeedBefore,
+      need_wash_before: ownerNeedBefore,
+      subscriptionStartDate: subStartDate,
       assignedWasherId: resolvedWasherId,
       assignedWasherName: resolvedWasherName,
       createdAt: owner.created_at || new Date().toISOString(),
@@ -173,6 +184,14 @@ export async function syncOwnerToFirestore(
         const vehicleId = vehicle.id;
         const vehiclePlan = vehicle.selected_plan || defaultPlanName;
         const vehiclePrice = vehicle.price || (vehicle as any).subscription_price || getBodyTypePrice(vehicle.type);
+        const effectiveNeedBefore =
+          (vehicle as any).needWashBefore ||
+          (vehicle as any).need_wash_before ||
+          ownerNeedBefore ||
+          vehicle.preferred_wash_time ||
+          '8:00 AM';
+        const vSubStartDate = (vehicle as any).subscriptionStartDate || subStartDate;
+        const vSubEndDate = new Date(new Date(vSubStartDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
         const vehicleDocRef = doc(db, 'Car_Owners', ownerId, 'Vehicles', vehicleId);
         const vehiclePayload = {
@@ -185,7 +204,9 @@ export async function syncOwnerToFirestore(
           type: vehicle.type,
           color: vehicle.color || 'Pearl White',
           parkingLocation: vehicle.parking_location || 'Assigned Bay',
-          preferredWashTime: vehicle.preferred_wash_time || '07:30 AM',
+          preferredWashTime: effectiveNeedBefore,
+          needWashBefore: effectiveNeedBefore,
+          need_wash_before: effectiveNeedBefore,
           societyId: vehicle.society_id || resolvedSocietyId,
           societyName: vehicle.society_name || resolvedSocietyName,
           flat: resolvedFlat,
@@ -196,12 +217,13 @@ export async function syncOwnerToFirestore(
           subscriptionPrice: vehiclePrice,
           washerId: vehicle.assigned_washer_id || resolvedWasherId,
           washerName: vehicle.assigned_washer_name || resolvedWasherName,
+          subscriptionStartDate: vSubStartDate,
           subscription: {
             planId: vehiclePlan,
             price: vehiclePrice,
             billingCycle: 'monthly',
-            startDate: new Date().toISOString(),
-            endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            startDate: vSubStartDate,
+            endDate: vSubEndDate,
             washesIncluded: 26,
             washesUsed: vehicle.washes_this_month || 0,
             carryForwardEarned: 0,
@@ -215,7 +237,7 @@ export async function syncOwnerToFirestore(
           owner_name: owner.name,
           registration_number: vehicle.registration_number,
           parking_location: vehicle.parking_location || 'Assigned Bay',
-          preferred_wash_time: vehicle.preferred_wash_time || '07:30 AM',
+          preferred_wash_time: effectiveNeedBefore,
           society_name: vehicle.society_name || 'Green Valley Residency',
           selected_plan: vehiclePlan,
           assigned_washer_id: vehicle.assigned_washer_id || resolvedWasherId,
@@ -1405,9 +1427,25 @@ export async function fetchWasherDashboardDataFromFirestore(
         }
 
         if (isAssigned) {
+          const today = getTodayISTDate();
+
+          // Requirement 3: If an Owner subscribes today, his wash will be effective from the next day onwards.
+          const subStartDateStr = vData.subscription?.startDate || vData.subscriptionStartDate;
+          if (subStartDateStr) {
+            try {
+              const subStart = new Date(subStartDateStr);
+              const subStartIST = getTodayISTDate(subStart);
+              if (subStartIST.dateIso > today.dateIso) {
+                // Subscription starts tomorrow or later — do NOT include in today's active morning route!
+                continue;
+              }
+            } catch (dErr) {
+              // fallback
+            }
+          }
+
           // Fetch wash record for this vehicle (check both Washes and current Month)
           let washRecord: any = null;
-          const today = getTodayISTDate();
 
           try {
             // 1. Check current Month subcollection: Car_Owners/{ownerId}/Vehicles/{vId}/{today.monthKey}/{today.dateIso}
@@ -1461,6 +1499,8 @@ export async function fetchWasherDashboardDataFromFirestore(
           const proofPhoto = isCompletedToday ? (washRecord?.proof?.photoUrl || washRecord?.after_photo) : undefined;
           const payoutAmount = getWasherPayoutPerWash(vData);
 
+          const needBefore = vData.needWashBefore || vData.need_wash_before || vData.preferredWashTime || vData.preferred_wash_time || '8:00 AM';
+
           stops.push({
             stop_number: stops.length + 1,
             wash_id: isCompletedToday ? (washRecord?.id || `wash_${vId}_${today.dateIso}`) : `wash_${vId}_${today.dateIso}`,
@@ -1468,7 +1508,9 @@ export async function fetchWasherDashboardDataFromFirestore(
             vehicle_name: `${vData.make || ''} ${vData.model || ''}`.trim() || 'Assigned Vehicle',
             registration_number: vData.registrationNumber || vData.registration_number || '',
             parking_location: vData.parkingLocation || vData.parking_location || 'Assigned Bay',
-            scheduled_time: vData.preferredWashTime || vData.preferred_wash_time || '07:30 AM',
+            scheduled_time: `Before ${needBefore}`,
+            needWashBefore: needBefore,
+            need_wash_before: needBefore,
             status: status as any,
             owner_name: vData.ownerName || vData.owner_name || ownerName,
             owner_phone: ownerPhone,
@@ -1906,6 +1948,8 @@ export async function fetchOwnerDashboardFromFirestore(
         alt_phone: carOwnerDocData.altPhone || carOwnerDocData.alt_phone,
         price: ownerPrice,
         subscription_price: ownerPrice,
+        needWashBefore: carOwnerDocData.needWashBefore || carOwnerDocData.need_wash_before || '8:00 AM',
+        need_wash_before: carOwnerDocData.needWashBefore || carOwnerDocData.need_wash_before || '8:00 AM',
       };
       result.source = 'firebase_live';
 
@@ -1926,6 +1970,14 @@ export async function fetchOwnerDashboardFromFirestore(
             vData.subscriptionPrice ??
             vData.subscription_price;
 
+          const effectiveNeedBefore =
+            vData.needWashBefore ||
+            vData.need_wash_before ||
+            vData.preferredWashTime ||
+            vData.preferred_wash_time ||
+            result.user.needWashBefore ||
+            '8:00 AM';
+
           const vehicleObj: Vehicle = {
             id: vId,
             owner_id: resolvedOwnerId,
@@ -1936,7 +1988,10 @@ export async function fetchOwnerDashboardFromFirestore(
             type: vData.type || 'car',
             color: vData.color || 'Pearl White',
             parking_location: vData.parkingLocation || vData.parking_location || 'Assigned Bay',
-            preferred_wash_time: vData.preferredWashTime || vData.preferred_wash_time || '07:30 AM',
+            preferred_wash_time: effectiveNeedBefore,
+            needWashBefore: effectiveNeedBefore,
+            need_wash_before: effectiveNeedBefore,
+            subscriptionStartDate: vData.subscription?.startDate || vData.subscriptionStartDate,
             society_id: 'soc_green_valley',
             society_name: vData.societyName || vData.society_name || 'Green Valley Residency',
             subscription_status: 'active',

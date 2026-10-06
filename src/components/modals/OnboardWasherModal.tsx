@@ -59,7 +59,7 @@ export default function OnboardWasherModal({
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [selectedSocieties, setSelectedSocieties] = useState<string[]>([]);
-  const [routeWindow, setRouteWindow] = useState('06:30 AM - 09:30 AM');
+  const [routeWindow, setRouteWindow] = useState('06:00 AM - 10:30 AM');
   const [bankAccount, setBankAccount] = useState('');
   const [ifscCode, setIfscCode] = useState('');
   const [address, setAddress] = useState('');

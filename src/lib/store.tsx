@@ -69,6 +69,8 @@ interface StoreContextType {
       selectedWasherName?: string;
       price?: number;
       subscriptionPrice?: number;
+      needWashBefore?: string;
+      need_wash_before?: string;
     },
     vehiclesList: Array<{
       make: string;
@@ -88,6 +90,8 @@ interface StoreContextType {
       flatNumber?: string;
       price?: number;
       subscription_price?: number;
+      needWashBefore?: string;
+      need_wash_before?: string;
     }>
   ) => Promise<void> | void;
   washes: WashRecord[];
@@ -752,6 +756,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       selectedWasherName?: string;
       price?: number;
       subscriptionPrice?: number;
+      needWashBefore?: string;
+      need_wash_before?: string;
     },
     vehiclesList: Array<{
       make: string;
@@ -771,6 +777,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       flatNumber?: string;
       price?: number;
       subscription_price?: number;
+      needWashBefore?: string;
+      need_wash_before?: string;
     }>
   ) => {
     // Primary Identity: Firebase Auth UID is canonical, fallback to phone primary UID
@@ -826,10 +834,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       assigned_washer_name: ownerData.selectedWasherName || 'Assigned Route Partner',
       price: finalPrice,
       subscription_price: finalPrice,
+      needWashBefore: ownerData.needWashBefore || '8:00 AM',
+      need_wash_before: ownerData.needWashBefore || '8:00 AM',
     };
 
     setUser(newUser);
     setRole('owner');
+
+    // Tomorrow ISO for next-day subscription start
+    const tomorrowDate = new Date();
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    tomorrowDate.setHours(6, 0, 0, 0);
+    const tomorrowIso = tomorrowDate.toISOString();
 
     const createdVehicles: Vehicle[] = vehiclesList.map((v, index) => {
       const vPrice = v.price || v.subscription_price || getBodyTypePrice(v.type);
@@ -844,7 +860,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         color: v.color || 'Pearl White',
         parking_location: v.parking_location || 'Assigned Bay',
         parking_floor: 'Basement 1',
-        preferred_wash_time: v.preferred_wash_time || '07:30 AM',
+        preferred_wash_time: (v as any).needWashBefore || (v as any).need_wash_before || v.preferred_wash_time || ownerData.needWashBefore || '8:00 AM',
+        needWashBefore: (v as any).needWashBefore || (v as any).need_wash_before || ownerData.needWashBefore || '8:00 AM',
+        need_wash_before: (v as any).needWashBefore || (v as any).need_wash_before || ownerData.needWashBefore || '8:00 AM',
+        subscriptionStartDate: tomorrowIso,
         society_id: (v as any).society_id || ownerData.societyId || '',
         society_name: v.society_name || ownerData.societyName || ownerData.society || '',
         subscription_status: 'active',
@@ -896,29 +915,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (ownerData.flat || ownerData.flatNumber) {
         localStorage.setItem('torque_owner_flat', ownerData.flat || ownerData.flatNumber || '');
       }
+      if (ownerData.needWashBefore) {
+        localStorage.setItem('torque_need_wash_before', ownerData.needWashBefore);
+      }
       localStorage.setItem('torque_user', JSON.stringify(newUser));
       localStorage.setItem('torque_vehicles', JSON.stringify(createdVehicles));
     }
     setIsLoggedIn(true);
     setIsDataErased(false);
 
-    // Add route stops for the registered vehicles
-    const newStops: RouteStop[] = createdVehicles.map((cv, idx) => ({
-      stop_number: (routeStops.length || 0) + idx + 1,
-      wash_id: `w_stop_${cv.id}_${Date.now()}`,
-      vehicle_id: cv.id,
-      vehicle_name: `${cv.make} ${cv.model}`,
-      registration_number: cv.registration_number,
-      parking_location: cv.parking_location,
-      scheduled_time: cv.preferred_wash_time || '07:30 AM',
-      owner_name: cv.owner_name,
-      owner_phone: newUser.phone,
-      payout_amount: 30,
-      status: 'pending',
-      washer_id: ownerData.selectedWasherId || '',
-      washer_name: ownerData.selectedWasherName || 'Assigned Route Partner',
-    }));
-    setRouteStops((prev) => [...prev, ...newStops]);
+    // Requirement 3: If an Owner subscribes today, wash is effective from the next day onwards!
+    // No today wash is generated; initial wash starts tomorrow morning.
+    setWashes([]);
 
     // Reliably sync new owner & vehicles to Firebase
     try {

@@ -173,7 +173,7 @@ export default function WasherDashboardPage() {
   const washerPhone = firebaseWasher?.phone || user?.phone || storedWasherPhone || '';
   const washerSociety = firebaseWasher?.society || (user as any)?.society || 'Green Valley Residency';
   const washerAssignedTarget = Number(firebaseWasher?.assignedCarsPerDay ?? (user as any)?.assignedCarsPerDay ?? 30);
-  const washerRouteWindow = firebaseWasher?.routeWindow || (user as any)?.routeWindow || '06:30 AM - 09:30 AM';
+  const washerRouteWindow = firebaseWasher?.routeWindow || (user as any)?.routeWindow || '06:00 AM - 10:30 AM';
   const washerAadhaar = firebaseWasher?.aadhaarNumber || '4821 9912 3410';
   const washerKyc = firebaseWasher?.kyc || 'Verified (Aadhaar & Police Clear)';
   const washerRating = firebaseWasher?.rating || '5.0';
@@ -367,6 +367,30 @@ export default function WasherDashboardPage() {
           </div>
         )}
 
+        {/* MANDATORY 10:30 AM TARGET COMPLETION DEADLINE BANNER */}
+        <div className="p-4 sm:p-4.5 rounded-[18px] bg-gradient-to-r from-emerald-500/10 via-[#11161D] to-amber-500/10 border border-[#2DD4A0]/30 shadow-lg flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/20 border border-[#2DD4A0]/30 text-[#2DD4A0] flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5 text-[#2DD4A0]" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold text-white">Daily Target Deadline: 10:30 AM Everyday</span>
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                  Strict Operational Rule
+                </span>
+              </div>
+              <p className="text-xs text-white/70 mt-0.5">
+                All washing should be done before 10:30 AM. Washers should complete their targets before 10:30 everyday.
+              </p>
+            </div>
+          </div>
+          <div className="text-right shrink-0 font-mono hidden sm:block">
+            <span className="text-[10px] uppercase font-bold text-white/50 block">Target Cutoff</span>
+            <span className="text-sm font-black text-[#2DD4A0]">10:30 AM</span>
+          </div>
+        </div>
+
         {/* ============================================================ */}
         {/* 2. TOTAL TARGET OVERVIEW CARD                                */}
         {/* ============================================================ */}
@@ -376,11 +400,19 @@ export default function WasherDashboardPage() {
               <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0] flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5" /> SHIFT MILESTONES
               </span>
-              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight mt-1" suppressHydrationWarning>
-                Target: {totalTargetCount} {totalTargetCount === 1 ? 'Vehicle' : 'Vehicles'}
-              </h2>
-              <p className="text-xs text-white/60 mt-0.5" suppressHydrationWarning>
-                Shift: {washerRouteWindow}
+              <div className="flex items-center gap-2.5 flex-wrap mt-1">
+                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight" suppressHydrationWarning>
+                  Target: {totalTargetCount} {totalTargetCount === 1 ? 'Vehicle' : 'Vehicles'}
+                </h2>
+                <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
+                  <Clock className="w-3 h-3 text-amber-400" />
+                  <span>Deadline: 10:30 AM Everyday</span>
+                </span>
+              </div>
+              <p className="text-xs text-white/70 mt-1 flex items-center gap-1.5 flex-wrap" suppressHydrationWarning>
+                <span>Shift: {washerRouteWindow}</span>
+                <span className="text-white/40">•</span>
+                <span className="text-[#2DD4A0] font-medium">All washing must be done before 10:30 AM everyday</span>
               </p>
             </div>
 
@@ -592,9 +624,14 @@ export default function WasherDashboardPage() {
                             </span>
                           )}
                         </div>
-                        <span className="text-xs sm:text-sm font-medium text-white/70 truncate">
-                          {stop.vehicle_name}
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs sm:text-sm font-medium text-white/70 truncate">
+                            {stop.vehicle_name}
+                          </span>
+                          <span className="text-[11px] text-white/50 font-mono">
+                            • Need before: {stop.needWashBefore || (stop.scheduled_time.startsWith('Before') ? stop.scheduled_time.replace(/^Before\s+/i, '') : stop.scheduled_time)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   ) : (
@@ -652,9 +689,9 @@ export default function WasherDashboardPage() {
                             {stop.parking_location}
                           </span>
                           <span>•</span>
-                          <span className="flex items-center gap-1 text-white/70">
-                            <Clock className="w-3.5 h-3.5 text-white/40" />
-                            {stop.scheduled_time}
+                          <span className="flex items-center gap-1.5 text-amber-300 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                            <Clock className="w-3.5 h-3.5 text-amber-400" />
+                            <span>Need before: {stop.needWashBefore || (stop.scheduled_time.startsWith('Before') ? stop.scheduled_time.replace(/^Before\s+/i, '') : stop.scheduled_time)}</span>
                           </span>
                           <span>•</span>
                           <span className="text-white/60 font-sans">

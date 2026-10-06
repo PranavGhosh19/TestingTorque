@@ -193,13 +193,13 @@ export default function SignatureProofCard({
             <p suppressHydrationWarning className="text-xs text-white/65 max-w-sm mt-1 leading-relaxed">
               {isSunday
                 ? 'Under your 6-day Mon–Sat plan, Sunday is a scheduled rest day.'
-                : `Assigned partner ${washerName} will wash your car in the morning bay window. Verified photo proof will be posted here before 10:00 AM.`}
+                : `Assigned partner ${washerName} will wash your car in the morning bay window before ${currentVehicle?.needWashBefore || '10:00 AM'}. Verified photo proof will be posted here before 10:30 AM.`}
             </p>
             <div className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] font-mono text-white/70">
               <MapPin className="w-3 h-3 text-[#2DD4A0]" />
               <span>{parkingLocation}</span>
               <span className="text-white/30">•</span>
-              <span>Preferred: {currentVehicle?.preferred_wash_time || '07:30 AM'}</span>
+              <span>Need before: {currentVehicle?.needWashBefore || (currentVehicle?.preferred_wash_time?.startsWith('Before') ? currentVehicle.preferred_wash_time.replace(/^Before\s+/i, '') : (currentVehicle?.preferred_wash_time || '8:00 AM'))}</span>
             </div>
           </div>
         )}

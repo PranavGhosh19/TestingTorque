@@ -857,7 +857,7 @@ export default function WasherProfileDetailPage() {
                         </td>
 
                         <td className="p-4 font-mono text-slate-700">
-                          {v.preferred_wash_time || '07:30 AM'}
+                          {v.needWashBefore ? `Before ${v.needWashBefore}` : (v.preferred_wash_time || '08:00 AM')}
                         </td>
 
                         <td className="p-4">

@@ -51,6 +51,7 @@ interface VehicleDraft {
   color: string;
   parking_location: string;
   preferred_wash_time: string;
+  needWashBefore?: string;
 }
 
 interface PlanOption {
@@ -296,6 +297,8 @@ export default function SignUpPage() {
   const washersForSelectedSociety = washersForSociety;
 
   const [selectedWasherId, setSelectedWasherId] = useState<string>('');
+  // Step 4: Need the Wash before field (6am, 7am, 8am, 9am, 10am)
+  const [needWashBefore, setNeedWashBefore] = useState<string>('8:00 AM');
   // Validation error for final submit
   const [submitError, setSubmitError] = useState('');
 
@@ -734,6 +737,9 @@ export default function SignUpPage() {
       assignedAdminId: inchargeAdminId || undefined,
       flat: effectiveFlat,
       flatNumber: flatNumber.trim() || undefined,
+      needWashBefore: needWashBefore || v.preferred_wash_time || '8:00 AM',
+      need_wash_before: needWashBefore || v.preferred_wash_time || '8:00 AM',
+      preferred_wash_time: needWashBefore || v.preferred_wash_time || '8:00 AM',
       price: getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
       subscription_price: getVehicleMonthlyPrice(v.type, selectedPlan.monthlyBasePrice),
     }));
@@ -761,6 +767,7 @@ export default function SignUpPage() {
         selectedPlan: selectedPlan.name,
         selectedWasherId: chosenWasher.id,
         selectedWasherName: chosenWasher.name || 'Assigned Route Partner',
+        needWashBefore: needWashBefore,
         price: totalSubscriptionPrice,
         subscriptionPrice: totalSubscriptionPrice,
       },
@@ -1437,17 +1444,21 @@ export default function SignUpPage() {
                     <div>
                       <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                        Preferred Wash Window
+                        Need the Wash before:
                       </label>
                       <select
-                        value={v.preferred_wash_time}
-                        onChange={(e) => handleVehicleChange(index, 'preferred_wash_time', e.target.value)}
-                        className="w-full px-4 py-3 bg-[#11161D] border border-white/[0.1] rounded-2xl text-xs font-semibold text-white focus:outline-hidden focus:border-[#2DD4A0] transition-all"
+                        value={v.needWashBefore || v.preferred_wash_time || '8:00 AM'}
+                        onChange={(e) => {
+                          handleVehicleChange(index, 'preferred_wash_time', e.target.value);
+                          handleVehicleChange(index, 'needWashBefore', e.target.value);
+                        }}
+                        className="w-full px-4 py-3 bg-[#11161D] border border-white/[0.1] rounded-2xl text-xs font-semibold text-white focus:outline-hidden focus:border-[#2DD4A0] transition-all cursor-pointer font-mono"
                       >
-                        <option value="07:00 AM">07:00 AM – Early Commuter</option>
-                        <option value="07:30 AM">07:30 AM – Morning Standard</option>
-                        <option value="08:00 AM">08:00 AM – Standard</option>
-                        <option value="08:30 AM">08:30 AM – Mid Morning</option>
+                        <option value="6:00 AM">6am</option>
+                        <option value="7:00 AM">7am</option>
+                        <option value="8:00 AM">8am</option>
+                        <option value="9:00 AM">9am</option>
+                        <option value="10:00 AM">10am</option>
                       </select>
                     </div>
                   </div>
@@ -1699,6 +1710,42 @@ export default function SignUpPage() {
               </div>
             </div>
 
+            {/* MANDATORY FIELD: NEED THE WASH BEFORE (STEP 4) */}
+            <div className="p-5 sm:p-6 rounded-[22px] bg-[#161C25] border border-white/[0.08] shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-start sm:items-center gap-3.5">
+                <div className="w-11 h-11 rounded-2xl bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 text-[#2DD4A0] flex items-center justify-center shrink-0">
+                  <Clock className="w-5 h-5 text-[#2DD4A0]" />
+                </div>
+                <div>
+                  <label htmlFor="need-wash-before-field" className="text-sm font-bold text-white flex items-center gap-2 flex-wrap">
+                    <span>Need the Wash before:</span>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30">
+                      Required Cutoff
+                    </span>
+                  </label>
+                  <p className="text-xs text-white/60 mt-0.5">
+                    Your assigned partner will clean your vehicle before this cutoff time. All washing is completed before 10:30 AM everyday.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2.5 self-start sm:self-auto shrink-0">
+                <span className="text-xs font-mono text-white/50 hidden sm:inline">Everyday Before:</span>
+                <select
+                  id="need-wash-before-field"
+                  value={needWashBefore}
+                  onChange={(e) => setNeedWashBefore(e.target.value)}
+                  className="px-4 py-3 rounded-2xl bg-[#11161D] border border-white/[0.12] focus:border-[#2DD4A0] text-xs font-bold font-mono text-white outline-hidden cursor-pointer shadow-inner min-w-[150px]"
+                >
+                  <option value="6:00 AM">6am</option>
+                  <option value="7:00 AM">7am</option>
+                  <option value="8:00 AM">8am</option>
+                  <option value="9:00 AM">9am</option>
+                  <option value="10:00 AM">10am</option>
+                </select>
+              </div>
+            </div>
+
             {/* Washer Partner Cards Grid - Filtered for Selected Society */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {washersForSelectedSociety.length === 0 ? (
@@ -1883,7 +1930,7 @@ export default function SignUpPage() {
                 Membership Summary
               </h4>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 text-xs">
                 <div className="p-3.5 rounded-2xl bg-[#11161D] border border-white/[0.08]">
                   <span className="text-white/40 block text-[10px] uppercase font-mono">
                     Owner &amp; Vehicles
@@ -1916,6 +1963,24 @@ export default function SignUpPage() {
                     {effectiveSocietyName ? `${effectiveSocietyName} Route` : 'Assigned Route'}
                   </div>
                 </div>
+
+                <div className="p-3.5 rounded-2xl bg-[#11161D] border border-white/[0.08]">
+                  <span className="text-white/40 block text-[10px] uppercase font-mono">
+                    Need Wash Before
+                  </span>
+                  <div className="font-bold text-[#2DD4A0] mt-0.5">{needWashBefore}</div>
+                  <div className="text-[11px] text-amber-300/80 font-medium mt-0.5">
+                    Effective from tomorrow
+                  </div>
+                </div>
+              </div>
+
+              {/* Next-Day Activation Notice */}
+              <div className="p-3 px-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-xs flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />
+                <span>
+                  <strong>Next-Day Service Activation:</strong> Subscribing today activates your morning doorstep wash starting <strong>tomorrow</strong> before <strong>{needWashBefore}</strong>. All washing is completed before 10:30 AM everyday.
+                </span>
               </div>
             </div>
 
