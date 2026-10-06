@@ -17,9 +17,14 @@ import {
   RefreshCw,
   MessageCircle,
   Filter,
+  Trash2,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
-import { fetchLeadRegistrationsFromFirestore, updateLeadRegistrationInFirestore } from '@/lib/firebaseService';
+import {
+  fetchLeadRegistrationsFromFirestore,
+  updateLeadRegistrationInFirestore,
+  deleteLeadRegistrationInFirestore,
+} from '@/lib/firebaseService';
 import { LeadRegistration } from '@/lib/types';
 
 export default function AdminLeadsPage() {
@@ -51,6 +56,20 @@ export default function AdminLeadsPage() {
     if (ok) {
       setLeads((prev) => prev.map((l) => (l.id === id ? { ...l, status } : l)));
     }
+  };
+
+  const handleDeleteLead = async (id?: string) => {
+    if (!id) return;
+    if (!confirm('Are you sure you want to remove this registration?')) return;
+    
+    // Call server DELETE route and local DB method
+    try {
+      await fetch(`/api/leads?id=${id}`, { method: 'DELETE' });
+    } catch (e) {
+      // ignore
+    }
+    await deleteLeadRegistrationInFirestore(id);
+    setLeads((prev) => prev.filter((l) => l.id !== id));
   };
 
   // Filter leads by search query and status filter
@@ -116,23 +135,28 @@ export default function AdminLeadsPage() {
         return `"${str}"`;
       };
 
-      const rows = dataToExport.map((l) => [
-        escapeCsv(
-          l.createdAtIST ||
-            (l.createdAt
-              ? new Date(l.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
-              : 'Recently')
-        ),
-        escapeCsv(l.fullName),
-        escapeCsv(`+91 ${l.phone}`),
-        escapeCsv(l.vehicleNumber),
-        escapeCsv(l.societyName),
-        escapeCsv(l.district || ''),
-        escapeCsv(l.city || ''),
-        escapeCsv(l.state || ''),
-        escapeCsv(l.status || 'new'),
-        escapeCsv(l.source || 'Torque Care Landing Page'),
-      ]);
+      const rows = dataToExport.map((l) => {
+        const rawDigits = (l.phone || '').replace(/\D/g, '');
+        const cleanPhone = rawDigits.length >= 10 ? rawDigits.slice(-10) : rawDigits;
+
+        return [
+          escapeCsv(
+            l.createdAtIST ||
+              (l.createdAt
+                ? new Date(l.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+                : 'Recently')
+          ),
+          escapeCsv(l.fullName),
+          escapeCsv(`+91 ${cleanPhone}`),
+          escapeCsv(l.vehicleNumber),
+          escapeCsv(l.societyName),
+          escapeCsv(l.district || ''),
+          escapeCsv(l.city || ''),
+          escapeCsv(l.state || ''),
+          escapeCsv(l.status || 'new'),
+          escapeCsv(l.source || 'Torque Care Landing Page'),
+        ];
+      });
 
       // Prepend UTF-8 BOM (\uFEFF) for 100% native Excel compatibility
       const csvContent =
@@ -344,6 +368,9 @@ export default function AdminLeadsPage() {
                         })
                       : 'Recently';
 
+                    const rawDigits = (lead.phone || '').replace(/\D/g, '');
+                    const cleanPhone = rawDigits.length >= 10 ? rawDigits.slice(-10) : rawDigits;
+
                     return (
                       <tr key={lead.id} className="hover:bg-white/[0.02] transition-colors">
                         <td className="py-3.5 px-3 text-slate-400 font-mono whitespace-nowrap">
@@ -353,7 +380,7 @@ export default function AdminLeadsPage() {
                           {lead.fullName}
                         </td>
                         <td className="py-3.5 px-3 font-mono text-slate-300 whitespace-nowrap">
-                          +91 {lead.phone}
+                          +91 {cleanPhone}
                         </td>
                         <td className="py-3.5 px-3">
                           <span className="px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/30 text-blue-300 font-mono font-bold uppercase tracking-wider text-[11px]">
@@ -381,14 +408,14 @@ export default function AdminLeadsPage() {
                         <td className="py-3.5 px-3 text-right">
                           <div className="inline-flex items-center gap-1.5">
                             <a
-                              href={`tel:+91${lead.phone}`}
+                              href={`tel:+91${cleanPhone}`}
                               className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-white/70 hover:text-white transition-colors"
                               title="Call Customer"
                             >
                               <Phone className="w-3.5 h-3.5" />
                             </a>
                             <a
-                              href={`https://wa.me/91${lead.phone}?text=${encodeURIComponent(
+                              href={`https://wa.me/91${cleanPhone}?text=${encodeURIComponent(
                                 `Hi ${lead.fullName}, thank you for registering with Torque Care for ${lead.societyName}! We are preparing doorstep morning car care in your society.`
                               )}`}
                               target="_blank"
@@ -398,6 +425,13 @@ export default function AdminLeadsPage() {
                             >
                               <MessageCircle className="w-3.5 h-3.5" />
                             </a>
+                            <button
+                              onClick={() => handleDeleteLead(lead.id)}
+                              className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 hover:text-red-300 transition-colors cursor-pointer"
+                              title="Delete Lead"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </td>
                       </tr>

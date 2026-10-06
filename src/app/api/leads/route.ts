@@ -16,10 +16,18 @@ export async function POST(req: NextRequest) {
       notes,
     } = body;
 
-    // Basic validation
+    // Strict validation
     if (!fullName?.trim() || !phone?.trim() || !vehicleNumber?.trim() || !societyName?.trim()) {
       return NextResponse.json(
         { success: false, error: 'Full Name, Phone Number, Car Number Plate, and Society Name are required.' },
+        { status: 400 }
+      );
+    }
+
+    const cleanPhone = String(phone).replace(/\D/g, '');
+    if (cleanPhone.length !== 10) {
+      return NextResponse.json(
+        { success: false, error: 'Phone number must be exactly 10 digits.' },
         { status: 400 }
       );
     }
@@ -40,7 +48,7 @@ export async function POST(req: NextRequest) {
     const leadData = {
       id: leadId,
       fullName: fullName.trim(),
-      phone: phone.trim(),
+      phone: cleanPhone,
       vehicleNumber: vehicleNumber.trim().toUpperCase(),
       societyName: societyName.trim(),
       district: (district || '').trim(),
@@ -197,7 +205,22 @@ export async function GET(req: NextRequest) {
       // ignore
     }
 
-    const leads = Array.from(leadsMap.values());
+    const leads = Array.from(leadsMap.values()).filter((l: any) => {
+      if (l.isDeleted) return false;
+      if (l.id?.startsWith('lead_sample_') || l.id?.startsWith('lead_test_')) return false;
+      const lowerName = (l.fullName || '').toLowerCase();
+      if (lowerName.includes('test') || lowerName === 'rahul verma') return false;
+      return true;
+    });
+
+    // Format phone numbers to 10 digits
+    leads.forEach((l) => {
+      const digits = (l.phone || '').replace(/\D/g, '');
+      if (digits.length >= 10) {
+        l.phone = digits.slice(-10);
+      }
+    });
+
     leads.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
     if (format === 'csv') {
@@ -244,5 +267,32 @@ export async function GET(req: NextRequest) {
     });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err?.message || 'Failed to fetch leads' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Lead ID is required' }, { status: 400 });
+    }
+
+    // Mark as deleted in both collections
+    try {
+      await setDoc(doc(db, 'Lead_Registrations', id), { isDeleted: true, status: 'deleted', updatedAt: serverTimestamp() }, { merge: true });
+    } catch (e) {
+      // ignore
+    }
+    try {
+      await setDoc(doc(db, 'Car_Owners', id), { isDeleted: true, status: 'deleted', updatedAt: serverTimestamp() }, { merge: true });
+    } catch (e) {
+      // ignore
+    }
+
+    return NextResponse.json({ success: true, message: 'Lead removed successfully' });
+  } catch (err: any) {
+    return NextResponse.json({ success: false, error: err?.message || 'Failed to delete lead' }, { status: 500 });
   }
 }

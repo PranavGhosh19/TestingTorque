@@ -3825,7 +3825,23 @@ export async function fetchLeadRegistrationsFromFirestore(): Promise<LeadRegistr
       // ignore
     }
 
-    const leads = Array.from(leadsMap.values());
+    const leads = Array.from(leadsMap.values()).filter((l: any) => {
+      // Filter out dummy/test registrations
+      if (l.isDeleted) return false;
+      if (l.id?.startsWith('lead_sample_') || l.id?.startsWith('lead_test_')) return false;
+      const lowerName = (l.fullName || '').toLowerCase();
+      if (lowerName.includes('test') || lowerName === 'rahul verma') return false;
+      return true;
+    });
+
+    // Ensure phone numbers have clean 10-digit format
+    leads.forEach((l) => {
+      const digits = (l.phone || '').replace(/\D/g, '');
+      if (digits.length >= 10) {
+        l.phone = digits.slice(-10);
+      }
+    });
+
     leads.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
     return leads;
   } catch (err) {
@@ -3844,6 +3860,17 @@ export async function updateLeadRegistrationInFirestore(
     return true;
   } catch (err) {
     console.error('updateLeadRegistrationInFirestore error:', err);
+    return false;
+  }
+}
+
+export async function deleteLeadRegistrationInFirestore(id: string): Promise<boolean> {
+  try {
+    await setDoc(doc(db, 'Lead_Registrations', id), { isDeleted: true, status: 'deleted', updatedAt: serverTimestamp() }, { merge: true });
+    await setDoc(doc(db, 'Car_Owners', id), { isDeleted: true, status: 'deleted', updatedAt: serverTimestamp() }, { merge: true });
+    return true;
+  } catch (err) {
+    console.error('deleteLeadRegistrationInFirestore error:', err);
     return false;
   }
 }
