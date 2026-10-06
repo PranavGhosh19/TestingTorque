@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Check, ArrowRight, Home, Car, Sparkles } from 'lucide-react';
+import { Check, ArrowRight, Sparkles } from 'lucide-react';
 
 interface PricingPlan {
   id: string;
@@ -112,36 +112,6 @@ export default function PricingPage() {
                 Luxury / 7-Seater+
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* 2 SERVICE PILLARS BANNER */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-          <div className="p-7 rounded-[20px] bg-[#11161D] border border-white/[0.08] flex items-center gap-4 shadow-xl">
-            <div className="w-12 h-12 rounded-xl bg-[#161C25] text-[#2DD4A0] border border-white/[0.08] flex items-center justify-center shrink-0">
-              <Home className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="text-[10px] uppercase font-mono font-bold text-[#2DD4A0] tracking-[0.2em]">TORQUE CARE HOME</div>
-              <div className="text-xl font-bold text-white">Starting at ₹599 / month</div>
-              <div className="text-xs text-white/60 mt-0.5">Recurring daily society parking bay care.</div>
-            </div>
-          </div>
-
-          <div className="p-7 rounded-[20px] bg-[#11161D] border border-white/[0.08] flex items-center justify-between gap-4 shadow-xl">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-[#161C25] text-amber-400 border border-white/[0.08] flex items-center justify-center shrink-0">
-                <Car className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="text-[10px] uppercase font-mono font-bold text-amber-300 tracking-[0.2em]">TORQUE CARE AWAY</div>
-                <div className="text-xl font-bold text-amber-400">Coming Soon! Stay Tuned</div>
-                <div className="text-xs text-white/60 mt-0.5">On-demand verified car care while travelling.</div>
-              </div>
-            </div>
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-400/80 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
-              Soon
-            </span>
           </div>
         </div>
 
