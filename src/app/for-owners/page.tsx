@@ -7,10 +7,8 @@ import {
   History,
   ShieldAlert,
   Users,
-  Sparkles,
   IndianRupee,
   ArrowRight,
-  Compass,
 } from 'lucide-react';
 
 export default function ForOwnersPage() {
@@ -38,18 +36,6 @@ export default function ForOwnersPage() {
       icon: Users,
       description:
         'If your primary washer takes time off, they personally hand over and appoint a trusted peer from their society team to cover your bay. Zero missed days.',
-    },
-    {
-      title: 'Away & Travel Care',
-      icon: Compass,
-      description:
-        'Going out of town or parking elsewhere? Locate the nearest verified Torque Care washer at your destination and book care until you return.',
-    },
-    {
-      title: 'Sunday Priority',
-      icon: Sparkles,
-      description:
-        'Weekend plans? Request a guaranteed Sunday wash slot directly from the app. 100% of the priority surcharge goes directly to incentivize your washer.',
     },
     {
       title: 'Transparent Payments',
@@ -85,11 +71,11 @@ export default function ForOwnersPage() {
 
           {/* Subtitle */}
           <p className="text-base sm:text-lg text-white/60 max-w-2xl mx-auto leading-relaxed">
-            Recurring society car care (₹599/mo) and on-demand washes when travelling (Away Mode) — unified in one continuous vehicle history with verified morning photo certificates.
+            Recurring society car care (starting at ₹599/mo) with guaranteed daily service — unified in one continuous vehicle history with verified morning photo certificates.
           </p>
         </div>
 
-        {/* 7 TRUST FEATURES GRID */}
+        {/* 5 TRUST FEATURES GRID */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 items-stretch">
           {trustFeatures.map((f, i) => {
             const Icon = f.icon;

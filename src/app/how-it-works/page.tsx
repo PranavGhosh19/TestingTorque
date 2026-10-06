@@ -251,13 +251,12 @@ export default function HowItWorksPage() {
               </div>
               <div className="space-y-1">
                 <h3 className="text-xl font-bold text-white">Torque Care Away</h3>
-                <div className="text-2xl font-black text-white">
-                  <span className="text-xs font-semibold text-white/50 block">Starting at</span>
-                  ₹39<span className="text-xs font-normal text-white/50">/wash or Book Until Return</span>
+                <div className="text-xl font-bold text-amber-400">
+                  Coming Soon! Stay Tuned
                 </div>
               </div>
               <p className="text-xs text-white/60 leading-relaxed">
-                For washes while travelling. Open in any city, pick nearest verified partner, and book until you return.
+                On-demand verified car care while travelling across partner cities. Stay tuned!
               </p>
             </div>
           </div>
