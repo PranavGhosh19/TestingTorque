@@ -291,3 +291,19 @@ export interface DetailPackage {
 }
 
 export type { WasherPartner, PayoutDisbursement } from './washerPartners';
+
+export interface LeadRegistration {
+  id?: string;
+  fullName: string;
+  phone: string;
+  vehicleNumber: string; // Car number plate / License plate
+  societyName: string;
+  district: string;
+  city: string;
+  state: string;
+  createdAt?: string;
+  status?: 'new' | 'contacted' | 'converted' | 'archived';
+  syncedToGoogleSheets?: boolean;
+  notes?: string;
+  source?: string;
+}

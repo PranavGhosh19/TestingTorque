@@ -15,7 +15,7 @@ import {
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage, auth } from './firebase';
-import { User, Vehicle, WashRecord, RouteStop, WasherSubstitutionAudit } from './types';
+import { User, Vehicle, WashRecord, RouteStop, WasherSubstitutionAudit, LeadRegistration } from './types';
 import { WasherPartner } from './washerPartners';
 import { isWashFromToday, getTodayISTDate } from './washUtils';
 
@@ -3723,6 +3723,127 @@ export async function revertBackupAssignmentInFirestore(substitutionId: string):
     return true;
   } catch (err) {
     console.error('revertBackupAssignmentInFirestore error:', err);
+    return false;
+  }
+}
+
+// ===============================================================
+// LEAD REGISTRATIONS (INTERESTED CUSTOMERS & EARLY ACCESS)
+// ===============================================================
+
+export async function createLeadRegistrationInFirestore(
+  lead: LeadRegistration
+): Promise<{ success: boolean; id: string; error?: string }> {
+  try {
+    const leadId = lead.id || `lead_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const docData: LeadRegistration = {
+      ...lead,
+      id: leadId,
+      createdAt: lead.createdAt || new Date().toISOString(),
+      status: lead.status || 'new',
+      source: lead.source || 'landing_modal',
+      syncedToGoogleSheets: lead.syncedToGoogleSheets ?? false,
+    };
+
+    // 1. Write to Lead_Registrations
+    try {
+      await setDoc(doc(db, 'Lead_Registrations', leadId), {
+        ...docData,
+        serverCreatedAt: serverTimestamp(),
+      });
+    } catch (e) {
+      console.warn('Lead_Registrations write note:', e);
+    }
+
+    // 2. Also write to Car_Owners as resilient fallback
+    try {
+      await setDoc(doc(db, 'Car_Owners', leadId), {
+        ...docData,
+        name: lead.fullName,
+        fullName: lead.fullName,
+        phone: lead.phone,
+        vehicleNumber: lead.vehicleNumber,
+        society: lead.societyName,
+        societyName: lead.societyName,
+        district: lead.district,
+        city: lead.city,
+        state: lead.state,
+        isLead: true,
+        role: 'lead',
+        serverCreatedAt: serverTimestamp(),
+      });
+    } catch (e) {
+      console.warn('Car_Owners lead fallback note:', e);
+    }
+
+    return { success: true, id: leadId };
+  } catch (err: any) {
+    console.error('createLeadRegistrationInFirestore error:', err);
+    return { success: false, id: '', error: err?.message || 'Database error' };
+  }
+}
+
+export async function fetchLeadRegistrationsFromFirestore(): Promise<LeadRegistration[]> {
+  try {
+    const leadsMap = new Map<string, LeadRegistration>();
+
+    // 1. Fetch from Lead_Registrations
+    try {
+      const snap = await getDocs(collection(db, 'Lead_Registrations'));
+      snap.forEach((docSnap) => {
+        leadsMap.set(docSnap.id, { id: docSnap.id, ...(docSnap.data() as any) });
+      });
+    } catch (e) {
+      // ignore
+    }
+
+    // 2. Fetch from Car_Owners where isLead is true
+    try {
+      const snapOwners = await getDocs(collection(db, 'Car_Owners'));
+      snapOwners.forEach((docSnap) => {
+        const d = docSnap.data();
+        if (d?.isLead || docSnap.id.startsWith('lead_')) {
+          if (!leadsMap.has(docSnap.id)) {
+            leadsMap.set(docSnap.id, {
+              id: docSnap.id,
+              fullName: d.fullName || d.name || 'Interested Customer',
+              phone: d.phone || '',
+              vehicleNumber: d.vehicleNumber || '',
+              societyName: d.societyName || d.society || '',
+              district: d.district || '',
+              city: d.city || '',
+              state: d.state || '',
+              createdAt: d.createdAt || '',
+              status: d.status || 'new',
+              syncedToGoogleSheets: d.syncedToGoogleSheets ?? false,
+              source: d.source || 'Car_Owners lead',
+            });
+          }
+        }
+      });
+    } catch (e) {
+      // ignore
+    }
+
+    const leads = Array.from(leadsMap.values());
+    leads.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+    return leads;
+  } catch (err) {
+    console.error('fetchLeadRegistrationsFromFirestore error:', err);
+    return [];
+  }
+}
+
+export async function updateLeadRegistrationInFirestore(
+  id: string,
+  updates: Partial<LeadRegistration>
+): Promise<boolean> {
+  try {
+    await setDoc(doc(db, 'Lead_Registrations', id), { ...updates, updatedAt: serverTimestamp() }, { merge: true });
+    await setDoc(doc(db, 'Car_Owners', id), { ...updates, updatedAt: serverTimestamp() }, { merge: true });
+    return true;
+  } catch (err) {
+    console.error('updateLeadRegistrationInFirestore error:', err);
     return false;
   }
 }

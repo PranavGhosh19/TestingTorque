@@ -74,6 +74,7 @@ export default function AdminSidebar() {
     {
       title: 'Customers',
       items: [
+        { href: '/admin/leads', label: 'Interested Leads', icon: Sparkles, badge: 'Leads' },
         { href: '/admin/customers', label: 'Owners & Vehicles', icon: Users },
       ],
     },

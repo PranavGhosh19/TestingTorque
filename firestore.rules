@@ -408,6 +408,14 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // ===============================================================
+    // 8F. LEAD REGISTRATIONS (INTERESTED CUSTOMERS)
+    // ===============================================================
+
+    match /Lead_Registrations/{leadId} {
+      allow read, write: if true;
+    }
+
 
     // ===============================================================
     // 9. LEGACY USERS COLLECTION

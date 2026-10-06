@@ -42,14 +42,29 @@ import {
   Smartphone
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+import LeadRegistrationModal from '@/components/modals/LeadRegistrationModal';
 
 export default function HomePage() {
   const router = useRouter();
   const { todayWash, isLoggedIn, isHydrated, role } = useStore();
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [showLeadModal, setShowLeadModal] = useState(false);
   const [activeProofView, setActiveProofView] = useState<'after' | 'before'>('after');
   const [selectedFaq, setSelectedFaq] = useState<number | null>(null);
   const [comparisonTab, setComparisonTab] = useState<'torque' | 'traditional'>('torque');
+
+  // Trigger registration pop-up modal immediately before user explores the landing page
+  useEffect(() => {
+    const storedLoggedIn =
+      typeof window !== 'undefined' && localStorage.getItem('torque_logged_in') === 'true';
+    if (!storedLoggedIn && !isLoggedIn) {
+      const alreadySubmitted =
+        typeof window !== 'undefined' && localStorage.getItem('torque_lead_submitted') === 'true';
+      if (!alreadySubmitted) {
+        setShowLeadModal(true);
+      }
+    }
+  }, [isLoggedIn]);
 
   useEffect(() => {
     const storedLoggedIn =
@@ -893,6 +908,30 @@ export default function HomePage() {
           <div>© 2026 Torque Care Technologies Inc. All rights reserved.</div>
         </div>
       </footer>
+
+      {/* ========================================================================= */}
+      {/* 9. LEAD REGISTRATION POP-UP (INTERESTED CUSTOMERS FORM) */}
+      {/* ========================================================================= */}
+      <LeadRegistrationModal
+        isOpen={showLeadModal}
+        onClose={() => setShowLeadModal(false)}
+      />
+
+      {/* Floating Early Access Trigger (Always accessible for visitors) */}
+      {!isLoggedIn && (
+        <button
+          type="button"
+          onClick={() => setShowLeadModal(true)}
+          className="fixed bottom-6 right-6 z-40 px-4 py-2.5 rounded-full bg-gradient-to-r from-[#141C27] to-[#0D131D] hover:from-[#1b2535] hover:to-[#121a28] border border-[#2DD4A0]/40 text-white text-xs font-bold shadow-[0_12px_36px_rgba(0,0,0,0.8),0_0_20px_rgba(45,212,160,0.2)] flex items-center gap-2.5 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2DD4A0] opacity-75" />
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2DD4A0]" />
+          </span>
+          <span className="tracking-wide">Register Interest</span>
+          <Sparkles className="w-3.5 h-3.5 text-[#2DD4A0] group-hover:rotate-12 transition-transform" />
+        </button>
+      )}
     </div>
   );
 }
