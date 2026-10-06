@@ -302,6 +302,7 @@ export interface LeadRegistration {
   city: string;
   state: string;
   createdAt?: string;
+  createdAtIST?: string;
   status?: 'new' | 'contacted' | 'converted' | 'archived';
   syncedToGoogleSheets?: boolean;
   notes?: string;

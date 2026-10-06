@@ -482,7 +482,7 @@ export default function LeadRegistrationModal({ isOpen, onClose }: LeadRegistrat
                 <div className="flex items-center justify-between pt-1 text-[11px] text-white/45">
                   <div className="flex items-center gap-1.5">
                     <Lock className="w-3.5 h-3.5 text-white/40" />
-                    <span>Saved directly to Google Sheets & secure records.</span>
+                    <span>Your details are 100% private & secure.</span>
                   </div>
                   <button
                     type="button"

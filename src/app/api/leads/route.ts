@@ -201,26 +201,38 @@ export async function GET(req: NextRequest) {
     leads.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
     if (format === 'csv') {
-      const headers = ['Timestamp', 'Full Name', 'Phone', 'Car Plate', 'Society Name', 'District', 'City', 'State', 'Status', 'Google Sheets Synced'];
+      const headers = [
+        'Registration Date & Time (IST)',
+        'Full Name',
+        'Phone Number',
+        'Car License Plate',
+        'Society Name',
+        'District / Locality',
+        'City',
+        'State',
+        'Lead Status',
+        'Source',
+      ];
       const rows = leads.map((l) => [
         `"${(l.createdAtIST || l.createdAt || '').replace(/"/g, '""')}"`,
         `"${(l.fullName || '').replace(/"/g, '""')}"`,
-        `"${(l.phone || '').replace(/"/g, '""')}"`,
+        `"+91 ${(l.phone || '').replace(/"/g, '""')}"`,
         `"${(l.vehicleNumber || '').replace(/"/g, '""')}"`,
         `"${(l.societyName || '').replace(/"/g, '""')}"`,
         `"${(l.district || '').replace(/"/g, '""')}"`,
         `"${(l.city || '').replace(/"/g, '""')}"`,
         `"${(l.state || '').replace(/"/g, '""')}"`,
         `"${(l.status || 'new').replace(/"/g, '""')}"`,
-        l.syncedToGoogleSheets ? 'Yes' : 'No',
+        `"${(l.source || 'Torque Care Landing Page').replace(/"/g, '""')}"`,
       ]);
 
-      const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+      const csvContent =
+        '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
 
       return new NextResponse(csvContent, {
         headers: {
           'Content-Type': 'text/csv; charset=utf-8',
-          'Content-Disposition': `attachment; filename="torque_care_leads_${new Date().toISOString().split('T')[0]}.csv"`,
+          'Content-Disposition': `attachment; filename="Torque_Care_Interested_Customers_${new Date().toISOString().split('T')[0]}.csv"`,
         },
       });
     }

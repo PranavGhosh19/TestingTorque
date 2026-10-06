@@ -9,19 +9,14 @@ import {
   MapPin,
   Phone,
   Download,
-  ExternalLink,
   Search,
   CheckCircle2,
   Clock,
   Sparkles,
   FileSpreadsheet,
   RefreshCw,
-  AlertCircle,
-  Copy,
-  Check,
-  ChevronDown,
-  ChevronUp,
   MessageCircle,
+  Filter,
 } from 'lucide-react';
 import AdminSidebar from '@/components/AdminSidebar';
 import { fetchLeadRegistrationsFromFirestore, updateLeadRegistrationInFirestore } from '@/lib/firebaseService';
@@ -31,29 +26,15 @@ export default function AdminLeadsPage() {
   const [leads, setLeads] = useState<LeadRegistration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [copiedScript, setCopiedScript] = useState(false);
-  const [webhookUrl, setWebhookUrl] = useState('');
-  const [savedWebhookDisplay, setSavedWebhookDisplay] = useState('');
-  const [isSavingWebhook, setIsSavingWebhook] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
-  const [isTesting, setIsTesting] = useState(false);
-  const [showSetupGuide, setShowSetupGuide] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [isExporting, setIsExporting] = useState(false);
 
-  // Load leads and current webhook settings
+  // Load leads from Firestore
   const loadData = async () => {
     setIsLoading(true);
     try {
       const data = await fetchLeadRegistrationsFromFirestore();
       setLeads(data);
-
-      const settingsRes = await fetch('/api/leads/settings');
-      if (settingsRes.ok) {
-        const settingsData = await settingsRes.json();
-        if (settingsData.activeUrl) {
-          setSavedWebhookDisplay(settingsData.activeUrl);
-        }
-      }
     } catch (err) {
       console.error('Failed to load leads:', err);
     } finally {
@@ -65,53 +46,6 @@ export default function AdminLeadsPage() {
     loadData();
   }, []);
 
-  const handleSaveWebhook = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!webhookUrl.trim()) return;
-
-    setIsSavingWebhook(true);
-    try {
-      const res = await fetch('/api/leads/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ webhookUrl: webhookUrl.trim() }),
-      });
-
-      if (res.ok) {
-        setSaveSuccess(true);
-        setSavedWebhookDisplay(`${webhookUrl.slice(0, 35)}...`);
-        setTimeout(() => setSaveSuccess(false), 4000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSavingWebhook(false);
-    }
-  };
-
-  const handleTestSync = async () => {
-    setIsTesting(true);
-    setTestResult(null);
-    try {
-      const urlToTest = webhookUrl.trim() || undefined;
-      const res = await fetch('/api/leads/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ test: true, webhookUrl: urlToTest }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setTestResult('Success: Test row added to Google Sheet!');
-      } else {
-        setTestResult('Test failed. Please verify the Webhook URL and Apps Script permissions.');
-      }
-    } catch (err) {
-      setTestResult('Error connecting to webhook.');
-    } finally {
-      setIsTesting(false);
-    }
-  };
-
   const handleUpdateStatus = async (id: string, status: any) => {
     const ok = await updateLeadRegistrationInFirestore(id, { status });
     if (ok) {
@@ -119,64 +53,106 @@ export default function AdminLeadsPage() {
     }
   };
 
+  // Filter leads by search query and status filter
   const filteredLeads = leads.filter((l) => {
     const q = searchQuery.toLowerCase();
-    return (
+    const matchesSearch =
+      !q ||
       l.fullName?.toLowerCase().includes(q) ||
       l.phone?.toLowerCase().includes(q) ||
       l.vehicleNumber?.toLowerCase().includes(q) ||
       l.societyName?.toLowerCase().includes(q) ||
       l.district?.toLowerCase().includes(q) ||
-      l.city?.toLowerCase().includes(q)
-    );
+      l.city?.toLowerCase().includes(q);
+
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'new' && (l.status === 'new' || !l.status)) ||
+      l.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
 
-  const uniqueSocieties = new Set(leads.map((l) => l.societyName?.trim().toLowerCase()).filter(Boolean)).size;
+  const uniqueSocieties = new Set(
+    leads.map((l) => l.societyName?.trim().toLowerCase()).filter(Boolean)
+  ).size;
 
-  const appsScriptCode = `function doPost(e) {
-  try {
-    var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    var data = JSON.parse(e.postData.contents);
-    
-    // Add header row if sheet is empty
-    if (sheet.getLastRow() === 0) {
-      sheet.appendRow([
-        "Timestamp",
-        "Full Name",
-        "Phone Number",
-        "License Plate",
-        "Society Name",
-        "District",
-        "City",
-        "State",
-        "Source"
+  const newLeadsCount = leads.filter((l) => l.status === 'new' || !l.status).length;
+  const contactedLeadsCount = leads.filter((l) => l.status === 'contacted').length;
+  const convertedLeadsCount = leads.filter((l) => l.status === 'converted').length;
+
+  /**
+   * Export leads directly into an Excel-ready CSV spreadsheet.
+   * Uses UTF-8 BOM (\uFEFF) so Microsoft Excel, Apple Numbers,
+   * and Google Sheets open Indian names and special characters without encoding errors.
+   */
+  const handleExportExcel = (filteredOnly: boolean = false) => {
+    setIsExporting(true);
+    try {
+      const dataToExport = filteredOnly ? filteredLeads : leads;
+
+      if (!dataToExport || dataToExport.length === 0) {
+        alert('No leads available to export.');
+        setIsExporting(false);
+        return;
+      }
+
+      const headers = [
+        'Registration Date & Time (IST)',
+        'Full Name',
+        'Phone Number',
+        'Car License Plate',
+        'Society Name',
+        'District / Locality',
+        'City',
+        'State',
+        'Lead Status',
+        'Source',
+      ];
+
+      const escapeCsv = (val: any) => {
+        if (val === null || val === undefined) return '""';
+        const str = String(val).replace(/"/g, '""');
+        return `"${str}"`;
+      };
+
+      const rows = dataToExport.map((l) => [
+        escapeCsv(
+          l.createdAtIST ||
+            (l.createdAt
+              ? new Date(l.createdAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+              : 'Recently')
+        ),
+        escapeCsv(l.fullName),
+        escapeCsv(`+91 ${l.phone}`),
+        escapeCsv(l.vehicleNumber),
+        escapeCsv(l.societyName),
+        escapeCsv(l.district || ''),
+        escapeCsv(l.city || ''),
+        escapeCsv(l.state || ''),
+        escapeCsv(l.status || 'new'),
+        escapeCsv(l.source || 'Torque Care Landing Page'),
       ]);
-    }
-    
-    sheet.appendRow([
-      data.timestamp || new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
-      data.fullName || '',
-      data.phone || '',
-      data.vehicleNumber || '',
-      data.societyName || '',
-      data.district || '',
-      data.city || '',
-      data.state || '',
-      data.source || 'Torque Care Lead Form'
-    ]);
-    
-    return ContentService.createTextOutput(JSON.stringify({ status: "success" }))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: "error", error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}`;
 
-  const copyScriptToClipboard = () => {
-    navigator.clipboard.writeText(appsScriptCode);
-    setCopiedScript(true);
-    setTimeout(() => setCopiedScript(false), 3000);
+      // Prepend UTF-8 BOM (\uFEFF) for 100% native Excel compatibility
+      const csvContent =
+        '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute('href', url);
+      link.setAttribute('download', `Torque_Care_Interested_Customers_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   return (
@@ -199,24 +175,28 @@ export default function AdminLeadsPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <button
               onClick={loadData}
               disabled={isLoading}
               className="px-3.5 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-medium flex items-center gap-2 cursor-pointer transition-colors"
+              title="Refresh list from database"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
               <span>Refresh</span>
             </button>
 
-            <a
-              href="/api/leads?format=csv"
-              download
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#2DD4A0] to-[#20BA8B] hover:from-[#34e2ab] hover:to-[#24c794] text-slate-950 font-bold text-xs flex items-center gap-2 shadow-[0_0_20px_rgba(45,212,160,0.3)] transition-all cursor-pointer"
+            {/* Primary Excel Export Button */}
+            <button
+              onClick={() => handleExportExcel(false)}
+              disabled={isExporting || leads.length === 0}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2.5 shadow-[0_0_25px_rgba(16,185,129,0.35)] transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+              title="Download Excel spreadsheet of all customer registrations"
             >
+              <FileSpreadsheet className="w-4 h-4 stroke-[2.2]" />
+              <span>Export to Excel</span>
               <Download className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Export CSV for Google Sheets</span>
-            </a>
+            </button>
           </div>
         </div>
 
@@ -259,184 +239,66 @@ export default function AdminLeadsPage() {
 
           <div className="p-5 rounded-2xl bg-[#0E141E] border border-white/10">
             <div className="text-[11px] font-mono font-bold uppercase tracking-wider text-slate-400">
-              Google Sheet Integration
+              New / Awaiting Callback
             </div>
-            <div className="text-sm font-bold text-white mt-2 flex items-center gap-2">
-              {savedWebhookDisplay ? (
-                <>
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#2DD4A0] animate-pulse" />
-                  <span className="text-[#2DD4A0]">Connected</span>
-                </>
-              ) : (
-                <>
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400" />
-                  <span className="text-amber-400">Ready to Connect</span>
-                </>
-              )}
-            </div>
-            <div className="text-[11px] text-slate-400 mt-1 truncate">
-              {savedWebhookDisplay || 'Paste Webhook URL below'}
+            <div className="text-3xl font-bold font-mono text-amber-400 mt-2">{newLeadsCount}</div>
+            <div className="text-[11px] text-slate-400 mt-1">
+              {contactedLeadsCount} contacted • {convertedLeadsCount} converted
             </div>
           </div>
-        </div>
-
-        {/* Google Sheets Integration Card */}
-        <div className="p-6 rounded-2xl bg-gradient-to-r from-[#121A26] to-[#0D131D] border border-white/10 space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <FileSpreadsheet className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-white">Google Sheets Real-Time Sync</h3>
-                <p className="text-xs text-slate-400">
-                  Every submitted registration is automatically appended as a new row to your Google Sheet.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowSetupGuide(!showSetupGuide)}
-              className="text-xs text-[#2DD4A0] hover:underline flex items-center gap-1 font-medium cursor-pointer"
-            >
-              <span>{showSetupGuide ? 'Hide Setup Guide' : '60-Second Setup Instructions'}</span>
-              {showSetupGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-
-          {/* Form to update webhook URL */}
-          <form onSubmit={handleSaveWebhook} className="flex flex-col sm:flex-row items-stretch gap-3">
-            <div className="flex-1 relative">
-              <input
-                type="url"
-                value={webhookUrl}
-                onChange={(e) => setWebhookUrl(e.target.value)}
-                placeholder={
-                  savedWebhookDisplay
-                    ? `Current: ${savedWebhookDisplay} (Paste new URL to change)`
-                    : 'Paste Google Apps Script Web App URL (https://script.google.com/macros/s/.../exec)'
-                }
-                className="w-full px-4 py-2.5 rounded-xl bg-[#090D14] border border-white/10 text-white placeholder-white/30 text-xs focus:outline-none focus:border-[#2DD4A0]"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={isSavingWebhook || !webhookUrl.trim()}
-              className="px-5 py-2.5 rounded-xl bg-white hover:bg-slate-200 text-slate-950 font-bold text-xs transition-colors cursor-pointer disabled:opacity-50"
-            >
-              {isSavingWebhook ? 'Saving...' : 'Save Webhook URL'}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleTestSync}
-              disabled={isTesting}
-              className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-white font-medium text-xs transition-colors cursor-pointer"
-            >
-              {isTesting ? 'Sending test...' : 'Send Test Row'}
-            </button>
-          </form>
-
-          {saveSuccess && (
-            <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span>Google Sheets Webhook URL updated successfully! All new registrations will sync in real time.</span>
-            </div>
-          )}
-
-          {testResult && (
-            <div
-              className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                testResult.startsWith('Success')
-                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-300'
-                  : 'bg-red-500/10 border border-red-500/30 text-red-300'
-              }`}
-            >
-              {testResult.startsWith('Success') ? (
-                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-              ) : (
-                <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
-              )}
-              <span>{testResult}</span>
-            </div>
-          )}
-
-          {/* Setup Guide Accordion */}
-          {showSetupGuide && (
-            <div className="p-5 rounded-xl bg-[#0A0E16] border border-white/10 space-y-4 text-xs text-slate-300">
-              <div className="font-bold text-white text-sm">How to link any Google Sheet in 30 seconds:</div>
-              <ol className="list-decimal pl-4 space-y-2 leading-relaxed">
-                <li>
-                  Open your Google Sheet (or create a new blank Google Sheet at{' '}
-                  <a
-                    href="https://sheets.new"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#2DD4A0] underline"
-                  >
-                    sheets.new
-                  </a>
-                  ).
-                </li>
-                <li>In Google Sheets menu bar, click <strong>Extensions</strong> → <strong>Apps Script</strong>.</li>
-                <li>Delete any code in the editor, and paste the code snippet below:</li>
-              </ol>
-
-              <div className="relative">
-                <pre className="p-4 rounded-xl bg-[#06080D] border border-white/10 text-[11px] font-mono text-emerald-300/90 overflow-x-auto">
-                  {appsScriptCode}
-                </pre>
-                <button
-                  type="button"
-                  onClick={copyScriptToClipboard}
-                  className="absolute top-2.5 right-2.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white text-[11px] font-bold flex items-center gap-1.5 cursor-pointer"
-                >
-                  {copiedScript ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                      <span className="text-[#2DD4A0]">Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy Code</span>
-                    </>
-                  )}
-                </button>
-              </div>
-
-              <ol start={4} className="list-decimal pl-4 space-y-2 leading-relaxed">
-                <li>Click <strong>Deploy</strong> (top right blue button) → <strong>New deployment</strong>.</li>
-                <li>Click the gear icon next to &quot;Select type&quot; → choose <strong>Web app</strong>.</li>
-                <li>
-                  Set <strong>Execute as:</strong> &quot;Me&quot;, and set <strong>Who has access:</strong> &quot;Anyone&quot;.
-                </li>
-                <li>Click <strong>Deploy</strong> and copy the generated <strong>Web app URL</strong>.</li>
-                <li>Paste that URL into the box above and click &quot;Save Webhook URL&quot;!</li>
-              </ol>
-            </div>
-          )}
         </div>
 
         {/* Leads Table Section */}
         <div className="p-6 rounded-2xl bg-[#0E141E] border border-white/10 space-y-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <Users className="w-4 h-4 text-[#2DD4A0]" />
-              <span>Registered Prospective Customers ({filteredLeads.length})</span>
-            </h2>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Users className="w-4 h-4 text-[#2DD4A0]" />
+                <span>Customer Registrations ({filteredLeads.length})</span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-0.5">
+                All submitted leads saved securely in database. Ready for Excel export and follow-up.
+              </p>
+            </div>
 
-            <div className="w-full sm:w-72 relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search name, phone, plate, society..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#2DD4A0]"
-              />
+            <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+              {/* Status Filter */}
+              <div className="relative">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-3 py-2 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white focus:outline-none focus:border-[#2DD4A0] cursor-pointer"
+                >
+                  <option value="all">All Statuses ({leads.length})</option>
+                  <option value="new">New Interest ({newLeadsCount})</option>
+                  <option value="contacted">Contacted ({contactedLeadsCount})</option>
+                  <option value="converted">Subscribed ({convertedLeadsCount})</option>
+                </select>
+              </div>
+
+              {/* Search Box */}
+              <div className="w-full sm:w-64 relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search name, phone, plate, society..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-[#090D14] border border-white/10 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-[#2DD4A0]"
+                />
+              </div>
+
+              {/* Table Export Button (for filtered view) */}
+              {searchQuery && (
+                <button
+                  onClick={() => handleExportExcel(true)}
+                  className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/15 border border-white/10 text-xs text-white font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+                  title="Export only currently searched leads"
+                >
+                  <Download className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                  <span>Export Filtered ({filteredLeads.length})</span>
+                </button>
+              )}
             </div>
           </div>
 
@@ -450,7 +312,9 @@ export default function AdminLeadsPage() {
               <Car className="w-8 h-8 mx-auto text-slate-600 mb-2" />
               <p className="text-sm font-semibold text-white">No registrations found</p>
               <p className="text-xs text-slate-500">
-                {searchQuery ? 'Try matching another search term.' : 'Open the landing page to register your first interested lead!'}
+                {searchQuery || statusFilter !== 'all'
+                  ? 'Try clearing your search query or status filter.'
+                  : 'Open the landing page to register your first interested lead!'}
               </p>
             </div>
           ) : (
@@ -458,19 +322,20 @@ export default function AdminLeadsPage() {
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
                   <tr className="border-b border-white/10 text-[11px] uppercase tracking-wider text-slate-400 font-mono">
-                    <th className="py-3 px-3">Date</th>
+                    <th className="py-3 px-3">Date (IST)</th>
                     <th className="py-3 px-3">Customer Name</th>
                     <th className="py-3 px-3">Phone</th>
                     <th className="py-3 px-3">Car Plate</th>
                     <th className="py-3 px-3">Society & Location</th>
-                    <th className="py-3 px-3">Sync Status</th>
                     <th className="py-3 px-3">Lead Status</th>
                     <th className="py-3 px-3 text-right">Quick Contact</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
                   {filteredLeads.map((lead) => {
-                    const formattedDate = lead.createdAt
+                    const formattedDate = lead.createdAtIST
+                      ? lead.createdAtIST
+                      : lead.createdAt
                       ? new Date(lead.createdAt).toLocaleDateString('en-IN', {
                           day: '2-digit',
                           month: 'short',
@@ -487,7 +352,7 @@ export default function AdminLeadsPage() {
                         <td className="py-3.5 px-3 font-semibold text-white">
                           {lead.fullName}
                         </td>
-                        <td className="py-3.5 px-3 font-mono text-slate-300">
+                        <td className="py-3.5 px-3 font-mono text-slate-300 whitespace-nowrap">
                           +91 {lead.phone}
                         </td>
                         <td className="py-3.5 px-3">
@@ -502,22 +367,10 @@ export default function AdminLeadsPage() {
                           </div>
                         </td>
                         <td className="py-3.5 px-3">
-                          {lead.syncedToGoogleSheets ? (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-bold">
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>Sheets Synced</span>
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center gap-1 text-[10px] text-slate-400 bg-white/5 px-2 py-0.5 rounded-full border border-white/10">
-                              <span>Database Saved</span>
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3.5 px-3">
                           <select
                             value={lead.status || 'new'}
                             onChange={(e) => lead.id && handleUpdateStatus(lead.id, e.target.value)}
-                            className="px-2 py-1 rounded-lg bg-[#090D14] border border-white/10 text-white text-[11px] focus:outline-none focus:border-[#2DD4A0] cursor-pointer"
+                            className="px-2.5 py-1.5 rounded-lg bg-[#090D14] border border-white/10 text-white text-[11px] focus:outline-none focus:border-[#2DD4A0] cursor-pointer"
                           >
                             <option value="new">🟢 New Interest</option>
                             <option value="contacted">📞 Contacted</option>
