@@ -42,6 +42,7 @@ import {
 } from '@/lib/firebaseService';
 import { sendPhoneOtp, verifyPhoneOtp, formatPhoneE164 } from '@/lib/firebaseAuth';
 import { auth } from '@/lib/firebase';
+import LeadRegistrationModal from '@/components/modals/LeadRegistrationModal';
 
 interface VehicleDraft {
   make: string;
@@ -111,6 +112,17 @@ export default function SignUpPage() {
     society?: string;
   }>({});
   const [societiesLoading, setSocietiesLoading] = useState(true);
+  const [showLeadModal, setShowLeadModal] = useState(false);
+
+  // Check URL query parameters for direct modal trigger (e.g. ?registerInterest=true or ?lead=true)
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('registerInterest') === 'true' || params.get('lead') === 'true') {
+        setShowLeadModal(true);
+      }
+    }
+  }, []);
 
   // Derived: the full FirestoreSociety object for the selected ID
   const selectedSocietyObj = firestoreSocieties.find((s) => s.societyId === selectedSocietyId) ?? null;
@@ -1048,6 +1060,32 @@ export default function SignUpPage() {
                 </p>
               </div>
 
+              {/* Note for Unlisted Societies with direct Register Your Interest button */}
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-[#2DD4A0]/10 via-[#162325]/50 to-[#11161D] border border-[#2DD4A0]/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_4px_24px_rgba(45,212,160,0.08)]">
+                <div className="flex items-start sm:items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#2DD4A0]/20 border border-[#2DD4A0]/40 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5 sm:mt-0">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <p className="text-xs sm:text-sm font-semibold text-white">
+                      If your Society is not in the dropdown menu, please <span className="text-[#2DD4A0] font-bold">Register Now</span>.
+                    </p>
+                    <p className="text-[11px] text-white/60 mt-0.5">
+                      Tell us your society name &amp; car details so our route team can launch morning care in your building.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowLeadModal(true)}
+                  className="px-4 py-2.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25ba8c] text-[#0A0D12] font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(45,212,160,0.35)] hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 cursor-pointer shrink-0"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-[#0A0D12]" />
+                  <span>Register Your Interest</span>
+                  <ArrowRight className="w-3.5 h-3.5 text-[#0A0D12]" />
+                </button>
+              </div>
+
               {/* Cascading Dropdowns: State -> City -> Society */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 {/* 1. SELECT STATE */}
@@ -1134,6 +1172,16 @@ export default function SignUpPage() {
                   {ownerErrors.society && (
                     <p className="text-[11px] text-rose-400 mt-1.5 font-medium">{ownerErrors.society}</p>
                   )}
+                  <div className="mt-2 flex items-center justify-between text-[11px] text-white/50">
+                    <span>Society not in dropdown?</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowLeadModal(true)}
+                      className="text-[#2DD4A0] hover:underline font-bold inline-flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Register Now →</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -2019,6 +2067,12 @@ export default function SignUpPage() {
           </form>
         )}
       </div>
+
+      {/* Register Your Interest Modal for Unlisted Societies */}
+      <LeadRegistrationModal
+        isOpen={showLeadModal}
+        onClose={() => setShowLeadModal(false)}
+      />
     </div>
   );
 }
