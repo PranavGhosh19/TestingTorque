@@ -1,17 +1,15 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Shield, Menu, X, Bell, Sparkles, ChevronDown, Car, Lock, CalendarCheck, Wallet, UserCheck } from 'lucide-react';
+import { Menu, X, Bell, CalendarCheck, Wallet, UserCheck } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [loginMenuOpen, setLoginMenuOpen] = useState(false);
-  const loginMenuRef = useRef<HTMLDivElement>(null);
   const { role, notifications } = useStore();
 
   const isAppRoute =
@@ -40,19 +38,6 @@ export default function Navbar() {
     !pathname.startsWith('/washer/auth');
 
   const unreadCount = notifications.filter((n) => !n.read).length;
-
-  useEffect(() => {
-    if (!loginMenuOpen) return;
-
-    function handleClickOutside(event: MouseEvent) {
-      if (loginMenuRef.current && !loginMenuRef.current.contains(event.target as Node)) {
-        setLoginMenuOpen(false);
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [loginMenuOpen]);
 
   return (
     <header
@@ -145,88 +130,12 @@ export default function Navbar() {
         {/* Right CTA */}
         <div className="hidden md:flex items-center gap-4">
           {isPublicPage ? (
-            <>
-              {/* Dedicated Log In Dropdown */}
-              <div className="relative" ref={loginMenuRef}>
-                <button
-                  type="button"
-                  onClick={() => setLoginMenuOpen(!loginMenuOpen)}
-                  className="text-xs font-medium text-white/70 hover:text-white px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <span>Login</span>
-                  <ChevronDown className={`w-3.5 h-3.5 opacity-60 transition-transform duration-200 ${loginMenuOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {loginMenuOpen && (
-                  <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#0B132B] border border-white/15 shadow-2xl p-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-                    <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-white/10 mb-1">
-                      Choose Portal
-                    </div>
-
-                    <Link
-                      href="/auth/login"
-                      onClick={() => setLoginMenuOpen(false)}
-                      className="flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-white/10 transition-colors group"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                        <Car className="w-3.5 h-3.5 text-blue-400" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-white group-hover:text-blue-300 flex items-center gap-1">
-                          <span>Owner Login</span>
-                        </div>
-                        <div className="text-[10px] text-slate-400 leading-tight">
-                          Daily photos, wash schedule & cars
-                        </div>
-                      </div>
-                    </Link>
-
-                    <Link
-                      href="/washer/login"
-                      onClick={() => setLoginMenuOpen(false)}
-                      className="flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-white/10 transition-colors group"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-xs">🧼</span>
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-white group-hover:text-emerald-300 flex items-center gap-1">
-                          <span>Washer Partner Login</span>
-                        </div>
-                        <div className="text-[10px] text-slate-400 leading-tight">
-                          Morning routes & earnings payout
-                        </div>
-                      </div>
-                    </Link>
-
-                    <Link
-                      href="/admin/login"
-                      onClick={() => setLoginMenuOpen(false)}
-                      className="flex items-start gap-2.5 p-2.5 rounded-xl hover:bg-white/10 transition-colors group"
-                    >
-                      <div className="w-7 h-7 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0 mt-0.5">
-                        <Lock className="w-3.5 h-3.5 text-amber-400" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-white group-hover:text-amber-300 flex items-center gap-1">
-                          <span>Admin Console</span>
-                        </div>
-                        <div className="text-[10px] text-slate-400 leading-tight">
-                          Operations, fleet & treasury
-                        </div>
-                      </div>
-                    </Link>
-                  </div>
-                )}
-              </div>
-
-              <Link
-                href="/auth/signup"
-                className="inline-flex items-center justify-center px-5 py-2 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] text-xs font-semibold transition-all hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98]"
-              >
-                <span>Get Torque Care</span>
-              </Link>
-            </>
+            <Link
+              href="/auth/signup"
+              className="inline-flex items-center justify-center px-5 py-2 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] text-xs font-semibold transition-all hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98]"
+            >
+              <span>Get Torque Care</span>
+            </Link>
           ) : isWasherPortal ? (
             <div className="flex items-center gap-3">
               <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 font-mono">
