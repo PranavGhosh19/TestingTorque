@@ -4,28 +4,21 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import {
-  CheckCircle2,
   Calendar,
   Clock,
   MapPin,
   Star,
-  Sparkles,
   ChevronRight,
-  ShieldCheck,
   Plus,
-  ArrowRight,
-  History,
   Home,
   Car,
   RefreshCw,
-  Wifi,
   Layers,
   LogOut,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import SignatureProofCard from '@/components/SignatureProofCard';
 import OwnerProofCalendar from '@/components/OwnerProofCalendar';
-import SundayPriorityModal from '@/components/modals/SundayPriorityModal';
 import AddVehicleModal from '@/components/modals/AddVehicleModal';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 import { useStore } from '@/lib/store';
@@ -48,7 +41,6 @@ export default function OwnerDashboardPage() {
     logout,
   } = useStore();
 
-  const [showSundayModal, setShowSundayModal] = useState(false);
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
 
   // REDIRECT TO LANDING PAGE IF NOT LOGGED IN
@@ -399,13 +391,6 @@ export default function OwnerDashboardPage() {
 
           <div className="flex items-center gap-2.5">
             <button
-              onClick={() => setShowSundayModal(true)}
-              className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 text-xs font-bold transition-all border border-amber-400/30"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>Sunday Priority</span>
-            </button>
-            <button
               onClick={() => setShowAddVehicleModal(true)}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95"
             >
@@ -539,70 +524,25 @@ export default function OwnerDashboardPage() {
           </>
         )}
 
-        {/* TRAVEL & AWAY MODE PROPOSITION BANNER */}
-        <div className="hidden md:flex p-6 rounded-[20px] bg-gradient-to-r from-[#161C25] via-[#11161D] to-[#161C25] text-white flex-col sm:flex-row items-start sm:items-center justify-between gap-5 border border-white/[0.08] shadow-xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[#2DD4A0]/5 rounded-full blur-[80px] pointer-events-none" />
-          <div className="space-y-1.5 relative z-10">
-            <div className="inline-flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.2em] text-[#2DD4A0] bg-[#2DD4A0]/10 px-3 py-0.5 rounded-full border border-[#2DD4A0]/20 font-bold">
-              <span>TORQUE CARE AWAY</span>
-            </div>
-            <h3 className="text-lg font-bold text-white tracking-tight">
-              Going somewhere? Don&apos;t pause your vehicle care.
-            </h3>
-            <p className="text-xs text-white/60 max-w-lg leading-relaxed">
-              Find nearest verified partner in Jaipur, Bengaluru, Goa & more. Book &ldquo;Until I Return&rdquo; for continuous peace of mind.
-            </p>
+        {/* SERVICE PILLARS STATUS (Selected Plan) */}
+        <div className="p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 flex items-center gap-1.5 font-bold">
+              <Home className="w-3.5 h-3.5 text-[#2DD4A0]" /> TORQUE HOME
+            </span>
+            <span className="text-[10px] font-mono uppercase font-bold text-[#2DD4A0] bg-[#2DD4A0]/10 px-2.5 py-0.5 rounded-full border border-[#2DD4A0]/30">
+              ACTIVE
+            </span>
           </div>
-          <Link
-            href="/owner/travel"
-            className="px-5 py-2.5 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] text-xs font-bold shrink-0 flex items-center gap-2 shadow-md transition-all active:scale-95 relative z-10"
-          >
-            <span>Activate Away Mode</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-
-        {/* SERVICE PILLARS STATUS (Selected Plan & Away Mode) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Home Active Plan Card */}
-          <div className="p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 flex items-center gap-1.5 font-bold">
-                <Home className="w-3.5 h-3.5 text-[#2DD4A0]" /> TORQUE HOME
-              </span>
-              <span className="text-[10px] font-mono uppercase font-bold text-[#2DD4A0] bg-[#2DD4A0]/10 px-2.5 py-0.5 rounded-full border border-[#2DD4A0]/30">
-                ACTIVE
-              </span>
+          <div className="text-xl font-bold text-white tracking-tight">{activePlanName}</div>
+          <p className="text-xs text-white/60 leading-relaxed">
+            Recurring society bay care for {primaryVehicle ? `${primaryVehicle.make} ${primaryVehicle.model}` : 'your vehicle'} by {assignedWasher.name} at {primaryVehicle?.society_name || 'Green Valley Residency'}.
+          </p>
+          {lastSyncTime && (
+            <div className="text-[10px] text-white/40 font-mono pt-1">
+              Synced with Firestore at {lastSyncTime}
             </div>
-            <div className="text-xl font-bold text-white tracking-tight">{activePlanName}</div>
-            <p className="text-xs text-white/60 leading-relaxed">
-              Recurring society bay care for {primaryVehicle ? `${primaryVehicle.make} ${primaryVehicle.model}` : 'your vehicle'} by {assignedWasher.name} at {primaryVehicle?.society_name || 'Green Valley Residency'}.
-            </p>
-            {lastSyncTime && (
-              <div className="text-[10px] text-white/40 font-mono pt-1">
-                Synced with Firestore at {lastSyncTime}
-              </div>
-            )}
-          </div>
-
-          {/* Away Mode Card */}
-          <Link
-            href="/owner/travel"
-            className="p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] hover:border-white/20 shadow-xl space-y-2.5 transition-all block group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 flex items-center gap-1.5 font-bold">
-                <Car className="w-3.5 h-3.5 text-amber-400" /> TORQUE AWAY
-              </span>
-              <span className="text-[10px] font-mono font-bold text-white/60 group-hover:text-white transition-colors">
-                BOOK →
-              </span>
-            </div>
-            <div className="text-xl font-bold text-white tracking-tight">Starting at ₹39 / wash</div>
-            <p className="text-xs text-white/60 leading-relaxed">
-              Nationwide verified concierge partners whenever you travel to another city.
-            </p>
-          </Link>
+          )}
         </div>
 
         {/* NEXT WASH & WASHER INFO */}
@@ -746,94 +686,9 @@ export default function OwnerDashboardPage() {
           todayWash={activeTodayWash}
           selectedVehicleId={primaryVehicle?.id}
         />
-
-        {/* TORQUE CARE VEHICLE HISTORY */}
-        <section className="hidden md:block p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl space-y-5">
-          <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
-            <div>
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 flex items-center gap-1.5 font-bold">
-                <History className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                VEHICLE AUDIT LOG
-              </span>
-              <p className="text-xs text-white/60 mt-0.5">
-                All services appear in one vehicle history, wherever you travel.
-              </p>
-            </div>
-            <Link
-              href="/owner/washes/history"
-              className="text-xs font-bold text-[#2DD4A0] hover:underline flex items-center gap-1"
-            >
-              <span>Full Audit Trail</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-
-          <div className="space-y-2.5 font-mono text-xs">
-            {washes.slice(0, 4).map((wash) => {
-              const isAway = wash.service_type === 'away';
-              const city = wash.city || 'Delhi';
-
-              return (
-                <div
-                  key={wash.id}
-                  className="p-3.5 rounded-xl border border-white/[0.06] bg-[#161C25]/60 hover:bg-[#161C25] transition-colors flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
-                        isAway
-                          ? 'bg-amber-500/10 text-amber-300 border-amber-400/20'
-                          : 'bg-[#2DD4A0]/10 text-[#2DD4A0] border-[#2DD4A0]/20'
-                      }`}
-                    >
-                      {isAway ? (
-                        <span className="text-xs">🚗</span>
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 text-[#2DD4A0]" />
-                      )}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 flex-wrap font-sans">
-                        <span className="text-xs font-bold text-white">
-                          {wash.scheduled_date} — {city}
-                        </span>
-                        <span
-                          className={`text-[9px] font-mono uppercase px-1.5 py-0.5 rounded-md ${
-                            isAway
-                              ? 'bg-amber-500/20 text-amber-300'
-                              : 'bg-white/10 text-white/70'
-                          }`}
-                        >
-                          {wash.service_type || 'home'}
-                        </span>
-                        <span className="text-[11px] font-mono font-bold text-[#2DD4A0]">
-                          Completed ✓
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-white/40 font-mono mt-0.5">
-                        {wash.washer_name} • {wash.parking_location}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Link
-                    href={`/owner/washes/${wash.id}`}
-                    className="text-xs font-bold text-white bg-white/5 hover:bg-white/10 border border-white/[0.08] px-3.5 py-1.5 rounded-full transition-all shrink-0"
-                  >
-                    View Proof
-                  </Link>
-                </div>
-              );
-            })}
-          </div>
-        </section>
       </main>
 
       {/* Modals */}
-      <SundayPriorityModal
-        isOpen={showSundayModal}
-        onClose={() => setShowSundayModal(false)}
-      />
       <AddVehicleModal
         isOpen={showAddVehicleModal}
         onClose={() => setShowAddVehicleModal(false)}

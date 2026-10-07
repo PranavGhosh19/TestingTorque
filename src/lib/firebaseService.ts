@@ -1501,6 +1501,22 @@ export async function fetchWasherDashboardDataFromFirestore(
 
           const needBefore = vData.needWashBefore || vData.need_wash_before || vData.preferredWashTime || vData.preferred_wash_time || '8:00 AM';
 
+          const exactCapturedAt = isCompletedToday
+            ? (washRecord?.proof?.capturedAt ||
+               washRecord?.captured_at ||
+               washRecord?.completedAt ||
+               washRecord?.completed_at ||
+               (washRecord?.createdAt?.toDate ? washRecord.createdAt.toDate().toISOString() : washRecord?.createdAt) ||
+               undefined)
+            : undefined;
+
+          const exactCompletedAt = isCompletedToday
+            ? (washRecord?.completedAt ||
+               washRecord?.completed_at ||
+               exactCapturedAt ||
+               undefined)
+            : undefined;
+
           stops.push({
             stop_number: stops.length + 1,
             wash_id: isCompletedToday ? (washRecord?.id || `wash_${vId}_${today.dateIso}`) : `wash_${vId}_${today.dateIso}`,
@@ -1526,6 +1542,8 @@ export async function fetchWasherDashboardDataFromFirestore(
             original_washer_id: vData.primaryWasherId,
             is_covered_for_me: Boolean(vData.isBackupActive && isCoveredForMe),
             covered_by_washer_name: vData.backupWasherName,
+            completed_at: exactCompletedAt,
+            captured_at: exactCapturedAt,
           });
         }
       }

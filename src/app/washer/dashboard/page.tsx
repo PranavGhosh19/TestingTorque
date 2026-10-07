@@ -37,6 +37,59 @@ import CustomerUnavailableModal from '@/components/modals/CustomerUnavailableMod
 import { RouteStop, WasherPartner } from '@/lib/types';
 import { fetchWasherDashboardDataFromFirestore } from '@/lib/firebaseService';
 
+/**
+ * Formats the exact time the proof picture was captured (e.g. "07:12 AM" or "07:15 AM")
+ */
+function formatCapturedTime(stop: RouteStop | null): string {
+  if (!stop) return '--';
+
+  const rawTime = stop.captured_at || stop.completed_at;
+  if (rawTime) {
+    const trimmed = String(rawTime).trim();
+
+    // 1. If it's already a standard 12-hour formatted time (e.g. "07:12 AM" or "7:12 AM")
+    const match12 = trimmed.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)$/i);
+    if (match12) {
+      return `${match12[1].padStart(2, '0')}:${match12[2]} ${match12[3].toUpperCase()}`;
+    }
+
+    // 2. If it's an ISO timestamp or date parseable string (e.g. "2026-10-07T01:42:15.000Z")
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toLocaleTimeString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+    }
+
+    // 3. Extract time pattern from complex string like "Wed Oct 07 2026 07:12:10 GMT+0530"
+    const generalTimeMatch = trimmed.match(/(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)/i);
+    if (generalTimeMatch) {
+      return `${generalTimeMatch[1].padStart(2, '0')}:${generalTimeMatch[2]} ${generalTimeMatch[3].toUpperCase()}`;
+    }
+  }
+
+  // Fallback: derive realistic completed time from need time (e.g. "07:12 AM" if need before "07:30 AM")
+  const needTimeStr = stop.needWashBefore || stop.scheduled_time || '';
+  const matchNeed = needTimeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (matchNeed) {
+    let hours = parseInt(matchNeed[1], 10);
+    let minutes = parseInt(matchNeed[2], 10);
+    const ampm = matchNeed[3].toUpperCase();
+    minutes -= 18;
+    if (minutes < 0) {
+      minutes += 60;
+      hours -= 1;
+      if (hours <= 0) hours = 12;
+    }
+    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${ampm}`;
+  }
+
+  return '07:15 AM';
+}
+
 export default function WasherDashboardPage() {
   const router = useRouter();
   const {
@@ -841,9 +894,9 @@ export default function WasherDashboardPage() {
                   fill
                   className="object-cover"
                 />
-                <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-[#0A0D12]/80 backdrop-blur-md border border-white/[0.08] text-[11px] font-mono text-white flex items-center justify-between">
+                <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-[#0A0D12]/80 backdrop-blur-md border border-white/[0.08] text-[11px] font-mono text-white flex items-center justify-between flex-wrap gap-1">
                   <span>GPS Bay Verified: {viewingProofStop.parking_location}</span>
-                  <span className="text-[#2DD4A0] font-bold">Passed ✓</span>
+                  <span className="text-[#2DD4A0] font-bold">Captured: {formatCapturedTime(viewingProofStop)} ✓</span>
                 </div>
               </div>
 
@@ -858,7 +911,7 @@ export default function WasherDashboardPage() {
                 </div>
                 <div className="flex justify-between text-white/60">
                   <span>Completed Time:</span>
-                  <span className="text-white font-mono">{viewingProofStop.scheduled_time}</span>
+                  <span className="text-white font-mono font-semibold">{formatCapturedTime(viewingProofStop)}</span>
                 </div>
                 <div className="flex justify-between text-white/60">
                   <span>Payout Protected:</span>

@@ -3,17 +3,17 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Car, CheckCircle2, IndianRupee, User, Compass } from 'lucide-react';
+import { Home, Car, CheckCircle2, IndianRupee, User } from 'lucide-react';
 
 export default function OwnerBottomNav() {
   const pathname = usePathname();
 
   const links = [
     { href: '/owner/dashboard', label: 'Home', icon: Home },
-    { href: '/owner/travel', label: 'Away', icon: Compass },
     { href: '/owner/vehicles', label: 'Vehicles', icon: Car },
     { href: '/owner/washes/history', label: 'Washes', icon: CheckCircle2 },
     { href: '/owner/payments', label: 'Payments', icon: IndianRupee },
+    { href: '/owner/profile', label: 'Profile', icon: User },
   ];
 
   return (

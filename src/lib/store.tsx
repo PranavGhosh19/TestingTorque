@@ -1542,10 +1542,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setOfflineQueueCount((c) => c + 1);
     }
 
+    const now = new Date();
+    const capturedIso = now.toISOString();
+    const completedNowTime = now.toLocaleTimeString('en-IN', {
+      timeZone: 'Asia/Kolkata',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
     setRouteStops((prev) => {
       const updated = prev.map((s) => {
         if (s.stop_number === stopNumber) {
-          return { ...s, status: 'completed' as const, proof_photo: afterImg };
+          return {
+            ...s,
+            status: 'completed' as const,
+            proof_photo: afterImg,
+            completed_at: completedNowTime,
+            captured_at: capturedIso,
+          };
         }
         if (s.stop_number === stopNumber + 1 && s.status === 'pending') {
           return { ...s, status: 'current' as const };

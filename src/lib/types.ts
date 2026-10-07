@@ -186,6 +186,8 @@ export interface RouteStop {
   covered_by_washer_name?: string;
   needWashBefore?: string;
   need_wash_before?: string;
+  completed_at?: string;
+  captured_at?: string;
 }
 
 export interface WasherSubstitutionAudit {
