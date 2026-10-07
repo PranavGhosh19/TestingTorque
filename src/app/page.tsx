@@ -358,36 +358,94 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* Right Pricing Card (5 cols) */}
-            <div className="lg:col-span-5 p-8 sm:p-10 rounded-[20px] bg-[#161C25] border border-white/[0.12] flex flex-col justify-between relative shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
-              <div className="space-y-4">
+            {/* Right Pricing Card (5 cols) — Redesigned Premium Glass Card */}
+            <div className="lg:col-span-5 p-7 sm:p-9 rounded-[24px] bg-gradient-to-b from-[#151D2A] via-[#101622] to-[#0A0E15] border border-white/[0.12] hover:border-[#2DD4A0]/40 flex flex-col justify-between relative shadow-[0_25px_60px_rgba(0,0,0,0.6)] overflow-hidden transition-all duration-300 group">
+              {/* Top ambient luminous gradient line */}
+              <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-[#2DD4A0] to-transparent opacity-75" />
+              <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#2DD4A0]/10 rounded-full blur-3xl pointer-events-none" />
+
+              <div className="space-y-6">
+                {/* Header Row */}
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-white/65 uppercase tracking-wider">Fixed Monthly Care</span>
-                  <span className="text-[10px] font-bold uppercase tracking-wider bg-[#2DD4A0] text-black px-2.5 py-0.5 rounded-full">
-                    Popular
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#2DD4A0] shadow-[0_0_8px_#2DD4A0]" />
+                    <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-white/80">
+                      Home Basic Plan
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-mono font-extrabold uppercase tracking-widest bg-[#2DD4A0] text-[#0A0D12] px-3 py-1 rounded-full shadow-[0_0_15px_rgba(45,212,160,0.35)]">
+                    Most Popular
                   </span>
                 </div>
-                
-                <div className="pt-2">
+
+                {/* Main Price Block */}
+                <div className="space-y-1.5 pt-1">
                   <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-[#2DD4A0]">Starting @</span>
-                    <span className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-mono">₹499</span>
-                    <span className="text-sm font-medium text-white/65">/ month</span>
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">
+                      Starting @
+                    </span>
+                    <span className="text-4xl sm:text-5xl font-black text-white tracking-tight font-mono">
+                      ₹499
+                    </span>
+                    <span className="text-xs sm:text-sm font-semibold text-white/60">/ month</span>
                   </div>
-                  <p className="text-xs text-white/40 mt-1">Billed monthly</p>
+                  <p className="text-[11px] font-medium text-white/50">
+                    Billed monthly • 6 Days / week (Mon – Sat)
+                  </p>
+                </div>
+
+                {/* Body Type Tier Pills */}
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  <div className="p-2.5 rounded-xl bg-white/[0.04] border border-[#2DD4A0]/30 text-center space-y-0.5">
+                    <div className="text-[10px] text-white/60 font-medium truncate">Hatch / Sedan</div>
+                    <div className="text-xs font-mono font-bold text-[#2DD4A0]">₹499/mo</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] text-center space-y-0.5">
+                    <div className="text-[10px] text-white/50 font-medium truncate">Mid SUV</div>
+                    <div className="text-xs font-mono font-semibold text-white/80">₹649/mo</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.06] text-center space-y-0.5">
+                    <div className="text-[10px] text-white/50 font-medium truncate">Luxury 7+</div>
+                    <div className="text-xs font-mono font-semibold text-white/80">₹799/mo</div>
+                  </div>
+                </div>
+
+                {/* Key Plan Perks List */}
+                <div className="space-y-2.5 pt-2 border-t border-white/[0.08] text-xs">
+                  <div className="flex items-center gap-2.5 text-white/85">
+                    <Clock className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />
+                    <span>Completed before 10:30 AM daily</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-white/85">
+                    <Camera className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />
+                    <span>Verified morning photo certificate</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-white/85">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />
+                    <span>Keyless exterior parking bay care</span>
+                  </div>
+                  <div className="flex items-center gap-2.5 text-white/85">
+                    <Sparkles className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />
+                    <span>Zero lock-in • Pause or cancel anytime</span>
+                  </div>
                 </div>
               </div>
 
-              <div className="pt-8">
+              {/* Action Section */}
+              <div className="pt-6 sm:pt-8 space-y-3">
                 <Link
                   href="/auth/signup"
-                  className="w-full py-3.5 px-6 rounded-full bg-[#2DD4A0] hover:bg-[#25b889] text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(45,212,160,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  className="w-full py-3.5 px-6 rounded-full bg-[#2DD4A0] hover:bg-[#25b889] text-[#0A0D12] font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(45,212,160,0.4)] transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                 >
                   <span>Start Society Subscription</span>
                   <ArrowRight className="w-4 h-4 stroke-[2.5]" />
                 </Link>
-                <div className="text-center mt-3">
-                  <Link href="/for-owners" className="text-[11px] text-white/40 hover:text-white transition-colors">
+
+                <div className="text-center">
+                  <Link
+                    href="/for-owners"
+                    className="text-[11px] text-white/45 hover:text-white transition-colors"
+                  >
                     Looking to enroll your whole society? Contact RWA sales →
                   </Link>
                 </div>
