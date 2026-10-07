@@ -331,7 +331,7 @@ export default function OwnerDashboardPage() {
       if (t === 'luxury') return 799;
       if (t === 'suv') return 649;
       if (t === 'bike') return 399;
-      return 599;
+      return 499;
     }
 
     // 2. Direct price from user object (fallback)
@@ -351,7 +351,7 @@ export default function OwnerDashboardPage() {
       }
     }
 
-    return 599;
+    return 499;
   }, [user, primaryVehicle]);
 
   // Dynamically resolve owner_name from Firebase user, primary vehicle, or localStorage

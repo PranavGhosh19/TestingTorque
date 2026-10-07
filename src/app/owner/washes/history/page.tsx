@@ -104,7 +104,7 @@ export default function WashHistoryPage() {
 
   const filterTabs = [
     { id: 'all', label: 'All Services' },
-    { id: 'home', label: 'Home (₹599/mo)' },
+    { id: 'home', label: 'Home (₹499/mo)' },
     { id: 'away', label: 'Away Mode' },
     { id: 'detail', label: 'Detailing Studio' },
     { id: 'sunday', label: 'Sunday Priority' },

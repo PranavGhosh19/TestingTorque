@@ -269,7 +269,7 @@ export default function HomePage() {
                 </div>
                 <div>
                   <div className="text-xs font-bold text-white">Daily 7:30 AM Verified Proof</div>
-                  <div className="text-[11px] text-white/65">₹599/mo • Housing Societies</div>
+                  <div className="text-[11px] text-white/65">₹499/mo • Housing Societies</div>
                 </div>
               </div>
               <span className="text-[10px] font-mono uppercase bg-[#2DD4A0]/15 text-[#2DD4A0] px-2.5 py-1 rounded-full border border-[#2DD4A0]/25 font-bold">
@@ -297,7 +297,7 @@ export default function HomePage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 2. CORE PHILOSOPHY & HOUSING SOCIETY SUBSCRIPTION (₹599/MONTH) */}
+      {/* 2. CORE PHILOSOPHY & HOUSING SOCIETY SUBSCRIPTION (₹499/MONTH) */}
       {/* ========================================================================= */}
       <section className="py-24 sm:py-32 bg-[#0A0D12] relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -316,7 +316,7 @@ export default function HomePage() {
             </p>
           </div>
 
-          {/* Pricing Highlight Card — ₹599/month */}
+          {/* Pricing Highlight Card — ₹499/month */}
           <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
             
             {/* Left Feature Card (7 cols) */}
@@ -371,7 +371,7 @@ export default function HomePage() {
                 <div className="pt-2">
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-[#2DD4A0]">Starting @</span>
-                    <span className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-mono">₹599</span>
+                    <span className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight font-mono">₹499</span>
                     <span className="text-sm font-medium text-white/65">/ month</span>
                   </div>
                   <p className="text-xs text-white/40 mt-1">Billed monthly</p>
@@ -873,7 +873,7 @@ export default function HomePage() {
               Your car. Always taken care of.
             </h2>
             <p className="text-sm sm:text-base text-white/65 leading-relaxed">
-              Experience the luxury of waking up to a spotless, verified clean vehicle every single morning for ₹599/month.
+              Experience the luxury of waking up to a spotless, verified clean vehicle every single morning for ₹499/month.
             </p>
           </div>
 

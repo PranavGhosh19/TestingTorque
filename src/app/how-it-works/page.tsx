@@ -52,7 +52,7 @@ export default function HowItWorksPage() {
               Subscribe & Set Bay
             </h3>
             <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
-              Add your vehicle and specify your parking bay. Choose a flexible monthly plan with zero lock-in starting at ₹599/mo.
+              Add your vehicle and specify your parking bay. Choose a flexible monthly plan with zero lock-in starting at ₹499/mo.
             </p>
           </div>
 
@@ -236,7 +236,7 @@ export default function HowItWorksPage() {
                 <h3 className="text-xl font-bold text-white">Torque Care Home</h3>
                 <div className="text-2xl font-black text-white">
                   <span className="text-xs font-semibold text-white/50 block">Starting at</span>
-                  ₹599<span className="text-xs font-normal text-white/50">/month</span>
+                  ₹499<span className="text-xs font-normal text-white/50">/month</span>
                 </div>
               </div>
               <p className="text-xs text-white/60 leading-relaxed">

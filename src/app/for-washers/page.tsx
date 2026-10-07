@@ -298,7 +298,7 @@ export default function ForWashersPage() {
               <tbody className="divide-y divide-white/[0.06] font-medium text-white/80">
                 <tr className="hover:bg-white/[0.02] transition-colors">
                   <td className="py-3 px-4 text-white font-semibold">Hatchback / Sedan</td>
-                  <td className="py-3 px-4 text-white/60">₹599</td>
+                  <td className="py-3 px-4 text-white/60">₹499</td>
                   <td className="py-3 px-4 text-right font-mono font-bold text-[#2DD4A0]">₹12</td>
                 </tr>
                 <tr className="hover:bg-white/[0.02] transition-colors">

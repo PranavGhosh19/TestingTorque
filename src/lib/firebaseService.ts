@@ -86,12 +86,12 @@ export async function syncOwnerToFirestore(
       if (t === 'luxury') return 799;
       if (t === 'suv') return 649;
       if (t === 'bike') return 399;
-      return 599; // Hatchback / Sedan
+      return 499; // Hatchback / Sedan
     };
 
     const calculatedTotal = vehicles && vehicles.length > 0
       ? vehicles.reduce((sum, v) => sum + (v.price || (v as any).subscription_price || getBodyTypePrice(v.type)), 0)
-      : (owner.price || 599);
+      : (owner.price || 499);
 
     const subscriptionPrice = owner.price || (owner as any).subscription_price || calculatedTotal;
 
@@ -3262,7 +3262,7 @@ export async function fetchAdminCustomers(adminId?: string): Promise<AdminCustom
         assignedAdminId: d.assignedAdminId || d.adminId || '',
         assignedWasherId: d.assignedWasherId || d.selectedWasherId || '',
         assignedWasherName: d.assignedWasherName || d.selectedWasherName || '',
-        price: d.price || d.subscriptionPrice || 599,
+        price: d.price || d.subscriptionPrice || 499,
         createdAt: d.createdAt || d.created_at || (d.lastLoginAt ? new Date().toISOString() : ''),
       };
 

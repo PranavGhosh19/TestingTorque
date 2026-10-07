@@ -267,7 +267,7 @@ export default function AwayModePage() {
               className="w-full py-3.5 rounded-full bg-white hover:bg-white/90 text-[#0A0D12] font-black text-xs flex items-center justify-center gap-2 transition-all active:scale-[0.98] cursor-pointer"
             >
               <Check className="w-4 h-4 text-[#2DD4A0]" />
-              <span>I&apos;m Back — Resume Home Subscription (₹599/mo)</span>
+              <span>I&apos;m Back — Resume Home Subscription (₹499/mo)</span>
             </button>
           </div>
         )}

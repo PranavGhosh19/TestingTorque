@@ -181,8 +181,8 @@ export const demoOwnerUser: User = {
   status: 'active',
   created_at: '2026-01-15T00:00:00Z',
   selected_plan: 'HOME BASIC',
-  price: 599,
-  subscription_price: 599,
+  price: 499,
+  subscription_price: 499,
 };
 
 const initialVehicles: Vehicle[] = [];
@@ -205,8 +205,8 @@ export const demoVehicles: Vehicle[] = [
     subscription_status: 'active',
     washes_this_month: 22,
     selected_plan: 'HOME BASIC',
-    price: 599,
-    subscription_price: 599,
+    price: 499,
+    subscription_price: 499,
   },
   {
     id: 'veh_creta_1',
@@ -565,8 +565,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             const normalized = parsed.map((v) => ({
               ...v,
               selected_plan: v.selected_plan || 'HOME BASIC',
-              price: v.price || (v.type === 'luxury' ? 799 : v.type === 'suv' ? 649 : v.type === 'bike' ? 399 : 599),
-              subscription_price: v.subscription_price || (v.type === 'luxury' ? 799 : v.type === 'suv' ? 649 : v.type === 'bike' ? 399 : 599),
+              price: v.price || (v.type === 'luxury' ? 799 : v.type === 'suv' ? 649 : v.type === 'bike' ? 399 : 499),
+              subscription_price: v.subscription_price || (v.type === 'luxury' ? 799 : v.type === 'suv' ? 649 : v.type === 'bike' ? 399 : 499),
             }));
             setVehicles(normalized);
           }
@@ -702,7 +702,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     newVeh: Omit<Vehicle, 'id' | 'owner_id' | 'owner_name' | 'washes_this_month' | 'subscription_status'>
   ) => {
     const defaultPrice =
-      newVeh.type === 'luxury' ? 799 : newVeh.type === 'suv' ? 649 : newVeh.type === 'bike' ? 399 : 599;
+      newVeh.type === 'luxury' ? 799 : newVeh.type === 'suv' ? 649 : newVeh.type === 'bike' ? 399 : 499;
     const created: Vehicle = {
       ...newVeh,
       id: `veh_${Date.now()}`,
@@ -793,7 +793,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (t === 'luxury') return 799;
       if (t === 'suv') return 649;
       if (t === 'bike') return 399;
-      return 599;
+      return 499;
     };
 
     const calculatedTotal = vehiclesList.reduce(
@@ -801,7 +801,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       0
     );
 
-    const finalPrice = ownerData.price || ownerData.subscriptionPrice || calculatedTotal || 599;
+    const finalPrice = ownerData.price || ownerData.subscriptionPrice || calculatedTotal || 499;
 
     const resolvedAdminId = ownerData.adminId || ownerData.assignedAdminId || '';
 
@@ -1834,7 +1834,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       {
         id: `notif_tbdone_${Date.now()}`,
         title: 'Welcome Back! 🏠',
-        body: 'Away Mode ended. Your regular Torque Care Home subscription (₹599/mo) has resumed seamlessly.',
+        body: 'Away Mode ended. Your regular Torque Care Home subscription (₹499/mo) has resumed seamlessly.',
         timestamp: 'Just now',
         read: false,
         category: 'wash',

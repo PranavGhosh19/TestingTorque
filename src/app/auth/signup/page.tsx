@@ -247,7 +247,7 @@ export default function SignUpPage() {
     {
       id: 'basic',
       name: 'HOME BASIC',
-      monthlyBasePrice: 599,
+      monthlyBasePrice: 499,
       badge: 'RECOMMENDED PLAN',
       tagline: 'Essential weekday care for daily office commuters',
       washesPerWeek: '6 Days / week (Mon – Sat)',
@@ -265,10 +265,10 @@ export default function SignUpPage() {
   const selectedPlan = planOptions[0];
 
   const getVehicleMonthlyPrice = (vehicleType: string, basePrice: number) => {
-    if (basePrice === 599) {
+    if (basePrice === 499 || basePrice === 599) {
       if (vehicleType === 'luxury') return 799;
       if (vehicleType === 'suv') return 649;
-      return 599;
+      return 499;
     }
     if (vehicleType === 'luxury') return Math.round(basePrice * 1.35);
     if (vehicleType === 'suv') return Math.round(basePrice * 1.15);
@@ -1404,7 +1404,7 @@ export default function SignUpPage() {
                         </label>
                         <div className="w-full px-4 py-3 bg-[#11161D]/70 border border-white/[0.08] rounded-2xl text-xs font-bold text-white flex items-center justify-between">
                           <span className="capitalize">
-                            {v.type === 'car' && 'Hatchback / Sedan (₹599)'}
+                            {v.type === 'car' && 'Hatchback / Sedan (₹499)'}
                             {v.type === 'suv' && 'Compact / Mid SUV (₹649)'}
                             {v.type === 'luxury' && 'Luxury / 7-Seater+ (₹799)'}
                             {v.type === 'bike' && 'Motorcycle / Scooter (₹399)'}
@@ -1649,7 +1649,7 @@ export default function SignUpPage() {
                         <div className="grid grid-cols-3 gap-2 text-center text-[10px] font-mono pt-1">
                           <div className="p-2.5 rounded-xl bg-[#11161D] border border-white/[0.06]">
                             <span className="text-white/50 block">Hatchback/Sedan</span>
-                            <span className="text-white font-bold">₹599/mo</span>
+                            <span className="text-white font-bold">₹499/mo</span>
                           </div>
                           <div className="p-2.5 rounded-xl bg-[#11161D] border border-white/[0.06]">
                             <span className="text-white/50 block">Compact/Mid SUV</span>

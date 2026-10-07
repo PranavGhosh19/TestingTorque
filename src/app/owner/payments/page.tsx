@@ -30,7 +30,7 @@ export default function OwnerPaymentsPage() {
       id: 'txn_01',
       date: '01 Sep 2026',
       description: 'Monthly Verified Wash Subscription — Honda City (DL 01 AB 4291)',
-      amount: '₹599',
+      amount: '₹499',
       status: 'Paid',
       method: 'Razorpay UPI (pranav@okhdfc)',
       invoice: 'INV-2026-0901',
@@ -48,7 +48,7 @@ export default function OwnerPaymentsPage() {
       id: 'txn_03',
       date: '01 Aug 2026',
       description: 'Monthly Verified Wash Subscription — Honda City',
-      amount: '₹599',
+      amount: '₹499',
       status: 'Paid',
       method: 'HDFC Credit Card (•••• 1092)',
       invoice: 'INV-2026-0801',
@@ -81,7 +81,7 @@ export default function OwnerPaymentsPage() {
               Current Plan
             </span>
             <h2 className="text-xl font-bold text-white mt-1">
-              Torque Care Residence (₹599 / mo)
+              Torque Care Residence (₹499 / mo)
             </h2>
             <p className="text-xs text-white/60 mt-0.5 font-mono">
               Next billing: 01 October 2026 • Razorpay recurring mandate active

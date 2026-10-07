@@ -71,7 +71,7 @@ export default function ForOwnersPage() {
 
           {/* Subtitle */}
           <p className="text-base sm:text-lg text-white/60 max-w-2xl mx-auto leading-relaxed">
-            Recurring society car care (starting at ₹599/mo) with guaranteed daily service — unified in one continuous vehicle history with verified morning photo certificates.
+            Recurring society car care (starting at ₹499/mo) with guaranteed daily service — unified in one continuous vehicle history with verified morning photo certificates.
           </p>
         </div>
 

@@ -23,7 +23,7 @@ export default function PricingPage() {
     'hatch_sedan' | 'suv' | 'luxury',
     { label: string; customerPrice: number }
   > = {
-    hatch_sedan: { label: 'Hatchback / Sedan', customerPrice: 599 },
+    hatch_sedan: { label: 'Hatchback / Sedan', customerPrice: 499 },
     suv: { label: 'Compact / Mid SUV', customerPrice: 649 },
     luxury: { label: 'Luxury / 7-Seater+', customerPrice: 799 },
   };
@@ -75,7 +75,7 @@ export default function PricingPage() {
 
           {/* Subtitle */}
           <p className="text-base sm:text-lg text-white/60 max-w-xl mx-auto leading-relaxed mb-8">
-            Torque Care Home starts at ₹599/mo for recurring society care with verified morning photo certificates.
+            Torque Care Home starts at ₹499/mo for recurring society care with verified morning photo certificates.
           </p>
 
           {/* Vehicle Selector */}
