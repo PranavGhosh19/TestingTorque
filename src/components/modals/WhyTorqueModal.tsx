@@ -29,15 +29,15 @@ export default function WhyTorqueModal({
       title: 'Backup Washer',
       desc: 'If your primary washer is on leave, another verified washer is assigned immediately.',
       icon: Users,
-      iconColor: 'text-blue-400',
-      iconBg: 'bg-blue-500/15 border-blue-500/30',
+      iconColor: 'text-[#2DD4A0]',
+      iconBg: 'bg-[#2DD4A0]/15 border-[#2DD4A0]/30',
     },
     {
       title: 'Money Carry Forward',
       desc: "If your car wasn't washed, that day's pay rolls forward automatically. Your money is 100% safe.",
       icon: ShieldCheck,
-      iconColor: 'text-amber-400',
-      iconBg: 'bg-amber-500/15 border-amber-500/30',
+      iconColor: 'text-[#2DD4A0]',
+      iconBg: 'bg-[#2DD4A0]/15 border-[#2DD4A0]/30',
     },
   ];
 
