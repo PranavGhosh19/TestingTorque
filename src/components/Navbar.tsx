@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Menu, X, Bell, CalendarCheck, Wallet, UserCheck } from 'lucide-react';
+import { Menu, X, Bell, CalendarCheck, Wallet, UserCheck, Sparkles } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 
@@ -177,20 +177,41 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile Hamburger Button */}
+        {/* Mobile Navbar Actions */}
         <div className="flex md:hidden items-center gap-2">
-          <Link
-            href="/auth/signup"
-            className="text-xs font-black px-3.5 py-1.5 rounded-xl bg-white text-[#080D1A]"
-          >
-            Get Started
-          </Link>
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 text-slate-300 hover:text-white rounded-xl bg-white/5 border border-white/10"
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+          {pathname === '/' ? (
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('torque-open-lead-modal'));
+                }
+              }}
+              className="px-3.5 py-2 rounded-full bg-gradient-to-r from-[#141C27] to-[#0D131D] hover:from-[#1b2535] hover:to-[#121a28] border border-[#2DD4A0]/40 text-white text-xs font-bold shadow-[0_12px_36px_rgba(0,0,0,0.8),0_0_20px_rgba(45,212,160,0.2)] flex items-center gap-2.5 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#2DD4A0] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#2DD4A0]" />
+              </span>
+              <span className="tracking-wide">Register Interest</span>
+              <Sparkles className="w-3.5 h-3.5 text-[#2DD4A0] group-hover:rotate-12 transition-transform" />
+            </button>
+          ) : (
+            <>
+              <Link
+                href="/auth/signup"
+                className="text-xs font-black px-3.5 py-1.5 rounded-xl bg-white text-[#080D1A]"
+              >
+                Get Started
+              </Link>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 text-slate-300 hover:text-white rounded-xl bg-white/5 border border-white/10"
+              >
+                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+              </button>
+            </>
+          )}
         </div>
       </div>
 
