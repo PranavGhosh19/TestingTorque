@@ -82,10 +82,10 @@ export default function WhyTorqueModal({
             <div className="pr-8 space-y-1">
               <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#2DD4A0] font-bold flex items-center gap-1.5">
                 <Sparkles className="w-3 h-3 text-[#2DD4A0]" />
-                WHY CONSIDER TORQUE CARE?
+                WHY CHOOSE TORQUE CARE?
               </span>
               <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                3 promises you won&apos;t get anywhere else
+                3 reason you won&apos;t get anywhere else
               </h2>
             </div>
 
