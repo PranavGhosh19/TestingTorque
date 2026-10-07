@@ -376,17 +376,6 @@ export default function HomePage() {
                   </div>
                   <p className="text-xs text-white/40 mt-1">Billed monthly</p>
                 </div>
-
-                <div className="p-4 rounded-xl bg-[#11161D] border border-white/[0.08] text-xs text-white/65 space-y-2">
-                  <div className="flex items-center justify-between text-white font-medium">
-                    <span>Average washes per month</span>
-                    <span className="font-mono text-[#2DD4A0]">24 washes</span>
-                  </div>
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span>Cost per verified wash</span>
-                    <span className="font-mono text-white/80">~₹24 / day</span>
-                  </div>
-                </div>
               </div>
 
               <div className="pt-8">
