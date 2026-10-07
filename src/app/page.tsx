@@ -419,31 +419,6 @@ export default function HomePage() {
                   Every morning, our trained washer takes high-resolution verification photos from your designated society parking bay. The photo is automatically stamped with the time, date, and parking spot before you step into the elevator.
                 </p>
               </div>
-
-              {/* Verified Process Timeline */}
-              <div className="space-y-4 border-l-2 border-white/10 pl-6 ml-2 text-xs">
-                
-                <div className="relative group">
-                  <div className="absolute -left-[31px] top-1 w-3 h-3 rounded-full bg-white/20 border-2 border-[#11161D]" />
-                  <div className="text-white/40 font-mono text-[11px]">06:45 AM</div>
-                  <div className="text-white font-semibold text-sm">Washer checks into Tower B Basement</div>
-                  <div className="text-white/65 text-xs">Background-verified partner scans into parking grid.</div>
-                </div>
-
-                <div className="relative group">
-                  <div className="absolute -left-[31px] top-1 w-3 h-3 rounded-full bg-white/20 border-2 border-[#11161D]" />
-                  <div className="text-white/40 font-mono text-[11px]">07:10 AM</div>
-                  <div className="text-white font-semibold text-sm">Waterless Polymer Foam Lift</div>
-                  <div className="text-white/65 text-xs">Safe lifting of overnight dust without grit-friction or scratching.</div>
-                </div>
-
-                <div className="relative group">
-                  <div className="absolute -left-[31px] top-1 w-3.5 h-3.5 rounded-full bg-[#2DD4A0] border-2 border-[#11161D] shadow-[0_0_10px_#2DD4A0]" />
-                  <div className="text-[#2DD4A0] font-mono text-[11px] font-bold">07:24 AM • VERIFIED</div>
-                  <div className="text-white font-semibold text-sm">Certificate photo captured & uploaded</div>
-                  <div className="text-white/65 text-xs">Clean hood, windshield, and tire dressing proof delivered.</div>
-                </div>
-              </div>
             </div>
 
             {/* Right Column: Interactive Verified PhotoProof Card */}
@@ -506,14 +481,10 @@ export default function HomePage() {
                 </div>
 
                 {/* Washer Signature & Metrics */}
-                <div className="grid grid-cols-3 gap-3 text-center text-xs pt-2 border-t border-white/[0.08]">
+                <div className="grid grid-cols-2 gap-3 text-center text-xs pt-2 border-t border-white/[0.08]">
                   <div className="p-3 rounded-xl bg-[#11161D] border border-white/[0.05]">
                     <div className="text-[11px] text-white/40 uppercase">Cleanliness</div>
                     <div className="text-sm font-bold text-white mt-0.5">100% Spotless</div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#11161D] border border-white/[0.05]">
-                    <div className="text-[11px] text-white/40 uppercase">Gloss Index</div>
-                    <div className="text-sm font-bold text-[#2DD4A0] mt-0.5">98.4 Rating</div>
                   </div>
                   <div className="p-3 rounded-xl bg-[#11161D] border border-white/[0.05]">
                     <div className="text-[11px] text-white/40 uppercase">Assigned Care</div>
