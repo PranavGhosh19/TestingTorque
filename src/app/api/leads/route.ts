@@ -61,64 +61,10 @@ export async function POST(req: NextRequest) {
       source: 'landing_register_modal',
     };
 
-    // Determine Google Sheets Webhook URL
-    let sheetsWebhookUrl = process.env.GOOGLE_SHEETS_WEBHOOK_URL || process.env.NEXT_PUBLIC_GOOGLE_SHEETS_WEBHOOK_URL;
-
-    // Check if configured in Firestore settings if not in env
-    if (!sheetsWebhookUrl) {
-      try {
-        const settingsSnap = await getDoc(doc(db, 'System_Settings', 'integrations'));
-        if (settingsSnap.exists() && settingsSnap.data()?.googleSheetsWebhookUrl) {
-          sheetsWebhookUrl = settingsSnap.data().googleSheetsWebhookUrl;
-        }
-      } catch (settingsErr) {
-        // Continue if settings fetch fails
-      }
-    }
-
-    let syncedToGoogleSheets = false;
-    let sheetsSyncError: string | null = null;
-
-    if (sheetsWebhookUrl) {
-      try {
-        const sheetsPayload = {
-          timestamp: timestampIST,
-          fullName: leadData.fullName,
-          phone: leadData.phone,
-          vehicleNumber: leadData.vehicleNumber,
-          societyName: leadData.societyName,
-          district: leadData.district,
-          city: leadData.city,
-          state: leadData.state,
-          source: 'Torque Care Landing Page',
-        };
-
-        const sheetResponse = await fetch(sheetsWebhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(sheetsPayload),
-          redirect: 'follow',
-        });
-
-        if (sheetResponse.ok || sheetResponse.status === 302 || sheetResponse.status === 200) {
-          syncedToGoogleSheets = true;
-        } else {
-          sheetsSyncError = `HTTP ${sheetResponse.status}`;
-        }
-      } catch (sheetErr: any) {
-        console.warn('Google Sheets Webhook error:', sheetErr?.message);
-        sheetsSyncError = sheetErr?.message || 'Failed to dispatch to Google Sheets';
-      }
-    }
-
     // Dual-write: Always record safely into Firestore
     try {
       await setDoc(doc(db, 'Lead_Registrations', leadId), {
         ...leadData,
-        syncedToGoogleSheets,
-        sheetsSyncError,
         serverCreatedAt: serverTimestamp(),
       });
     } catch (dbErr: any) {
@@ -138,7 +84,6 @@ export async function POST(req: NextRequest) {
         state: leadData.state,
         isLead: true,
         role: 'lead',
-        syncedToGoogleSheets,
         serverCreatedAt: serverTimestamp(),
       });
     } catch (ownerDbErr: any) {
@@ -148,8 +93,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       id: leadId,
-      syncedToGoogleSheets,
-      hasGoogleSheetsConfigured: Boolean(sheetsWebhookUrl),
       message: 'Thanks for registering with us. We will connect with you shorty',
     });
   } catch (error: any) {

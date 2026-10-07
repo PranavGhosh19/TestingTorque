@@ -208,20 +208,27 @@ export default function WasherDashboardPage() {
     return plate.includes(query) || model.includes(query) || owner.includes(query) || bay.includes(query);
   });
 
-  // Target metrics calculation: Total target is the count of vehicles the washer is assigned
-  const totalTargetCount = selectedSociety === 'all' ? displayRouteStops.length : societyStops.length;
+  // Target metrics calculation:
+  // If the backup washer has washed a vehicle, the target for the current washer is reduced as he didn't work
+  const currentStops = selectedSociety === 'all' ? displayRouteStops : societyStops;
+  const isBackupWashed = (s: RouteStop) => Boolean(s.is_covered_for_me && (s.status === 'completed' || s.status === 'vehicle_unavailable'));
 
-  const completedStops = societyStops.filter((s) => s.status === 'completed');
+  // Target count excludes vehicles that were washed by a backup washer
+  const backupWashedCount = currentStops.filter(isBackupWashed).length;
+  const totalTargetCount = Math.max(0, currentStops.length - backupWashedCount);
+
+  // Completed & unavailable proofs uploaded specifically by this washer (excluding backup covered washes)
+  const completedStops = currentStops.filter((s) => s.status === 'completed' && !s.is_covered_for_me);
   const completedCount = completedStops.length;
-  const unavailableStops = societyStops.filter((s) => s.status === 'vehicle_unavailable');
+  const unavailableStops = currentStops.filter((s) => s.status === 'vehicle_unavailable' && !s.is_covered_for_me);
   const unavailableCount = unavailableStops.length;
   const pendingCount = Math.max(0, totalTargetCount - completedCount - unavailableCount);
   const progressPercent = totalTargetCount > 0 ? Math.min(100, Math.round((completedCount / totalTargetCount) * 100)) : 0;
 
-  // Shift earnings calculation based on vehicle tier (Hatchback/Sedan ₹12, Compact/Mid SUV ₹16, Luxury/7-Seater+ ₹21)
-  const currentStops = selectedSociety === 'all' ? displayRouteStops : societyStops;
-  const totalExpectedPayout = currentStops.reduce((sum, s) => sum + (s.payout_amount || 12), 0);
-  const earnedSoFar = currentStops
+  // Shift earnings calculation based on vehicle tier (excluding vehicles covered and washed by backup washer)
+  const myActionableStops = currentStops.filter((s) => !s.is_covered_for_me);
+  const totalExpectedPayout = myActionableStops.reduce((sum, s) => sum + (s.payout_amount || 12), 0);
+  const earnedSoFar = myActionableStops
     .filter((s) => s.status === 'completed' || s.status === 'vehicle_unavailable')
     .reduce((sum, s) => sum + (s.payout_amount || 12), 0);
 
@@ -262,9 +269,6 @@ export default function WasherDashboardPage() {
               />
             </div>
             <div className="min-w-0">
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#2DD4A0] block font-bold leading-none mb-1">
-                TORQUE CARE SPECIALIST
-              </span>
               <h1 className="text-base sm:text-xl md:text-2xl font-bold text-white tracking-tight truncate" suppressHydrationWarning>
                 Hi, {washerFirstName} 👋
               </h1>
@@ -276,14 +280,9 @@ export default function WasherDashboardPage() {
             <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#2DD4A0]/10 text-[#2DD4A0] flex items-center justify-center shrink-0">
               <Calendar className="w-3.5 h-3.5" />
             </div>
-            <div className="text-right">
-              <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-white/50 block font-bold leading-none mb-0.5">
-                TODAY
-              </span>
-              <span className="text-[11px] sm:text-xs md:text-sm font-bold text-white font-mono tracking-tight whitespace-nowrap" suppressHydrationWarning>
-                {formattedPresentDate}
-              </span>
-            </div>
+            <span className="text-[11px] sm:text-xs md:text-sm font-bold text-white font-mono tracking-tight whitespace-nowrap" suppressHydrationWarning>
+              {formattedPresentDate}
+            </span>
           </div>
         </div>
       </header>
@@ -593,7 +592,7 @@ export default function WasherDashboardPage() {
                   key={stop.stop_number}
                   className={`p-4 sm:p-5 rounded-[20px] border shadow-xl flex ${
                     isCompleted
-                      ? 'flex-row items-center justify-between gap-3 bg-[#11161D] border-white/[0.08]'
+                      ? 'flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 bg-[#11161D] border-white/[0.08]'
                       : isUnavailable
                       ? 'flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#11161D] border-amber-400/30'
                       : 'flex-col sm:flex-row sm:items-center justify-between gap-4 bg-[#11161D] border-white/[0.08] hover:border-white/20'
@@ -601,14 +600,14 @@ export default function WasherDashboardPage() {
                 >
                   {/* LEFT SIDE: GREEN TICK, NUMBER PLATE, CAR BRAND */}
                   {isCompleted ? (
-                    <div className="flex items-center gap-3 sm:gap-3.5 min-w-0">
+                    <div className="flex items-start sm:items-center gap-3 sm:gap-3.5 min-w-0 flex-1">
                       {/* Green Tick */}
-                      <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 bg-[#2DD4A0] text-[#0A0D12] shadow-[0_0_12px_rgba(45,212,160,0.5)]">
+                      <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 bg-[#2DD4A0] text-[#0A0D12] shadow-[0_0_12px_rgba(45,212,160,0.5)] mt-0.5 sm:mt-0">
                         ✓
                       </div>
 
                       {/* Number Plate & Brand */}
-                      <div className="flex flex-col items-start gap-0.5 sm:gap-1 min-w-0">
+                      <div className="flex flex-col items-start gap-1 sm:gap-1.5 min-w-0 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm sm:text-base font-bold text-white font-mono tracking-wider bg-[#161C25] px-2.5 py-0.5 rounded-lg border border-white/[0.08]">
                             {stop.registration_number}
@@ -624,12 +623,13 @@ export default function WasherDashboardPage() {
                             </span>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs sm:text-sm font-medium text-white/70 truncate">
+                        <div className="flex items-center gap-2 flex-wrap text-xs sm:text-sm text-white/70">
+                          <span className="font-medium text-white/90 truncate">
                             {stop.vehicle_name}
                           </span>
-                          <span className="text-[11px] text-white/50 font-mono">
-                            • Need before: {stop.needWashBefore || (stop.scheduled_time.startsWith('Before') ? stop.scheduled_time.replace(/^Before\s+/i, '') : stop.scheduled_time)}
+                          <span className="text-white/40">•</span>
+                          <span className="text-[11px] sm:text-xs text-white/50 font-mono">
+                            Need before: {stop.needWashBefore || (stop.scheduled_time.startsWith('Before') ? stop.scheduled_time.replace(/^Before\s+/i, '') : stop.scheduled_time)}
                           </span>
                         </div>
                       </div>
@@ -707,12 +707,16 @@ export default function WasherDashboardPage() {
                   )}
 
                   {/* RIGHT SIDE: VIEW PROOF OR UPLOAD ACTIONS */}
-                  <div className={`flex items-center gap-2.5 shrink-0 ${isCompleted ? 'self-center' : 'self-end sm:self-center'}`}>
+                  <div className={`flex items-center gap-2.5 shrink-0 ${
+                    isCompleted 
+                      ? 'w-full sm:w-auto pt-2.5 sm:pt-0 border-t border-white/[0.06] sm:border-0 justify-end' 
+                      : 'self-end sm:self-center'
+                  }`}>
                     {isCompleted ? (
                       <button
                         type="button"
                         onClick={() => setViewingProofStop(stop)}
-                        className="px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 border border-white/[0.08] text-[#2DD4A0] text-xs font-bold flex items-center gap-2 transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+                        className="w-full sm:w-auto px-4 py-2 sm:py-2.5 rounded-xl sm:rounded-full bg-[#161C25] hover:bg-white/10 border border-white/[0.08] text-[#2DD4A0] text-xs font-bold flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                       >
                         <CheckCircle2 className="w-4 h-4 text-[#2DD4A0]" />
                         <span>View Proof Photo</span>

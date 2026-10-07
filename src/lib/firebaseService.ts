@@ -1534,11 +1534,12 @@ export async function fetchWasherDashboardDataFromFirestore(
     console.warn('Error fetching washer vehicles from Firestore:', err);
   }
 
-  // 3. Compute metrics: target is the count of actionable vehicles
-  const targetQuota = stops.length;
-  const completedCount = stops.filter((s) => s.status === 'completed').length;
-  const unavailableCount = stops.filter((s) => s.status === 'vehicle_unavailable').length;
-  const pendingCount = Math.max(0, stops.filter((s) => s.status === 'pending' && !s.is_covered_for_me).length);
+  // 3. Compute metrics: if the backup washer has washed, target for current washer is reduced
+  const backupWashedCount = stops.filter((s) => s.is_covered_for_me && (s.status === 'completed' || s.status === 'vehicle_unavailable')).length;
+  const targetQuota = Math.max(0, stops.length - backupWashedCount);
+  const completedCount = stops.filter((s) => s.status === 'completed' && !s.is_covered_for_me).length;
+  const unavailableCount = stops.filter((s) => s.status === 'vehicle_unavailable' && !s.is_covered_for_me).length;
+  const pendingCount = Math.max(0, targetQuota - completedCount - unavailableCount);
   const progressPercent = targetQuota > 0 ? Math.min(100, Math.round((completedCount / targetQuota) * 100)) : 0;
   const actionableStops = stops.filter((s) => !s.is_covered_for_me);
   const earnedSoFar = actionableStops
