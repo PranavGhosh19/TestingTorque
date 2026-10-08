@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -29,13 +29,21 @@ import {
 } from '@/lib/firebaseService';
 import { sendPhoneOtp, formatPhoneE164 } from '@/lib/firebaseAuth';
 import { WasherPartner } from '@/lib/washerPartners';
+import { checkIsWasherAuthenticated } from '@/lib/authGuards';
 
 export default function DedicatedWasherLoginPage() {
   const router = useRouter();
-  const { setRole, washers, setUser, setIsLoggedIn, setWasherPassword } = useStore();
+  const { setRole, washers, setUser, setIsLoggedIn, setWasherPassword, isHydrated, isLoggedIn, user, role } = useStore();
 
   const [method, setMethod] = useState<'email' | 'phone'>('email');
   const [step, setStep] = useState<'login' | 'set_password'>('login');
+
+  // If already authenticated as washer, go straight to washer dashboard
+  useEffect(() => {
+    if (checkIsWasherAuthenticated(isHydrated, isLoggedIn, user, role)) {
+      router.replace('/washer/dashboard');
+    }
+  }, [isHydrated, isLoggedIn, user, role, router]);
 
   // Login form fields
   const [email, setEmail] = useState('');

@@ -28,6 +28,7 @@ export default function Navbar() {
     pathname.startsWith('/about') ||
     pathname.startsWith('/contact') ||
     pathname.startsWith('/auth') ||
+    pathname.startsWith('/admin/leads') ||
     pathname.startsWith('/washer/login') ||
     pathname.startsWith('/admin/login') ||
     pathname.startsWith('/owner/login');

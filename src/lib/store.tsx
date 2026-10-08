@@ -522,11 +522,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       } else {
         const savedUser = localStorage.getItem('torque_user');
         const savedOwnerName = localStorage.getItem('torque_owner_name');
+        const savedAdminUid = localStorage.getItem('torque_admin_uid');
+        const savedWasherId = localStorage.getItem('torque_washer_id');
         let userLoaded = false;
         if (savedUser) {
           try {
             const parsed = JSON.parse(savedUser);
-            if (parsed?.id && parsed.id !== 'usr_guest' && parsed.phone) {
+            if (parsed?.id && parsed.id !== 'usr_guest') {
+              if (parsed.role) {
+                setRoleState(parsed.role);
+              }
               if (savedOwnerName && (!parsed.owner_name || parsed.name === 'Vehicle Owner')) {
                 parsed.name = savedOwnerName;
                 parsed.owner_name = savedOwnerName;
@@ -542,6 +547,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           }
         }
         if (!userLoaded && storedLoggedIn) {
+          if (savedAdminUid) {
+            setRoleState('admin');
+          } else if (savedWasherId) {
+            setRoleState('washer');
+          }
           setIsLoggedIn(true);
         }
 
@@ -1045,10 +1055,18 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('torque_owner_name');
       localStorage.removeItem('torque_owner_id');
       localStorage.removeItem('torque_washer_id');
+      localStorage.removeItem('torque_washer_phone');
       localStorage.removeItem('torque_washer_name');
+      localStorage.removeItem('torque_washer_has_password');
+      localStorage.removeItem('torque_washer_password_set');
+      localStorage.removeItem('torque_admin_uid');
+      localStorage.removeItem('torque_admin_email');
+      localStorage.removeItem('torque_admin_profile_completed');
+      localStorage.removeItem('torque_admin_name');
     }
     signOutFirebaseUser().catch((err) => console.warn('Sign out notice:', err));
     setIsLoggedIn(false);
+    setRoleState('owner');
     setUser({
       id: 'usr_guest',
       name: 'Unregistered Owner',

@@ -19,15 +19,23 @@ import {
 } from '@/lib/firebaseService';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { checkIsAdminAuthenticated } from '@/lib/authGuards';
 
 export default function DedicatedAdminLoginPage() {
   const router = useRouter();
-  const { setRole, setUser } = useStore();
+  const { setRole, setUser, isHydrated, isLoggedIn, user, role } = useStore();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // If already authenticated as admin, go straight to admin dashboard
+  React.useEffect(() => {
+    if (checkIsAdminAuthenticated(isHydrated, isLoggedIn, user, role)) {
+      router.replace('/admin/dashboard');
+    }
+  }, [isHydrated, isLoggedIn, user, role, router]);
 
   const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,6 +137,8 @@ export default function DedicatedAdminLoginPage() {
         localStorage.setItem('torque_admin_email', authUserEmail);
         localStorage.setItem('torque_logged_in', 'true');
         localStorage.setItem('torque_owner_name', adminName);
+        localStorage.setItem('torque_admin_name', adminName);
+        localStorage.setItem('torque_user', JSON.stringify(adminUser));
       }
 
       // Record sign-in in Firestore
