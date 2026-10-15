@@ -1,27 +1,27 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
+import Link from 'next/navigation';
 import { usePathname } from 'next/navigation';
-import { CalendarCheck, Wallet, UserCheck } from 'lucide-react';
+import { CalendarCheck, UserCheck } from 'lucide-react';
+import NextLink from 'next/link';
 
 export default function WasherBottomNav() {
   const pathname = usePathname();
 
   const links = [
     { href: '/washer/dashboard', label: 'Today', icon: CalendarCheck },
-    { href: '/washer/earnings', label: 'Earnings', icon: Wallet },
     { href: '/washer/profile', label: 'Profile', icon: UserCheck },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0A0D12]/95 backdrop-blur-xl border-t border-white/[0.08] px-2 py-2 md:hidden">
-      <div className="grid grid-cols-3 max-w-md mx-auto">
+      <div className="grid grid-cols-2 max-w-sm mx-auto">
         {links.map((link) => {
           const Icon = link.icon;
           const isActive = pathname === link.href || pathname.startsWith(link.href + '/');
           return (
-            <Link
+            <NextLink
               key={link.href}
               href={link.href}
               className={`flex flex-col items-center justify-center py-1 transition-colors ${
@@ -42,7 +42,7 @@ export default function WasherBottomNav() {
               >
                 {link.label}
               </span>
-            </Link>
+            </NextLink>
           );
         })}
       </div>

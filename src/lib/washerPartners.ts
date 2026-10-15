@@ -24,6 +24,9 @@ export interface WasherPartner {
   reviewsCount: number;
   society: string;
   societies?: string[];
+  state?: string;
+  city?: string;
+  district?: string;
   createdBy?: string;
   assignedCarsPerDay: number;
   routeWindow: string;

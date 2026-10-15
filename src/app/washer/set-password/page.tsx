@@ -28,7 +28,9 @@ import {
 } from 'firebase/auth';
 import {
   findWasherByEmailInFirestore,
+  findWasherByPhoneInFirestore,
   markWasherPasswordSetInFirestore,
+  setWasherPasswordInFirestore,
   recordUserLogin,
   fetchAllWashersFromFirestore,
 } from '@/lib/firebaseService';
@@ -37,13 +39,16 @@ import { WasherPartner } from '@/lib/washerPartners';
 function SetPasswordContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const phoneParam = searchParams.get('phone') || '';
   const emailParam = searchParams.get('email') || '';
 
   const { washers, setUser, setRole, setIsLoggedIn } = useStore();
 
+  const [phone, setPhone] = useState(phoneParam);
   const [email, setEmail] = useState(emailParam.toLowerCase().trim());
+  const [manualInput, setManualInput] = useState(phoneParam || emailParam || '');
   const [washer, setWasher] = useState<WasherPartner | null>(null);
-  const [isResolvingWasher, setIsResolvingWasher] = useState(true);
+  const [isResolvingWasher, setIsResolvingWasher] = useState(Boolean(phoneParam || emailParam));
 
   // Form Fields
   const [newPassword, setNewPassword] = useState('');
@@ -63,31 +68,52 @@ function SetPasswordContent() {
     let isMounted = true;
 
     async function resolveWasher() {
-      const cleanEmail = (emailParam || email).toLowerCase().trim();
-      if (!cleanEmail) {
+      const targetPhone = (phoneParam || phone).trim();
+      const targetEmail = (emailParam || email).toLowerCase().trim();
+
+      if (!targetPhone && !targetEmail) {
         setIsResolvingWasher(false);
         return;
       }
 
       setIsResolvingWasher(true);
-      try {
-        // Query Firestore Washers & washer_directory
-        let foundWasher = await findWasherByEmailInFirestore(cleanEmail);
+      setErrorMessage('');
 
-        // Fallback: check in-memory store
-        if (!foundWasher) {
-          foundWasher =
-            washers.find((w) => (w.email || '').toLowerCase().trim() === cleanEmail) || null;
+      try {
+        let foundWasher: WasherPartner | null = null;
+
+        // 1. Try Phone lookup first
+        if (targetPhone) {
+          const cleanDigits = targetPhone.replace(/\D/g, '').slice(-10);
+          foundWasher = await findWasherByPhoneInFirestore(targetPhone);
+
+          if (!foundWasher && cleanDigits) {
+            foundWasher =
+              washers.find((w) => (w.phone || '').replace(/\D/g, '').endsWith(cleanDigits)) || null;
+          }
+
+          if (!foundWasher && cleanDigits) {
+            try {
+              const allWashers = await fetchAllWashersFromFirestore();
+              foundWasher =
+                allWashers.find((w) => (w.phone || '').replace(/\D/g, '').endsWith(cleanDigits)) || null;
+            } catch (e) {}
+          }
         }
 
-        // Fallback: fetch directly from Firestore
-        if (!foundWasher) {
-          try {
-            const allWashers = await fetchAllWashersFromFirestore();
+        // 2. Fallback to Email lookup
+        if (!foundWasher && targetEmail) {
+          foundWasher = await findWasherByEmailInFirestore(targetEmail);
+          if (!foundWasher) {
             foundWasher =
-              allWashers.find((w) => (w.email || '').toLowerCase().trim() === cleanEmail) || null;
-          } catch (e) {
-            // safe ignore
+              washers.find((w) => (w.email || '').toLowerCase().trim() === targetEmail) || null;
+          }
+          if (!foundWasher) {
+            try {
+              const allWashers = await fetchAllWashersFromFirestore();
+              foundWasher =
+                allWashers.find((w) => (w.email || '').toLowerCase().trim() === targetEmail) || null;
+            } catch (e) {}
           }
         }
 
@@ -95,7 +121,8 @@ function SetPasswordContent() {
 
         if (foundWasher) {
           setWasher(foundWasher);
-          setEmail(foundWasher.email || cleanEmail);
+          if (foundWasher.phone) setPhone(foundWasher.phone);
+          if (foundWasher.email) setEmail(foundWasher.email);
 
           // If password is ALREADY set, go directly to Dashboard
           if (foundWasher.passwordSet === true) {
@@ -105,7 +132,9 @@ function SetPasswordContent() {
           }
         } else {
           setErrorMessage(
-            'No washer partner found with this email. Please check your email or contact your Society Area Manager.'
+            targetPhone
+              ? 'No washer partner found with this mobile number. Please check or contact your Society Area Manager.'
+              : 'No washer partner found with this email. Please check your email or contact your Society Area Manager.'
           );
         }
       } catch (err: any) {
@@ -123,7 +152,7 @@ function SetPasswordContent() {
     return () => {
       isMounted = false;
     };
-  }, [emailParam, washers, router]);
+  }, [phoneParam, emailParam, phone, email, washers, router]);
 
   // -------------------------------------------------------------
   // 2. Validation Calculations
@@ -200,7 +229,10 @@ function SetPasswordContent() {
     }
 
     setIsSubmitting(true);
-    const cleanEmail = (washer.email || email).toLowerCase().trim();
+    const cleanDigits = (washer.phone || phone || phoneParam || '').replace(/\D/g, '').slice(-10);
+    const cleanEmail = (washer.email && washer.email.includes('@'))
+      ? washer.email.toLowerCase().trim()
+      : `washer_${cleanDigits}@washer.torque.care`;
 
     try {
       // 1. Create or register user in Firebase Authentication
@@ -245,12 +277,17 @@ function SetPasswordContent() {
         console.warn('Firestore passwordSet flag update notice:', firestoreRes.error);
       }
 
+      await setWasherPasswordInFirestore(washer.id, newPassword);
+      if (washer.phone) {
+        await setWasherPasswordInFirestore(washer.phone, newPassword);
+      }
+
       // 3. Establish active Washer session in local store
       const washerUser = {
         id: washer.id,
         uid: firebaseAuthUid,
         name: washer.name,
-        phone: washer.phone || '+91 98000 00000',
+        phone: washer.phone || phone || '+91 98000 00000',
         email: cleanEmail,
         role: 'washer' as const,
         avatar_url: washer.avatar || '/images/washer_amit.jpg',
@@ -309,7 +346,7 @@ function SetPasswordContent() {
             Create Your Password
           </h1>
           <p className="text-xs sm:text-sm text-slate-300 max-w-xs mx-auto leading-relaxed">
-            Welcome to TorqueCare! As your account was created by your Society Operations Admin, please set your personal password below.
+            Welcome to TorqueCare! As your account was onboarded by your Society Operations Admin, please set your personal password below.
           </p>
         </div>
 
@@ -351,8 +388,11 @@ function SetPasswordContent() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-white text-sm truncate">{washer.name}</div>
-                    <div className="text-[11px] text-emerald-300/90 font-mono truncate">
-                      {washer.email || email}
+                    <div className="flex items-center gap-1.5 text-[11px] text-emerald-300/90 font-mono mt-0.5">
+                      <span>{washer.phone}</span>
+                      {washer.email && !washer.email.includes('@washer.torque.care') && (
+                        <span className="text-slate-400 font-sans truncate">• {washer.email}</span>
+                      )}
                     </div>
                     {washer.society && (
                       <div className="flex items-center gap-1 text-[10px] text-slate-300 mt-1">
@@ -363,19 +403,36 @@ function SetPasswordContent() {
                   </div>
                 </div>
               ) : (
-                /* Email Input if not pre-populated */
-                <div>
-                  <label className="text-[11px] font-black text-slate-300 uppercase tracking-wider block mb-2">
-                    Registered Partner Email
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter your registered email"
-                    className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-white focus:outline-hidden focus:border-emerald-400 tracking-wider shadow-inner"
-                  />
+                /* Phone / Email Input if not pre-populated */
+                <div className="space-y-3">
+                  <div>
+                    <label className="text-[11px] font-black text-slate-300 uppercase tracking-wider block mb-2">
+                      Registered Mobile Number or Email
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={manualInput}
+                      onChange={(e) => setManualInput(e.target.value)}
+                      placeholder="e.g. 98101 23456 or partner email"
+                      className="w-full rounded-2xl border border-white/15 bg-white/5 px-3 py-2.5 text-sm font-semibold text-white focus:outline-hidden focus:border-emerald-400 tracking-wider shadow-inner"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (manualInput.trim()) {
+                        if (manualInput.includes('@')) {
+                          setEmail(manualInput.trim());
+                        } else {
+                          setPhone(manualInput.trim());
+                        }
+                      }
+                    }}
+                    className="w-full py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-emerald-300 cursor-pointer transition-colors"
+                  >
+                    Find My Partner Account
+                  </button>
                 </div>
               )}
 

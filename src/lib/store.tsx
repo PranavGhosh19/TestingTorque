@@ -26,11 +26,12 @@ import {
   appointWasherToVehicleInFirestore,
   recordUserLogin,
   resetOwnerFirestoreData,
+  fetchAllWashersFromFirestore,
 } from './firebaseService';
 import { WasherPartner, initialWasherPartners } from './washerPartners';
 import { isWashFromToday, getTodayISTDate } from './washUtils';
 import { onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, collection, getDocs } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import {
   enqueueWashUpload,
@@ -49,14 +50,17 @@ interface StoreContextType {
   addVehicle: (vehicle: Omit<Vehicle, 'id' | 'owner_id' | 'owner_name' | 'washes_this_month' | 'subscription_status'>) => void;
   registerOwner: (
     ownerData: {
+      id?: string;
       uid?: string;
       name: string;
+      email?: string;
       phone: string;
       address?: string;
       flat?: string;
       flatNumber?: string;
       state?: string;
       city?: string;
+      district?: string;
       society?: string;
       societyId?: string;
       societyName?: string;
@@ -555,31 +559,61 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           setIsLoggedIn(true);
         }
 
-        const savedWashers = localStorage.getItem('torque_washers');
-        if (savedWashers) {
-          const parsed = JSON.parse(savedWashers);
-          if (Array.isArray(parsed)) {
-            const isDummyWasher = (w: any) =>
-              !w || w.id === 'wsh_amit';
-            const clean = parsed.filter((w) => !isDummyWasher(w));
-            if (clean.length !== parsed.length) {
-              localStorage.setItem('torque_washers', JSON.stringify(clean));
+        // Clean up legacy local entity caches so all data is strictly loaded from Firestore
+        localStorage.removeItem('torque_washers');
+        localStorage.removeItem('torque_vehicles');
+        localStorage.removeItem('torque_washes');
+        localStorage.removeItem('torque_routestops');
+        localStorage.removeItem('torque_daily_wash_feedbacks');
+
+        // Load all active washers directly from Firestore
+        fetchAllWashersFromFirestore().then((remoteWashers) => {
+          if (remoteWashers && remoteWashers.length > 0) {
+            setWashers(remoteWashers);
+          }
+        }).catch((wErr) => {
+          console.warn('Store fetchAllWashersFromFirestore notice:', wErr);
+        });
+
+        // Load vehicles for active owner directly from Firestore
+        const activeOwnerId =
+          (savedUser ? (() => { try { return JSON.parse(savedUser)?.id; } catch { return null; } })() : null) ||
+          localStorage.getItem('torque_owner_id');
+        if (activeOwnerId && activeOwnerId !== 'usr_guest') {
+          getDocs(collection(db, 'Car_Owners', activeOwnerId, 'Vehicles')).then((vSnap) => {
+            if (!vSnap.empty) {
+              const loadedVehicles: Vehicle[] = [];
+              vSnap.docs.forEach((d) => {
+                const vd = d.data();
+                loadedVehicles.push({
+                  id: d.id,
+                  owner_id: activeOwnerId,
+                  owner_name: savedOwnerName || 'Vehicle Owner',
+                  registration_number: vd.registrationNumber || vd.registration_number || '',
+                  make: vd.make || '',
+                  model: vd.model || '',
+                  type: vd.type || 'car',
+                  color: vd.color || 'Pearl White',
+                  parking_location: vd.parkingLocation || vd.parking_location || 'Assigned Bay',
+                  preferred_wash_time: vd.preferredWashTime || vd.preferred_wash_time || '8:00 AM',
+                  society_id: vd.societyId || vd.society_id || 'soc_green_valley',
+                  society_name: vd.societyName || vd.society_name || 'Green Valley Residency',
+                  subscription_status: 'active',
+                  washes_this_month: vd.washes_this_month || 0,
+                  selected_plan: 'HOME BASIC',
+                  assigned_washer_id: vd.assigned_washer_id,
+                  assigned_washer_name: vd.assigned_washer_name,
+                  price: 0,
+                  subscription_price: 0,
+                });
+              });
+              if (loadedVehicles.length > 0) {
+                setVehicles(loadedVehicles);
+              }
             }
-            setWashers(clean);
-          }
-        }
-        const savedVehicles = localStorage.getItem('torque_vehicles');
-        if (savedVehicles) {
-          const parsed = JSON.parse(savedVehicles);
-          if (Array.isArray(parsed)) {
-            const normalized = parsed.map((v) => ({
-              ...v,
-              selected_plan: v.selected_plan || 'HOME BASIC',
-              price: v.price || (v.type === 'luxury' ? 799 : v.type === 'suv' ? 649 : v.type === 'bike' ? 399 : 499),
-              subscription_price: v.subscription_price || (v.type === 'luxury' ? 799 : v.type === 'suv' ? 649 : v.type === 'bike' ? 399 : 499),
-            }));
-            setVehicles(normalized);
-          }
+          }).catch((vErr) => {
+            console.warn('Store owner vehicles Firestore notice:', vErr);
+          });
         }
       }
     } catch (e) {
@@ -609,6 +643,43 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               status: 'active',
             }));
             setIsLoggedIn(true);
+
+            // Directly load this owner's vehicles from Firestore
+            try {
+              const vSnap = await getDocs(collection(db, 'Car_Owners', uid, 'Vehicles'));
+              if (!vSnap.empty) {
+                const loadedVehicles: Vehicle[] = [];
+                vSnap.docs.forEach((d) => {
+                  const vd = d.data();
+                  loadedVehicles.push({
+                    id: d.id,
+                    owner_id: uid,
+                    owner_name: data.name || data.owner_name || 'Vehicle Owner',
+                    registration_number: vd.registrationNumber || vd.registration_number || '',
+                    make: vd.make || '',
+                    model: vd.model || '',
+                    type: vd.type || 'car',
+                    color: vd.color || 'Pearl White',
+                    parking_location: vd.parkingLocation || vd.parking_location || 'Assigned Bay',
+                    preferred_wash_time: vd.preferredWashTime || vd.preferred_wash_time || '8:00 AM',
+                    society_id: vd.societyId || vd.society_id || 'soc_green_valley',
+                    society_name: vd.societyName || vd.society_name || 'Green Valley Residency',
+                    subscription_status: 'active',
+                    washes_this_month: vd.washes_this_month || 0,
+                    selected_plan: 'HOME BASIC',
+                    assigned_washer_id: vd.assigned_washer_id || data.assignedWasherId,
+                    assigned_washer_name: vd.assigned_washer_name || data.assignedWasherName,
+                    price: 0,
+                    subscription_price: 0,
+                  });
+                });
+                if (loadedVehicles.length > 0) {
+                  setVehicles(loadedVehicles);
+                }
+              }
+            } catch (vErr) {
+              console.warn('Error loading owner vehicles from Firestore in auth listener:', vErr);
+            }
             return;
           }
 
@@ -746,14 +817,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const registerOwner = async (
     ownerData: {
+      id?: string;
       uid?: string;
       name: string;
+      email?: string;
       phone: string;
       address?: string;
       flat?: string;
       flatNumber?: string;
       state?: string;
       city?: string;
+      district?: string;
       society?: string;
       societyId?: string;
       societyName?: string;
@@ -820,6 +894,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       uid: newUserId,
       name: ownerData.name,
       owner_name: ownerData.name,
+      email: ownerData.email,
       phone: ownerData.phone,
       phoneNumber: ownerData.phone,
       address: ownerData.address,
@@ -827,6 +902,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       flatNumber: ownerData.flatNumber || ownerData.flat,
       state: ownerData.state,
       city: ownerData.city,
+      district: (ownerData as any).district,
       society: ownerData.society,
       societyId: ownerData.societyId,
       societyName: ownerData.societyName || ownerData.society,
@@ -900,7 +976,6 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('torque_owner_name', ownerData.name);
       localStorage.setItem('torque_owner_id', newUserId);
       localStorage.setItem('torque_owner_phone', newUser.phone);
-      localStorage.setItem('torque_subscription_price', String(finalPrice));
       if (ownerData.selectedWasherName) {
         localStorage.setItem('torque_assigned_washer_name', ownerData.selectedWasherName);
       }
@@ -929,7 +1004,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         localStorage.setItem('torque_need_wash_before', ownerData.needWashBefore);
       }
       localStorage.setItem('torque_user', JSON.stringify(newUser));
-      localStorage.setItem('torque_vehicles', JSON.stringify(createdVehicles));
+      localStorage.removeItem('torque_vehicles');
     }
     setIsLoggedIn(true);
     setIsDataErased(false);
@@ -1032,7 +1107,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       {
         id: `notif_owner_reset_${Date.now()}`,
         title: 'Owner Data Reset',
-        body: 'Owner profile, garage vehicles, subscription plans, and wash history have been reset.',
+        body: 'Owner profile, garage vehicles, and wash history have been reset.',
         timestamp: 'Just now',
         read: false,
         category: 'system',
@@ -1084,7 +1159,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem('torque_owner_reset');
       localStorage.setItem('torque_logged_in', 'true');
       localStorage.setItem('torque_user', JSON.stringify(demoOwnerUser));
-      localStorage.setItem('torque_vehicles', JSON.stringify(demoVehicles));
+      localStorage.removeItem('torque_vehicles');
       localStorage.removeItem('torque_washers');
       localStorage.removeItem('torque_washes');
     }
@@ -1172,21 +1247,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('torque_data_erased');
-        // Prevent QuotaExceededError by stripping heavy base64 strings before localStorage serialization
-        const sanitizedPartner = {
-          ...newPartner,
-          aadhaarPhotoUrl:
-            newPartner.aadhaarPhotoUrl && newPartner.aadhaarPhotoUrl.startsWith('data:image') && newPartner.aadhaarPhotoUrl.length > 500
-              ? '[LOCAL_PHOTO_STORED]'
-              : newPartner.aadhaarPhotoUrl,
-        };
-        const existingStored = localStorage.getItem('torque_washers');
-        const existingList = existingStored ? JSON.parse(existingStored) : [];
-        const updatedStorage = [sanitizedPartner, ...(Array.isArray(existingList) ? existingList : [])];
-        localStorage.setItem('torque_washers', JSON.stringify(updatedStorage));
-      } catch (storageErr) {
-        console.warn('LocalStorage write safe warning in onboardWasher:', storageErr);
-      }
+        localStorage.removeItem('torque_washers');
+      } catch (storageErr) {}
     }
 
     setIsDataErased(false);
@@ -1235,29 +1297,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    if (typeof window !== 'undefined') {
-      try {
-        const existingStored = localStorage.getItem('torque_washers');
-        if (existingStored) {
-          const list: WasherPartner[] = JSON.parse(existingStored);
-          const updated = list.map((w) => {
-            const wDigits = (w.phone || '').replace(/\D/g, '');
-            const wEmail = (w.email || '').toLowerCase().trim();
-            if (
-              w.id === washerIdOrPhoneOrEmail ||
-              (wEmail && wEmail === cleanLower) ||
-              (last10 && wDigits.includes(last10))
-            ) {
-              return { ...w, password: newPassword, hasPassword: true };
-            }
-            return w;
-          });
-          localStorage.setItem('torque_washers', JSON.stringify(updated));
-        }
-      } catch (err) {
-        console.warn('localStorage error in setWasherPassword:', err);
-      }
-    }
+
   };
 
   const dismissWasher = async (washerId: string, reason = 'Administrative dismissal'): Promise<boolean> => {
@@ -1287,23 +1327,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    // 3. Persist to localStorage
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('torque_washers');
-        if (stored) {
-          const list = JSON.parse(stored);
-          const updated = list.map((w: any) =>
-            w.id === washerId
-              ? { ...w, status: 'Dismissed', dismissalReason: reason, dismissedAt: new Date().toISOString() }
-              : w
-          );
-          localStorage.setItem('torque_washers', JSON.stringify(updated));
-        }
-      } catch (err) {
-        console.warn('LocalStorage error on dismissWasher:', err);
-      }
-    }
+
 
     // 4. Sync dismissal to Firebase Firestore
     dismissWasherInFirestore(washerId, reason).catch((err) => {
@@ -1343,22 +1367,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('torque_washers');
-        if (stored) {
-          const list = JSON.parse(stored);
-          const updated = list.map((w: any) =>
-            w.id === washerId
-              ? { ...w, status: 'Active on Route', dismissalReason: undefined, dismissedAt: undefined }
-              : w
-          );
-          localStorage.setItem('torque_washers', JSON.stringify(updated));
-        }
-      } catch (err) {
-        console.warn('LocalStorage error on reinstateWasher:', err);
-      }
-    }
+
 
     reinstateWasherInFirestore(washerId).catch((err) => {
       console.warn('Firebase reinstateWasher error:', err);
@@ -1395,19 +1404,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    // 3. Remove from localStorage
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('torque_washers');
-        if (stored) {
-          const list = JSON.parse(stored);
-          const updated = list.filter((w: any) => w.id !== washerId);
-          localStorage.setItem('torque_washers', JSON.stringify(updated));
-        }
-      } catch (err) {
-        console.warn('LocalStorage error on deleteWasher:', err);
-      }
-    }
+
 
     // 4. Delete from Firestore (Washers & washer_directory)
     deleteWasherInFirestore(washerId).catch((err) => {
@@ -1470,23 +1467,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       })
     );
 
-    // 3. Persist to localStorage
-    if (typeof window !== 'undefined') {
-      try {
-        const storedVehicles = localStorage.getItem('torque_vehicles');
-        if (storedVehicles) {
-          const list = JSON.parse(storedVehicles);
-          const updated = list.map((v: any) =>
-            v.id === vehicleId
-              ? { ...v, assigned_washer_id: washerId, assigned_washer_name: washerName }
-              : v
-          );
-          localStorage.setItem('torque_vehicles', JSON.stringify(updated));
-        }
-      } catch (err) {
-        console.warn('LocalStorage error on appointWasherToVehicle:', err);
-      }
-    }
+
 
     // 4. Sync appointment to Firestore
     const resolvedOwnerId = ownerId || user.id || (typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') || 'usr_guest' : 'usr_guest');
@@ -1536,7 +1517,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         {
           id: `notif_sun_${Date.now()}`,
           title: '✓ Sunday Wash Confirmed',
-          body: 'Amit Kumar will wash your Honda City on Sunday between 7:30 – 8:00 AM (Priority ₹50).',
+          body: 'Amit Kumar will wash your Honda City on Sunday between 7:30 – 8:00 AM.',
           timestamp: 'Just now',
           read: false,
           category: 'sunday',
@@ -1867,7 +1848,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       {
         id: `notif_tbdone_${Date.now()}`,
         title: 'Welcome Back! 🏠',
-        body: 'Away Mode ended. Your regular Torque Care Home subscription (₹499/mo) has resumed seamlessly.',
+        body: 'Away Mode ended. Your regular Torque Care Home daily wash tracking has resumed seamlessly.',
         timestamp: 'Just now',
         read: false,
         category: 'wash',

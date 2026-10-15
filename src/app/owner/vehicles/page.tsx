@@ -10,7 +10,7 @@ import OwnerBottomNav from '@/components/OwnerBottomNav';
 
 export default function OwnerVehiclesPage() {
   const router = useRouter();
-  const { vehicles, isLoggedIn, isHydrated } = useStore();
+  const { vehicles, user, isLoggedIn, isHydrated } = useStore();
   const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
@@ -67,11 +67,11 @@ export default function OwnerVehiclesPage() {
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2.5 pt-2">
               <Link
-                href="/auth/onboarding"
+                href="/auth/signup"
                 className="w-full sm:w-auto px-5 py-2.5 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] font-black text-xs transition-all flex items-center justify-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
-                <span>Onboard Vehicle & Plan</span>
+                <span>Add Vehicle for Tracking</span>
               </Link>
               <button
                 onClick={() => setShowAddModal(true)}
@@ -127,6 +127,14 @@ export default function OwnerVehiclesPage() {
                     </span>
                     <span className="font-mono text-white/90">
                       Before {v.needWashBefore || (v.preferred_wash_time?.startsWith('Before') ? v.preferred_wash_time.replace(/^Before\s+/i, '') : (v.preferred_wash_time || '8:00 AM'))}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1 text-white/50">
+                      <ShieldCheck className="w-3.5 h-3.5 text-[#2DD4A0]" /> Assigned Specialist:
+                    </span>
+                    <span className="font-bold text-white">
+                      {v.assigned_washer_name || user.assigned_washer_name || 'Amit Kumar'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">

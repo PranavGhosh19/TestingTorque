@@ -196,7 +196,7 @@ export default function AboutPage() {
               Get Started
             </Link>
             <Link
-              href="/for-washers"
+              href="/washer/onboarding"
               className="w-full sm:w-auto px-6 py-3 rounded-full bg-[#161C25] hover:bg-white/10 text-white font-bold text-xs border border-white/[0.08] transition-all flex items-center justify-center gap-1.5"
             >
               <span>Join as Partner</span>

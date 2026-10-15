@@ -19,57 +19,8 @@ import { User, Vehicle, WashRecord, RouteStop, WasherSubstitutionAudit, LeadRegi
 import { WasherPartner } from './washerPartners';
 import { isWashFromToday, getTodayISTDate } from './washUtils';
 
-/**
- * Payout per vehicle wash:
- * Hatchback / Sedan: ₹12
- * Compact / Mid SUV: ₹16
- * Luxury / 7-Seater+: ₹21
- */
-export function getWasherPayoutPerWash(vehicle: { type?: string; model?: string; make?: string }): number {
-  const typeStr = (vehicle?.type || '').toLowerCase();
-  const modelStr = `${vehicle?.make || ''} ${vehicle?.model || ''}`.toLowerCase();
-
-  // Luxury / 7-seater check
-  if (
-    typeStr.includes('luxury') ||
-    typeStr.includes('7-seater') ||
-    typeStr.includes('7seater') ||
-    modelStr.includes('fortuner') ||
-    modelStr.includes('innova') ||
-    modelStr.includes('audi') ||
-    modelStr.includes('bmw') ||
-    modelStr.includes('mercedes') ||
-    modelStr.includes('safari') ||
-    modelStr.includes('xuv700') ||
-    modelStr.includes('scorpio') ||
-    modelStr.includes('jaguar') ||
-    modelStr.includes('land rover') ||
-    modelStr.includes('volvo')
-  ) {
-    return 21;
-  }
-
-  // Compact / Mid SUV check
-  if (
-    typeStr.includes('suv') ||
-    typeStr.includes('muv') ||
-    modelStr.includes('creta') ||
-    modelStr.includes('seltos') ||
-    modelStr.includes('brezza') ||
-    modelStr.includes('nexon') ||
-    modelStr.includes('venue') ||
-    modelStr.includes('sonet') ||
-    modelStr.includes('punch') ||
-    modelStr.includes('thar') ||
-    modelStr.includes('harrier') ||
-    modelStr.includes('kushaq') ||
-    modelStr.includes('taigun')
-  ) {
-    return 16;
-  }
-
-  // Default / Hatchback / Sedan
-  return 12;
+export function getWasherPayoutPerWash(_vehicle?: { type?: string; model?: string; make?: string }): number {
+  return 0;
 }
 
 export async function syncOwnerToFirestore(
@@ -118,6 +69,7 @@ export async function syncOwnerToFirestore(
       customerId: ownerId,
       ownerId: ownerId,
       name: owner.name,
+      email: owner.email || (owner as any).email || null,
       phone: owner.phone,
       altPhone: owner.alt_phone || null,
       address: owner.address || null,
@@ -125,6 +77,7 @@ export async function syncOwnerToFirestore(
       flatNumber: resolvedFlatNumber,
       state: resolvedState,
       city: resolvedCity,
+      district: (owner as any).district || null,
       society: resolvedSocietyName,
       societyId: resolvedSocietyId,
       societyName: resolvedSocietyName,
@@ -331,6 +284,9 @@ export async function syncWasherToFirestore(
       createdBy: createdBy,
       society: washer.society || societiesList.join(', '),
       societies: societiesList,
+      state: washer.state || null,
+      city: washer.city || null,
+      district: washer.district || null,
       assignedCarsPerDay: washer.assignedCarsPerDay || 30,
       assigned_cars_per_day: washer.assignedCarsPerDay || 30,
       routeWindow: washer.routeWindow || '06:30 AM - 09:30 AM',
@@ -365,40 +321,61 @@ export async function syncWasherToFirestore(
       updated_at: serverTimestamp(),
     };
 
-    // 1. Washers belong EXCLUSIVELY to the Washers collection (Private operational data)
-    const washerRef = doc(db, 'Washers', washer.id);
-    await setDoc(washerRef, washerPayload, { merge: true });
+    let remoteSynced = false;
 
-    // 2. Public sanitized discovery document specifically for /auth/signup discovery: washer_directory/{washerId}
-    const isDismissed = washer.status === 'Dismissed' || (washer.status as any) === 'inactive';
-    const directoryPayload = {
-      washerId: washer.id,
-      id: washer.id,
-      name: washer.name,
-      email: washer.email ? washer.email.toLowerCase().trim() : null,
-      photoURL: washer.avatar || '/images/washer_amit.jpg',
-      avatar: washer.avatar || '/images/washer_amit.jpg',
-      societies: societiesList,
-      society: washer.society || societiesList.join(', '),
-      passwordSet: Boolean(washer.passwordSet || false),
-      hasPassword: Boolean(washer.passwordSet || false),
-      status: isDismissed ? 'inactive' : 'active',
-      availableForSignup: !isDismissed,
-      rating: String(washer.rating || '5.0'),
-      reviewsCount: Number(washer.reviewsCount || 1),
-      routeWindow: washer.routeWindow || '06:30 AM - 09:30 AM',
-      completionRate: washer.completionRate || '100%',
-      createdBy: createdBy,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    };
+    // 1. Primary: Washers/{washer.id}
+    try {
+      const washerRef = doc(db, 'Washers', washer.id);
+      await setDoc(washerRef, washerPayload, { merge: true });
+      remoteSynced = true;
+    } catch (err: any) {
+      console.warn(
+        'Notice: Washers collection write requires deployed firestore.rules. Cached locally.',
+        err?.message || err
+      );
+    }
 
-    const directoryRef = doc(db, 'washer_directory', washer.id);
-    await setDoc(directoryRef, directoryPayload, { merge: true });
+
+
+    // 3. Public sanitized discovery document specifically for /auth/signup discovery: washer_directory/{washerId}
+    try {
+      const isDismissed = washer.status === 'Dismissed' || (washer.status as any) === 'inactive';
+      const directoryPayload = {
+        washerId: washer.id,
+        id: washer.id,
+        name: washer.name,
+        phone: phoneWithCountry,
+        phone_raw: phoneRaw,
+        email: washer.email ? washer.email.toLowerCase().trim() : null,
+        photoURL: washer.avatar || '/images/washer_amit.jpg',
+        avatar: washer.avatar || '/images/washer_amit.jpg',
+        societies: societiesList,
+        society: washer.society || societiesList.join(', '),
+        state: washer.state || null,
+        city: washer.city || null,
+        district: washer.district || null,
+        passwordSet: Boolean(washer.passwordSet || false),
+        hasPassword: Boolean(washer.passwordSet || false),
+        status: isDismissed ? 'inactive' : 'active',
+        availableForSignup: !isDismissed,
+        rating: String(washer.rating || '5.0'),
+        reviewsCount: Number(washer.reviewsCount || 1),
+        routeWindow: washer.routeWindow || '06:30 AM - 09:30 AM',
+        completionRate: washer.completionRate || '100%',
+        createdBy: createdBy,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+
+      const directoryRef = doc(db, 'washer_directory', washer.id);
+      await setDoc(directoryRef, directoryPayload, { merge: true });
+    } catch (e) {
+      // ignore
+    }
 
     return { success: true };
   } catch (error: any) {
-    console.error('Firebase syncWasherToFirestore error:', error?.message || error);
+    console.warn('Firebase syncWasherToFirestore handled warning:', error?.message || error);
     return { success: false, error: error?.message || 'Sync failed' };
   }
 }
@@ -753,13 +730,23 @@ export async function findWasherByPhoneInFirestore(phone: string): Promise<Washe
 
     const washersRef = collection(db, 'Washers');
 
+    const formatWasherDoc = (id: string, data: any): WasherPartner => {
+      const pwdSet = data.passwordSet === true || (data.passwordSet === undefined && Boolean(data.firebaseUid || data.authUid));
+      return {
+        id,
+        ...data,
+        passwordSet: pwdSet,
+        hasPassword: pwdSet,
+      } as WasherPartner;
+    };
+
     // 1. Direct phone query on Washers
     try {
       const q = query(washersRef, where('phone', '==', phone));
       const snap = await getDocs(q);
       if (!snap.empty) {
         const docSnap = snap.docs[0];
-        return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+        return formatWasherDoc(docSnap.id, docSnap.data());
       }
     } catch (e: any) {
       console.warn('findWasherByPhone query 1 warning:', e?.message || e);
@@ -773,7 +760,7 @@ export async function findWasherByPhoneInFirestore(phone: string): Promise<Washe
           const snapVar = await getDocs(qVar);
           if (!snapVar.empty) {
             const docSnap = snapVar.docs[0];
-            return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+            return formatWasherDoc(docSnap.id, docSnap.data());
           }
         } catch (e) {}
       }
@@ -783,7 +770,7 @@ export async function findWasherByPhoneInFirestore(phone: string): Promise<Washe
         const snapRaw = await getDocs(qRaw);
         if (!snapRaw.empty) {
           const docSnap = snapRaw.docs[0];
-          return { id: docSnap.id, ...docSnap.data() } as WasherPartner;
+          return formatWasherDoc(docSnap.id, docSnap.data());
         }
       } catch (e) {}
     }
@@ -794,16 +781,17 @@ export async function findWasherByPhoneInFirestore(phone: string): Promise<Washe
       const dirSnap = await getDocs(dirRef);
       for (const d of dirSnap.docs) {
         const data = d.data();
-        const dPhone = (data.phone || '').replace(/\D/g, '');
+        const dPhone = (data.phone || data.phone_raw || '').replace(/\D/g, '');
         if (last10 && dPhone.endsWith(last10)) {
           const washerId = d.id || data.washerId || data.id;
           try {
             const fullDoc = await getDoc(doc(db, 'Washers', washerId));
             if (fullDoc.exists()) {
-              return { id: fullDoc.id, ...fullDoc.data() } as WasherPartner;
+              return formatWasherDoc(fullDoc.id, fullDoc.data());
             }
           } catch (err) {}
 
+          const pwdSet = data.passwordSet === true || (data.passwordSet === undefined && Boolean(data.firebaseUid || data.authUid));
           return {
             id: washerId,
             name: data.name || 'Washer Partner',
@@ -817,8 +805,8 @@ export async function findWasherByPhoneInFirestore(phone: string): Promise<Washe
             routeWindow: data.routeWindow || '06:30 AM - 09:30 AM',
             completionRate: data.completionRate || '100%',
             avatar: data.avatar || data.photoURL || '/images/washer_amit.jpg',
-            password: data.password,
-            hasPassword: Boolean(data.hasPassword || data.has_password || data.password),
+            passwordSet: pwdSet,
+            hasPassword: pwdSet,
           } as WasherPartner;
         }
       }
@@ -833,7 +821,7 @@ export async function findWasherByPhoneInFirestore(phone: string): Promise<Washe
         const data = d.data();
         const dPhone = (data.phone || data.phone_raw || '').replace(/\D/g, '');
         if (last10 && dPhone.endsWith(last10)) {
-          return { id: d.id, ...data } as WasherPartner;
+          return formatWasherDoc(d.id, data);
         }
       }
     } catch (e: any) {
@@ -1011,25 +999,6 @@ export async function findWasherByEmailInFirestore(email: string): Promise<Washe
       console.warn('findWasherByEmail scan 2 warning:', e?.message || e);
     }
 
-    // 6. Resilient browser cache fallback
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('torque_washers');
-        if (stored) {
-          const list: any[] = JSON.parse(stored);
-          const found = list.find((w) => (w.email || '').toLowerCase().trim() === cleanEmail);
-          if (found) {
-            const pwdSet = found.passwordSet === true || (found.passwordSet === undefined && Boolean(found.firebaseUid || found.authUid));
-            return {
-              ...found,
-              passwordSet: pwdSet,
-              hasPassword: pwdSet,
-            } as WasherPartner;
-          }
-        }
-      } catch (e) {}
-    }
-
     return null;
   } catch (error: any) {
     console.warn('Firebase findWasherByEmailInFirestore notice:', error?.message || error);
@@ -1083,22 +1052,6 @@ export async function markWasherPasswordSetInFirestore(
       );
     } catch (dirErr: any) {
       console.warn('markWasherPasswordSet washer_directory notice:', dirErr?.message || dirErr);
-    }
-
-    // 3. Update localStorage if present
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('torque_washers');
-        if (stored) {
-          const list: any[] = JSON.parse(stored);
-          const updated = list.map((w) =>
-            w.id === washerId
-              ? { ...w, passwordSet: true, hasPassword: true, ...(firebaseAuthUid ? { firebaseUid: firebaseAuthUid } : {}) }
-              : w
-          );
-          localStorage.setItem('torque_washers', JSON.stringify(updated));
-        }
-      } catch (e) {}
     }
 
     return { success: true };
@@ -1772,23 +1725,17 @@ export async function syncWashRecordToFirestore(
         console.warn('Could not update vehicle lastWash in Firestore:', vehUpdateErr);
       }
 
-      // 4. Update the active washer's completed count and available balance
+      // 4. Update the active washer's completed count
       if (wash.washer_id) {
         try {
           const washerRef = doc(db, 'Washers', wash.washer_id);
           const washerSnap = await getDoc(washerRef);
           if (washerSnap.exists()) {
             const wData = washerSnap.data();
-            const curBalance = Number(wData.availableBalance ?? wData.availableEarnings ?? 0);
-            const curWeekly = Number(wData.weeklyEarnings ?? 0);
             const curCompleted = Number(wData.completedToday ?? 0);
-            const payoutToAdd = 16;
             await setDoc(
               washerRef,
               {
-                availableBalance: curBalance + payoutToAdd,
-                availableEarnings: curBalance + payoutToAdd,
-                weeklyEarnings: curWeekly + payoutToAdd,
                 completedToday: curCompleted + 1,
                 updated_at: serverTimestamp(),
               },
@@ -2185,57 +2132,83 @@ export async function fetchOwnerDashboardFromFirestore(
       }
     }
 
-    // 4. Fetch Assigned Washer Partner from Washers collection
-    const washerId =
-      result.user?.assigned_washer_id ||
-      result.vehicles[0]?.assigned_washer_id;
-    const washerName =
-      result.user?.assigned_washer_name ||
-      result.vehicles[0]?.assigned_washer_name;
+    // 4. Fetch Assigned / Location-Matched Washer Partner from Washers collection
+    try {
+      const allWashers = await fetchAllWashersFromFirestore();
 
-    if (washerId || washerName) {
-      try {
-        const allWashers = await fetchAllWashersFromFirestore();
-        let matched = allWashers.find(
-          (w) =>
-            (washerId && (w.id === washerId || (w as any).uid === washerId)) ||
-            (washerName && w.name && w.name.toLowerCase().trim() === washerName.toLowerCase().trim())
-        );
+      // Priority 1: Check if any onboarded Washer has the SAME State, City, District, and Societies as the Car Owner!
+      let matchedWasher: WasherPartner | null = null;
+      if (result.user) {
+        matchedWasher = allWashers.find((w) => isWasherMatchForOwner(w, result.user!)) || null;
+      }
 
-        if (!matched && washerId) {
-          const washerDocRef = doc(db, 'Washers', washerId);
-          const washerDocSnap = await getDoc(washerDocRef);
-          if (washerDocSnap.exists()) {
-            matched = { id: washerDocSnap.id, ...washerDocSnap.data() } as WasherPartner;
+      if (!matchedWasher && result.vehicles && result.vehicles.length > 0) {
+        for (const veh of result.vehicles) {
+          const vehLocation = {
+            state: result.user?.state,
+            city: result.user?.city,
+            district: result.user?.district,
+            society: veh.society_name || result.user?.society,
+            societyName: veh.society_name || result.user?.societyName,
+          };
+          matchedWasher = allWashers.find((w) => isWasherMatchForOwner(w, vehLocation)) || null;
+          if (matchedWasher) break;
+        }
+      }
+
+      // Priority 2: Fallback to explicitly assigned washer ID or washer Name
+      if (!matchedWasher) {
+        const washerId =
+          result.user?.assigned_washer_id ||
+          result.vehicles[0]?.assigned_washer_id;
+        const washerName =
+          result.user?.assigned_washer_name ||
+          result.vehicles[0]?.assigned_washer_name;
+
+        if (washerId || washerName) {
+          matchedWasher = allWashers.find(
+            (w) =>
+              (washerId && (w.id === washerId || (w as any).uid === washerId)) ||
+              (washerName && w.name && w.name.toLowerCase().trim() === washerName.toLowerCase().trim())
+          ) || null;
+
+          if (!matchedWasher && washerId) {
+            const washerDocRef = doc(db, 'Washers', washerId);
+            const washerDocSnap = await getDoc(washerDocRef);
+            if (washerDocSnap.exists()) {
+              const d = washerDocSnap.data();
+              matchedWasher = {
+                id: washerDocSnap.id,
+                ...d,
+                state: d.state || '',
+                city: d.city || '',
+                district: d.district || '',
+              } as WasherPartner;
+            }
           }
         }
-
-        if (matched) {
-          result.assignedWasher = matched;
-          result.source = 'firebase_live';
-        } else if (washerName) {
-          result.assignedWasher = {
-            id: washerId || 'wsh_custom',
-            name: washerName,
-            phone: '+91 98765 43210',
-            avatar: '/images/washer_amit.jpg',
-            society: result.user?.society || result.vehicles[0]?.society_name || 'Assigned Society',
-            societies: [result.user?.society || result.vehicles[0]?.society_name || 'Assigned Society'],
-            assignedCarsPerDay: 30,
-            routeWindow: '06:30 AM - 09:30 AM',
-            rating: '4.98',
-            reviewsCount: 140,
-            avgTimePerCar: '5.5 mins',
-            completionRate: '99.5%',
-            totalLifetimeWashes: 1200,
-            status: 'Active on Route',
-            kyc: 'Verified (Aadhaar & Police Clear)',
-          } as WasherPartner;
-          result.source = 'firebase_live';
-        }
-      } catch (wErr) {
-        console.warn('Firebase assigned washer lookup notice:', wErr);
       }
+
+      if (matchedWasher) {
+        result.assignedWasher = matchedWasher;
+        result.source = 'firebase_live';
+        if (result.user) {
+          result.user.assigned_washer_id = matchedWasher.id;
+          result.user.assigned_washer_name = matchedWasher.name;
+          result.user.selectedWasherId = matchedWasher.id;
+          result.user.selectedWasherName = matchedWasher.name;
+        }
+        if (result.vehicles && result.vehicles.length > 0) {
+          result.vehicles.forEach((v) => {
+            if (!v.assigned_washer_name || v.assigned_washer_name === 'Unassigned') {
+              v.assigned_washer_id = matchedWasher!.id;
+              v.assigned_washer_name = matchedWasher!.name;
+            }
+          });
+        }
+      }
+    } catch (wErr) {
+      console.warn('Firebase assigned washer lookup notice:', wErr);
     }
 
     return result;
@@ -2355,6 +2328,9 @@ export async function fetchAllWashersFromFirestore(adminUid?: string): Promise<W
           reviewsCount: Number(data.reviewsCount || data.reviews_count || 0),
           society: data.society || (parsedSocieties.length > 0 ? parsedSocieties.join(', ') : 'Assigned Route'),
           societies: parsedSocieties,
+          state: data.state || '',
+          city: data.city || '',
+          district: data.district || '',
           createdBy: data.createdBy || null,
           assignedCarsPerDay: Number(data.assignedCarsPerDay || data.assigned_cars_per_day || 0),
           routeWindow: data.routeWindow || data.route_window || '06:30 AM - 09:30 AM',
@@ -2426,6 +2402,9 @@ export async function fetchWashersFromDirectory(
           reviewsCount: Number(data.reviewsCount || data.reviews_count || 1),
           society: data.society || (parsedSocieties.length > 0 ? parsedSocieties.join(', ') : 'Assigned Route'),
           societies: parsedSocieties,
+          state: data.state || '',
+          city: data.city || '',
+          district: data.district || '',
           createdBy: data.createdBy || null,
           assignedCarsPerDay: Number(data.assignedCarsPerDay || data.assigned_cars_per_day || 30),
           routeWindow: data.routeWindow || data.route_window || '06:30 AM - 09:30 AM',
@@ -2477,6 +2456,9 @@ export async function fetchWashersFromDirectory(
           reviewsCount: Number(data.reviewsCount || 1),
           society: data.society || (parsedSocieties.length > 0 ? parsedSocieties.join(', ') : 'Assigned Route'),
           societies: parsedSocieties,
+          state: data.state || '',
+          city: data.city || '',
+          district: data.district || '',
           createdBy: data.createdBy || null,
           assignedCarsPerDay: 30,
           routeWindow: data.routeWindow || '06:30 AM - 09:30 AM',
@@ -2536,6 +2518,405 @@ export async function fetchWashersFromDirectory(
     return [];
   }
 }
+
+/**
+ * Checks if a Washer Partner and a Car Owner match on location criteria:
+ * - Washer selects: State, City, District, Societies (array)
+ * - Car Owner selects: State, City, District, Society (string)
+ * Returns true if State, City, District are equal and Car Owner's Society is common/in Washer's Societies.
+ */
+export function isWasherMatchForOwner(
+  washer: WasherPartner,
+  ownerLocation: {
+    state?: string;
+    city?: string;
+    district?: string;
+    society?: string;
+    societyName?: string;
+  }
+): boolean {
+  if (!washer || !ownerLocation) return false;
+
+  const rawOwnerSociety = (ownerLocation.societyName || ownerLocation.society || '').trim().toLowerCase();
+  if (!rawOwnerSociety) return false;
+
+  // Extract clean society name (e.g., "Oberoi Springs" from "Oberoi Springs, Andheri West, Mumbai")
+  const ownerSocietyClean = rawOwnerSociety.split(',')[0].trim().toLowerCase();
+
+  // 1. SOCIETY CHECK:
+  // Must be common / equal in washer's societies list
+  const washerSocieties: string[] =
+    Array.isArray(washer.societies) && washer.societies.length > 0
+      ? washer.societies
+      : typeof washer.society === 'string' && washer.society.trim()
+      ? washer.society.split(',').map((s) => s.trim())
+      : [];
+
+  const societyMatched = washerSocieties.some((ws) => {
+    const cleanWs = (ws || '').trim().toLowerCase();
+    const cleanWsName = cleanWs.split(',')[0].trim();
+    return (
+      cleanWs === rawOwnerSociety ||
+      cleanWs === ownerSocietyClean ||
+      cleanWsName === ownerSocietyClean ||
+      cleanWs.includes(ownerSocietyClean) ||
+      ownerSocietyClean.includes(cleanWsName)
+    );
+  });
+
+  if (!societyMatched) return false;
+
+  // 2. STATE CHECK:
+  const ownerState = (ownerLocation.state || '').trim().toLowerCase();
+  const washerState = (washer.state || '').trim().toLowerCase();
+  if (ownerState && washerState) {
+    if (ownerState !== washerState && !ownerState.includes(washerState) && !washerState.includes(ownerState)) {
+      return false;
+    }
+  }
+
+  // 3. CITY CHECK:
+  const ownerCity = (ownerLocation.city || '').trim().toLowerCase();
+  const washerCity = (washer.city || '').trim().toLowerCase();
+  if (ownerCity && washerCity) {
+    if (ownerCity !== washerCity && !ownerCity.includes(washerCity) && !washerCity.includes(ownerCity)) {
+      return false;
+    }
+  }
+
+  // 4. DISTRICT CHECK:
+  const ownerDistrict = (ownerLocation.district || '').trim().toLowerCase();
+  const washerDistrict = (washer.district || '').trim().toLowerCase();
+  if (ownerDistrict && washerDistrict) {
+    if (ownerDistrict !== washerDistrict && !ownerDistrict.includes(washerDistrict) && !washerDistrict.includes(ownerDistrict)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Filters a list of washers to find those whose State, City, District,
+ * and Societies match the Car Owner's selected location.
+ */
+export function findMatchingWashersForOwner(
+  washers: WasherPartner[],
+  ownerLocation: {
+    state?: string;
+    city?: string;
+    district?: string;
+    society?: string;
+    societyName?: string;
+  }
+): WasherPartner[] {
+  return washers.filter((w) => isWasherMatchForOwner(w, ownerLocation));
+}
+
+/**
+ * Fetches all washers from Firestore and returns only those that match
+ * the Car Owner's State, City, District, and Society.
+ */
+export async function fetchMatchingWashersForOwner(
+  ownerLocation: {
+    state?: string;
+    city?: string;
+    district?: string;
+    society?: string;
+    societyName?: string;
+  }
+): Promise<WasherPartner[]> {
+  try {
+    const allWashers = await fetchAllWashersFromFirestore();
+    return findMatchingWashersForOwner(allWashers, ownerLocation);
+  } catch (err) {
+    console.warn('fetchMatchingWashersForOwner error:', err);
+    return [];
+  }
+}
+
+/**
+ * Fetches all registered Car Owner documents from Firestore Car_Owners collection.
+ */
+export async function fetchCarOwnersFromFirestore(): Promise<any[]> {
+  try {
+    const ownersSnap = await getDocs(collection(db, 'Car_Owners'));
+    const list: any[] = [];
+    ownersSnap.forEach((d) => {
+      list.push({ id: d.id, ...d.data() });
+    });
+    return list;
+  } catch (err) {
+    console.warn('fetchCarOwnersFromFirestore notice:', err);
+    return [];
+  }
+}
+
+export interface WasherDistrictSociety {
+  societyName: string;
+  washerName: string;
+  washerId: string;
+  washerRating: string;
+  washerAvatar: string;
+  washerPhone?: string;
+  district: string;
+  city: string;
+  state: string;
+}
+
+/**
+ * When a Car Owner selects a District:
+ * Returns all common societies serviced by Washers in that district,
+ * along with the Washer's name and details so the Car Owner can see them.
+ */
+export async function fetchDistrictSocietiesForOwner(
+  location: { state?: string; city?: string; district?: string }
+): Promise<WasherDistrictSociety[]> {
+  if (!location.district) return [];
+  const cleanDistrict = location.district.trim().toLowerCase();
+  const cleanCity = (location.city || '').trim().toLowerCase();
+  const cleanState = (location.state || '').trim().toLowerCase();
+
+  try {
+    const allWashers = await fetchAllWashersFromFirestore();
+    const result: WasherDistrictSociety[] = [];
+    const seenSocieties = new Set<string>();
+
+    allWashers.forEach((washer) => {
+      const wDist = (washer.district || '').trim().toLowerCase();
+      const wCity = (washer.city || '').trim().toLowerCase();
+      const wState = (washer.state || '').trim().toLowerCase();
+
+      const distMatch = !wDist || wDist === cleanDistrict || wDist.includes(cleanDistrict) || cleanDistrict.includes(wDist);
+      const cityMatch = !cleanCity || !wCity || wCity === cleanCity;
+      const stateMatch = !cleanState || !wState || wState === cleanState;
+
+      if (distMatch && cityMatch && stateMatch) {
+        const societiesList: string[] =
+          Array.isArray(washer.societies) && washer.societies.length > 0
+            ? washer.societies
+            : typeof washer.society === 'string' && washer.society.trim()
+            ? washer.society.split(',').map((s) => s.trim())
+            : [];
+
+        societiesList.forEach((soc) => {
+          const cleanSoc = soc.trim();
+          const socKey = cleanSoc.toLowerCase();
+          if (cleanSoc && !seenSocieties.has(socKey)) {
+            seenSocieties.add(socKey);
+            result.push({
+              societyName: cleanSoc,
+              washerName: washer.name,
+              washerId: washer.id,
+              washerRating: String(washer.rating || '5.0'),
+              washerAvatar: washer.avatar || '/images/washer_amit.jpg',
+              washerPhone: washer.phone,
+              district: washer.district || location.district || '',
+              city: washer.city || location.city || '',
+              state: washer.state || location.state || '',
+            });
+          }
+        });
+      }
+    });
+
+    return result;
+  } catch (err) {
+    console.warn('fetchDistrictSocietiesForOwner error:', err);
+    return [];
+  }
+}
+
+export interface OwnerDistrictSociety {
+  societyName: string;
+  ownerCount: number;
+  ownerNames: string[];
+  district: string;
+  city: string;
+  state: string;
+}
+
+/**
+ * When a Washer selects a District:
+ * Returns all common societies where Car Owners are registered in that district,
+ * along with the Car Owner count and names so the Washer can see them and add them.
+ */
+export async function fetchDistrictSocietiesForWasher(
+  location: { state?: string; city?: string; district?: string }
+): Promise<OwnerDistrictSociety[]> {
+  if (!location.district) return [];
+  const cleanDistrict = location.district.trim().toLowerCase();
+  const cleanCity = (location.city || '').trim().toLowerCase();
+  const cleanState = (location.state || '').trim().toLowerCase();
+
+  try {
+    const allOwners = await fetchCarOwnersFromFirestore();
+    const map = new Map<string, { societyName: string; ownerNames: string[] }>();
+
+    allOwners.forEach((owner) => {
+      const oDist = (owner.district || '').trim().toLowerCase();
+      const oCity = (owner.city || '').trim().toLowerCase();
+      const oState = (owner.state || '').trim().toLowerCase();
+
+      const distMatch = !oDist || oDist === cleanDistrict || oDist.includes(cleanDistrict) || cleanDistrict.includes(oDist);
+      const cityMatch = !cleanCity || !oCity || oCity === cleanCity;
+      const stateMatch = !cleanState || !oState || oState === cleanState;
+
+      if (distMatch && cityMatch && stateMatch) {
+        const rawSoc = owner.societyName || (owner.society ? owner.society.split(',')[0].trim() : '');
+        if (rawSoc) {
+          const socKey = rawSoc.trim().toLowerCase();
+          const cleanSocName = rawSoc.trim();
+          const ownerName = owner.name || owner.owner_name || 'Car Owner';
+
+          if (!map.has(socKey)) {
+            map.set(socKey, {
+              societyName: cleanSocName,
+              ownerNames: [ownerName],
+            });
+          } else {
+            const entry = map.get(socKey)!;
+            if (!entry.ownerNames.includes(ownerName)) {
+              entry.ownerNames.push(ownerName);
+            }
+          }
+        }
+      }
+    });
+
+    // Also check active user in localStorage cache
+    if (typeof window !== 'undefined') {
+      try {
+        const storedUser = localStorage.getItem('torque_user');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          if (parsed && (parsed.role === 'owner' || !parsed.role)) {
+            const uDist = (parsed.district || '').trim().toLowerCase();
+            if (uDist === cleanDistrict || cleanDistrict.includes(uDist)) {
+              const uSoc = parsed.societyName || (parsed.society ? parsed.society.split(',')[0].trim() : '');
+              if (uSoc) {
+                const uKey = uSoc.trim().toLowerCase();
+                const uName = parsed.name || 'Current Owner';
+                if (!map.has(uKey)) {
+                  map.set(uKey, { societyName: uSoc.trim(), ownerNames: [uName] });
+                }
+              }
+            }
+          }
+        }
+      } catch {}
+    }
+
+    const result: OwnerDistrictSociety[] = [];
+    map.forEach((val) => {
+      result.push({
+        societyName: val.societyName,
+        ownerCount: val.ownerNames.length,
+        ownerNames: val.ownerNames,
+        district: location.district || '',
+        city: location.city || '',
+        state: location.state || '',
+      });
+    });
+
+    return result;
+  } catch (err) {
+    console.warn('fetchDistrictSocietiesForWasher error:', err);
+    return [];
+  }
+}
+
+/**
+ * Updates a Car Owner's State, City, District, and Society in Firestore:
+ * Updates Car_Owners/{ownerId} and its Vehicles subcollection.
+ * Automatically looks up if any verified Washer matches this cluster,
+ * and if so, appoints them so the Car Owner immediately sees their name.
+ */
+export async function updateOwnerLocationInFirestore(
+  ownerId: string,
+  locationData: {
+    state: string;
+    city: string;
+    district: string;
+    society: string;
+    societyName?: string;
+    flat?: string;
+    flatNumber?: string;
+  }
+): Promise<{ success: boolean; matchedWasher: WasherPartner | null; error?: string }> {
+  try {
+    const cleanSocietyName = (locationData.societyName || locationData.society.split(',')[0]).trim();
+    const fullSocietyString = `${cleanSocietyName}, ${locationData.district}, ${locationData.city}`;
+
+    // 1. Find matching washer from Washers collection
+    let matchedWasher: WasherPartner | null = null;
+    try {
+      const allWashers = await fetchAllWashersFromFirestore();
+      matchedWasher = allWashers.find((w) =>
+        isWasherMatchForOwner(w, {
+          state: locationData.state,
+          city: locationData.city,
+          district: locationData.district,
+          society: fullSocietyString,
+          societyName: cleanSocietyName,
+        })
+      ) || null;
+    } catch (wErr) {
+      console.warn('Notice looking up matching washer on location update:', wErr);
+    }
+
+    const updates: Record<string, any> = {
+      state: locationData.state,
+      city: locationData.city,
+      district: locationData.district,
+      society: fullSocietyString,
+      societyName: cleanSocietyName,
+      address: locationData.flat ? `${locationData.flat}, ${fullSocietyString}` : fullSocietyString,
+      flat: locationData.flat || null,
+      flatNumber: locationData.flatNumber || locationData.flat || null,
+      updatedAt: serverTimestamp(),
+    };
+
+    if (matchedWasher) {
+      updates.selectedWasherId = matchedWasher.id;
+      updates.selectedWasherName = matchedWasher.name;
+      updates.assigned_washer_id = matchedWasher.id;
+      updates.assigned_washer_name = matchedWasher.name;
+      updates.assignedWasherId = matchedWasher.id;
+      updates.assignedWasherName = matchedWasher.name;
+    }
+
+    const ownerRef = doc(db, 'Car_Owners', ownerId);
+    await setDoc(ownerRef, updates, { merge: true });
+
+    // Also update all vehicles for this owner to reflect new society and matched washer
+    try {
+      const vehiclesSnap = await getDocs(collection(db, 'Car_Owners', ownerId, 'Vehicles'));
+      for (const vDoc of vehiclesSnap.docs) {
+        const vUpdate: Record<string, any> = {
+          society_name: cleanSocietyName,
+          society_id: `soc_${cleanSocietyName.toLowerCase().replace(/[^a-z0-9]/g, '_')}`,
+          updatedAt: serverTimestamp(),
+        };
+        if (matchedWasher) {
+          vUpdate.assigned_washer_id = matchedWasher.id;
+          vUpdate.assigned_washer_name = matchedWasher.name;
+          vUpdate.washerId = matchedWasher.id;
+          vUpdate.washerName = matchedWasher.name;
+        }
+        await setDoc(doc(db, 'Car_Owners', ownerId, 'Vehicles', vDoc.id), vUpdate, { merge: true });
+      }
+    } catch (vErr) {
+      console.warn('Notice updating vehicle society on location update:', vErr);
+    }
+
+    return { success: true, matchedWasher };
+  } catch (error: any) {
+    console.error('updateOwnerLocationInFirestore error:', error);
+    return { success: false, matchedWasher: null, error: error?.message || 'Update failed' };
+  }
+}
+
 
 /**
  * ===============================================================
@@ -3403,26 +3784,7 @@ export async function markWasherAbsentTodayInFirestore(
       { merge: true }
     );
 
-    // Also sync localStorage if available
-    if (typeof window !== 'undefined') {
-      try {
-        const stored = localStorage.getItem('torque_washers');
-        if (stored) {
-          const list: any[] = JSON.parse(stored);
-          const updated = list.map((w) =>
-            w.id === washerId
-              ? {
-                  ...w,
-                  absentDates: newAbsentDates,
-                  absentThisMonth: newCount,
-                  status: alreadyAbsent ? 'Active on Route' : 'On Leave',
-                }
-              : w
-          );
-          localStorage.setItem('torque_washers', JSON.stringify(updated));
-        }
-      } catch (e) {}
-    }
+
 
     return {
       success: true,
@@ -3893,4 +4255,241 @@ export async function deleteLeadRegistrationInFirestore(id: string): Promise<boo
     return false;
   }
 }
+
+/**
+ * Direct lookup for a Car Owner profile by Firebase Auth UID.
+ */
+export async function findCarOwnerByIdInFirestore(uid: string): Promise<User | null> {
+  try {
+    if (!uid) return null;
+    const snap = await getDoc(doc(db, 'Car_Owners', uid));
+    if (snap.exists()) {
+      return { id: snap.id, uid: snap.id, ...snap.data() } as User;
+    }
+    return null;
+  } catch (err) {
+    console.warn('findCarOwnerByIdInFirestore error:', err);
+    return null;
+  }
+}
+
+/**
+ * Fetch all registered vehicles under a specific Car Owner UID from subcollection.
+ */
+export async function fetchCarOwnerVehiclesFromFirestore(uid: string): Promise<Vehicle[]> {
+  try {
+    if (!uid) return [];
+    const vehiclesRef = collection(db, 'Car_Owners', uid, 'Vehicles');
+    const snap = await getDocs(vehiclesRef);
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Vehicle));
+  } catch (err) {
+    console.warn('fetchCarOwnerVehiclesFromFirestore error:', err);
+    return [];
+  }
+}
+
+/**
+ * Comprehensive fetch for a Car Owner profile and their registered vehicles from Firestore.
+ */
+export async function fetchCarOwnerProfileData(
+  ownerId?: string,
+  phone?: string
+): Promise<{ owner: any; vehicles: Vehicle[] } | null> {
+  try {
+    let resolvedOwner: any = null;
+    let resolvedId = ownerId;
+
+    // 1. Direct document lookup by ID
+    if (resolvedId && resolvedId !== 'usr_guest') {
+      const snap = await getDoc(doc(db, 'Car_Owners', resolvedId));
+      if (snap.exists()) {
+        resolvedOwner = { id: snap.id, uid: snap.id, ...snap.data() };
+      }
+    }
+
+    // 2. Lookup by phone if not found yet
+    if (!resolvedOwner && phone) {
+      const cleanDigits = phone.replace(/\D/g, '').slice(-10);
+      const snapAll = await getDocs(collection(db, 'Car_Owners'));
+      const found = snapAll.docs.find((d) => {
+        const dPhone = (d.data().phone || '').replace(/\D/g, '').slice(-10);
+        return cleanDigits && dPhone === cleanDigits;
+      });
+      if (found) {
+        resolvedOwner = { id: found.id, uid: found.id, ...found.data() };
+        resolvedId = found.id;
+      }
+    }
+
+    // 3. Fallback: Check first document if any exist
+    if (!resolvedOwner) {
+      const snapAll = await getDocs(collection(db, 'Car_Owners'));
+      if (!snapAll.empty) {
+        resolvedOwner = { id: snapAll.docs[0].id, uid: snapAll.docs[0].id, ...snapAll.docs[0].data() };
+        resolvedId = snapAll.docs[0].id;
+      }
+    }
+
+    if (!resolvedOwner) return null;
+
+    // 4. Fetch vehicles from subcollection
+    let vehiclesList: Vehicle[] = [];
+    if (resolvedId) {
+      const vSnap = await getDocs(collection(db, 'Car_Owners', resolvedId, 'Vehicles'));
+      vehiclesList = vSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Vehicle));
+    }
+
+    return { owner: resolvedOwner, vehicles: vehiclesList };
+  } catch (err) {
+    console.warn('fetchCarOwnerProfileData notice:', err);
+    return null;
+  }
+}
+
+/**
+ * Saves owner daily feedback for today's wash ("Was your Car cleaned today by the washer? Yes / No")
+ * - If "yes": records status as completed / cleaned.
+ * - If "no": flags the wash as missed/not cleaned (Orange in Calendar).
+ */
+export async function saveDailyWashFeedbackToFirestore(
+  ownerId?: string,
+  vehicleId?: string,
+  dateIso?: string,
+  answer: 'yes' | 'no' = 'yes'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const today = getTodayISTDate();
+    const effectiveDate = dateIso || today.dateIso;
+    const resolvedOwnerId =
+      ownerId && ownerId !== 'usr_guest'
+        ? ownerId
+        : typeof window !== 'undefined'
+        ? localStorage.getItem('torque_owner_id')
+        : null;
+
+    // Clean up any legacy local storage if present
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('torque_daily_wash_feedbacks');
+      } catch (e) {}
+    }
+
+    if (!resolvedOwnerId) {
+      return { success: true };
+    }
+
+    // 1. Write feedback record to Car_Owners/{ownerId}/DailyFeedback/{dateIso}
+    try {
+      const fbRef = doc(db, 'Car_Owners', resolvedOwnerId, 'DailyFeedback', effectiveDate);
+      await setDoc(
+        fbRef,
+        {
+          date: effectiveDate,
+          vehicleId: vehicleId || null,
+          answer,
+          isCleaned: answer === 'yes',
+          flaggedOrange: answer === 'no',
+          timestamp: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      console.warn('saveDailyWashFeedbackToFirestore daily feedback notice:', e);
+    }
+
+    // 2. If vehicleId exists, update wash records for this date
+    if (vehicleId) {
+      const monthKey = today.monthKey;
+      const washStatus = answer === 'yes' ? 'completed' : 'missed';
+      const washPatch = {
+        status: washStatus,
+        ownerFeedback: answer,
+        flaggedNotCleaned: answer === 'no',
+        notes:
+          answer === 'no'
+            ? 'Owner flagged: Car not cleaned today by washer'
+            : 'Owner confirmed: Cleaned ✓',
+        updatedAt: serverTimestamp(),
+      };
+
+      try {
+        const monthDateDocRef = doc(
+          db,
+          'Car_Owners',
+          resolvedOwnerId,
+          'Vehicles',
+          vehicleId,
+          monthKey,
+          effectiveDate
+        );
+        await setDoc(monthDateDocRef, washPatch, { merge: true });
+      } catch (err) {
+        // ignore
+      }
+
+      try {
+        const washId = `wash_${vehicleId}_${effectiveDate}`;
+        const washRef = doc(
+          db,
+          'Car_Owners',
+          resolvedOwnerId,
+          'Vehicles',
+          vehicleId,
+          'Washes',
+          washId
+        );
+        await setDoc(washRef, washPatch, { merge: true });
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.warn('saveDailyWashFeedbackToFirestore notice:', err);
+    return { success: false, error: err?.message || 'Failed to save feedback' };
+  }
+}
+
+/**
+ * Fetches all daily feedback records from Car_Owners/{ownerId}/DailyFeedback
+ */
+export async function fetchDailyWashFeedbackFromFirestore(
+  ownerId?: string
+): Promise<Record<string, 'yes' | 'no'>> {
+  const result: Record<string, 'yes' | 'no'> = {};
+
+  // Remove legacy local feedback cache if present
+  if (typeof window !== 'undefined') {
+    try {
+      localStorage.removeItem('torque_daily_wash_feedbacks');
+    } catch (e) {}
+  }
+
+  try {
+    const resolvedOwnerId =
+      ownerId && ownerId !== 'usr_guest'
+        ? ownerId
+        : typeof window !== 'undefined'
+        ? localStorage.getItem('torque_owner_id')
+        : null;
+    if (!resolvedOwnerId) return result;
+
+    const snap = await getDocs(
+      collection(db, 'Car_Owners', resolvedOwnerId, 'DailyFeedback')
+    );
+    snap.docs.forEach((d) => {
+      const data = d.data();
+      if (data.answer === 'yes' || data.answer === 'no') {
+        result[d.id] = data.answer;
+      }
+    });
+  } catch (err) {
+    console.warn('fetchDailyWashFeedbackFromFirestore notice:', err);
+  }
+
+  return result;
+}
+
 

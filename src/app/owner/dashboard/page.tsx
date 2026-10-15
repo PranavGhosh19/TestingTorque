@@ -2,27 +2,30 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
-  Calendar,
-  Clock,
-  MapPin,
-  Star,
-  ChevronRight,
   Plus,
-  Home,
   Car,
   RefreshCw,
-  Layers,
-  LogOut,
+  Sparkles,
+  AlertTriangle,
+  ChevronRight,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import SignatureProofCard from '@/components/SignatureProofCard';
 import OwnerProofCalendar from '@/components/OwnerProofCalendar';
 import AddVehicleModal from '@/components/modals/AddVehicleModal';
+import EditLocationSocietyModal from '@/components/modals/EditLocationSocietyModal';
+import DailyWashFeedbackModal from '@/components/modals/DailyWashFeedbackModal';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
 import { useStore } from '@/lib/store';
-import { fetchOwnerDashboardFromFirestore, fetchAllSocieties } from '@/lib/firebaseService';
+import {
+  fetchOwnerDashboardFromFirestore,
+  fetchAllSocieties,
+  fetchAllWashersFromFirestore,
+  isWasherMatchForOwner,
+  saveDailyWashFeedbackToFirestore,
+  fetchDailyWashFeedbackFromFirestore,
+} from '@/lib/firebaseService';
 import { Vehicle, WasherPartner, WashRecord } from '@/lib/types';
 import { isPresentDateProofBefore10AM, isWashFromToday, getTodayISTDate } from '@/lib/washUtils';
 
@@ -38,10 +41,14 @@ export default function OwnerDashboardPage() {
     washers,
     isLoggedIn,
     isHydrated,
-    logout,
   } = useStore();
 
   const [showAddVehicleModal, setShowAddVehicleModal] = useState(false);
+  const [showEditLocationModal, setShowEditLocationModal] = useState(false);
+  const [showDailyFeedbackModal, setShowDailyFeedbackModal] = useState(false);
+  const [todayFeedbackStatus, setTodayFeedbackStatus] = useState<'yes' | 'no' | null>(null);
+  const [allDailyFeedbacks, setAllDailyFeedbacks] = useState<Record<string, 'yes' | 'no'>>({});
+  const [liveWashersList, setLiveWashersList] = useState<WasherPartner[]>([]);
 
   // REDIRECT TO LANDING PAGE IF NOT LOGGED IN
   useEffect(() => {
@@ -176,6 +183,39 @@ export default function OwnerDashboardPage() {
     return 0;
   }, [allVehicleWashes, primaryVehicle]);
 
+  // Fetch live washers catalog from Firestore to verify State-City-District-Society cluster match
+  useEffect(() => {
+    let isMounted = true;
+    async function loadWashersCatalog() {
+      try {
+        const list = await fetchAllWashersFromFirestore();
+        if (isMounted && list && list.length > 0) {
+          setLiveWashersList(list);
+        }
+      } catch (err) {
+        console.warn('Dashboard all washers fetch notice:', err);
+      }
+    }
+    loadWashersCatalog();
+    return () => {
+      isMounted = false;
+    };
+  }, [user.society, user.societyName, user.state, user.city, user.district]);
+
+  // Equal / Common Location & Society Match
+  // Washer Selects: State - City - District - Societies (multiple)
+  // Car Owner Selects: State - City - District - Society
+  // If equal / common, show the washer name to the car owner!
+  const locationMatchedWasher = useMemo(() => {
+    if (firebaseWasher && isWasherMatchForOwner(firebaseWasher, user)) {
+      return firebaseWasher;
+    }
+    const combined = [...liveWashersList, ...washers];
+    const match = combined.find((w) => isWasherMatchForOwner(w, user));
+    if (match) return match;
+    return null;
+  }, [firebaseWasher, liveWashersList, washers, user]);
+
   const storedAssignedWasherName =
     typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null;
   const storedAssignedWasherId =
@@ -183,6 +223,7 @@ export default function OwnerDashboardPage() {
 
   const targetWasherId =
     (primaryVehicle?.isBackupActive ? (primaryVehicle.backupWasherId || primaryVehicle.activeWasherId) : null) ||
+    locationMatchedWasher?.id ||
     firebaseWasher?.id ||
     primaryVehicle?.assigned_washer_id ||
     user.assigned_washer_id ||
@@ -190,6 +231,7 @@ export default function OwnerDashboardPage() {
 
   const targetWasherName =
     (primaryVehicle?.isBackupActive ? (primaryVehicle.backupWasherName || primaryVehicle.activeWasherName) : null) ||
+    locationMatchedWasher?.name ||
     firebaseWasher?.name ||
     primaryVehicle?.assigned_washer_name ||
     user.assigned_washer_name ||
@@ -202,6 +244,7 @@ export default function OwnerDashboardPage() {
   );
 
   const assignedWasher: WasherPartner =
+    (primaryVehicle?.isBackupActive ? null : locationMatchedWasher) ||
     firebaseWasher ||
     matchedStoreWasher ||
     (targetWasherName
@@ -290,69 +333,160 @@ export default function OwnerDashboardPage() {
     return washerSocietiesCovered || parkingBayOnly;
   }, [washerSocietiesCovered, parkingBayOnly]);
 
-  // Check if owner subscribed today (effective next day onwards)
-  const isSubscriptionStartingTomorrow = useMemo(() => {
-    const startStr = primaryVehicle?.subscriptionStartDate || (primaryVehicle as any)?.subscription?.startDate || user?.created_at;
-    if (!startStr) return false;
-    try {
-      const todayIST = getTodayISTDate();
-      const startDate = new Date(startStr);
-      const startIST = getTodayISTDate(startDate);
-      return startIST.dateIso > todayIST.dateIso || (!activeTodayWash && !todayWash && isWashFromToday({ created_at: startStr } as any));
-    } catch {
-      return false;
-    }
-  }, [primaryVehicle, user, activeTodayWash, todayWash]);
+  const todayIst = useMemo(() => getTodayISTDate(), []);
+  const todayIso = todayIst.dateIso;
 
-  const activePlanName =
-    primaryVehicle?.selected_plan ||
-    user.selected_plan ||
-    'HOME BASIC';
+  // Check if owner has answered today's wash verification question in Firestore
+  useEffect(() => {
+    let isMounted = true;
+    let timer: NodeJS.Timeout | null = null;
 
-  // Calculate opted subscription price for the selected vehicle in the Garage
-  const subscriptionPrice = useMemo(() => {
-    // 1. Direct price from currently selected vehicle
-    if (primaryVehicle) {
-      if (primaryVehicle.price && typeof primaryVehicle.price === 'number') {
-        return primaryVehicle.price;
+    async function checkDailyFeedback() {
+      // Clean up legacy local storage cache
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem('torque_daily_wash_feedbacks');
+        } catch (e) {}
       }
-      if (primaryVehicle.subscription_price && typeof primaryVehicle.subscription_price === 'number') {
-        return primaryVehicle.subscription_price;
+
+      // 1. Sunday check: Sundays are scheduled rest days (no morning wash to verify)
+      const isSunday = new Date().getDay() === 0;
+      if (isSunday) return;
+
+      // 2. Resolve owner ID
+      const targetOwnerId =
+        user.id && user.id !== 'usr_guest'
+          ? user.id
+          : typeof window !== 'undefined'
+          ? localStorage.getItem('torque_owner_id')
+          : null;
+
+      if (!targetOwnerId) return;
+
+      // 3. Fast local guard: if question was already answered today, do NOT show popup!
+      if (typeof window !== 'undefined') {
+        const localAnswer = localStorage.getItem(`torque_daily_feedback_answered_${todayIso}`);
+        if (localAnswer === 'yes' || localAnswer === 'no') {
+          if (isMounted) {
+            setTodayFeedbackStatus(localAnswer as 'yes' | 'no');
+            setAllDailyFeedbacks((prev) => ({ ...prev, [todayIso]: localAnswer as 'yes' | 'no' }));
+          }
+          return;
+        }
       }
-      const t = (primaryVehicle.type || 'car').toLowerCase();
-      if (t === 'luxury') return 799;
-      if (t === 'suv') return 649;
-      if (t === 'bike') return 399;
-      return 499;
+
+      try {
+        const feedbacks = await fetchDailyWashFeedbackFromFirestore(targetOwnerId);
+        if (!isMounted) return;
+
+        if (feedbacks) {
+          setAllDailyFeedbacks(feedbacks);
+        }
+
+        // 4. Firestore check: if question was already answered for today, do NOT show popup!
+        if (feedbacks && feedbacks[todayIso]) {
+          setTodayFeedbackStatus(feedbacks[todayIso]);
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(`torque_daily_feedback_answered_${todayIso}`, feedbacks[todayIso]);
+          }
+          return;
+        }
+
+        // 5. Dismissal check: if owner dismissed the modal today, don't keep showing it
+        if (typeof window !== 'undefined') {
+          const dismissed = localStorage.getItem(`torque_daily_feedback_dismissed_${todayIso}`);
+          if (dismissed === 'true') return;
+        }
+
+        // 6. Only prompt if question has NOT been answered for the day
+        timer = setTimeout(() => {
+          if (isMounted) setShowDailyFeedbackModal(true);
+        }, 700);
+      } catch (e) {
+        console.warn('Daily feedback Firestore check notice:', e);
+      }
     }
 
-    // 2. Direct price from user object (fallback)
-    if (user?.price && typeof user.price === 'number') {
-      return user.price;
-    }
-    if (user?.subscription_price && typeof user.subscription_price === 'number') {
-      return user.subscription_price;
-    }
+    checkDailyFeedback();
+    return () => {
+      isMounted = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [todayIso, user.id]);
 
-    // 3. Check localStorage
+  const handleDailyFeedbackAnswer = async (answer: 'yes' | 'no') => {
+    setTodayFeedbackStatus(answer);
+    setShowDailyFeedbackModal(false);
+    setAllDailyFeedbacks((prev) => ({ ...prev, [todayIso]: answer }));
+
     if (typeof window !== 'undefined') {
-      const stored = localStorage.getItem('torque_subscription_price');
-      if (stored) {
-        const parsed = parseInt(stored, 10);
-        if (!isNaN(parsed) && parsed > 0) return parsed;
-      }
+      localStorage.setItem(`torque_daily_feedback_answered_${todayIso}`, answer);
     }
 
-    return 499;
-  }, [user, primaryVehicle]);
+    const targetOwnerId =
+      user.id && user.id !== 'usr_guest'
+        ? user.id
+        : typeof window !== 'undefined'
+        ? localStorage.getItem('torque_owner_id')
+        : null;
 
-  // Dynamically resolve owner_name from Firebase user, primary vehicle, or localStorage
-  const ownerName =
-    user?.owner_name ||
-    user?.name ||
-    primaryVehicle?.owner_name ||
-    (typeof window !== 'undefined' ? localStorage.getItem('torque_owner_name') : null) ||
-    'Vehicle Owner';
+    if (answer === 'no') {
+      setFirebaseTodayWash((prev) => {
+        return {
+          id: prev?.id || `wash_missed_${todayIso}`,
+          vehicle_id: primaryVehicle?.id || 'veh_default',
+          washer_id: targetWasherId || 'wsh_assigned',
+          status: 'missed',
+          flaggedNotCleaned: true,
+          ownerFeedback: 'no',
+          scheduled_date: todayIso,
+          month_key: todayIst.monthKey,
+          notes: 'Owner flagged: Car not cleaned today by washer (Orange)',
+        } as unknown as WashRecord;
+      });
+    } else {
+      setFirebaseTodayWash((prev) => {
+        return {
+          id: prev?.id || `wash_verified_${todayIso}`,
+          vehicle_id: primaryVehicle?.id || 'veh_default',
+          washer_id: targetWasherId || 'wsh_assigned',
+          status: 'completed',
+          flaggedNotCleaned: false,
+          ownerFeedback: 'yes',
+          scheduled_date: todayIso,
+          completed_at: prev?.completed_at || '08:00 AM',
+          after_photo: prev?.after_photo || '/images/creta_after.jpg',
+          notes: 'Owner verified: Cleaned ✓',
+        } as unknown as WashRecord;
+      });
+    }
+
+    try {
+      if (targetOwnerId) {
+        await saveDailyWashFeedbackToFirestore(
+          targetOwnerId,
+          primaryVehicle?.id,
+          todayIso,
+          answer
+        );
+      }
+    } catch (err) {
+      console.warn('Failed to save daily wash feedback to Firestore:', err);
+    }
+  };
+
+  const handleDailyFeedbackClose = () => {
+    setShowDailyFeedbackModal(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(`torque_daily_feedback_dismissed_${todayIso}`, 'true');
+    }
+  };
+
+
+
+
+
+
 
   // WHILE CHECKING AUTH OR IF NOT LOGGED IN, RENDER DARK AMBIENT LOADER (REDIRECTING TO LANDING)
   if (!isHydrated || !isLoggedIn) {
@@ -377,94 +511,10 @@ export default function OwnerDashboardPage() {
       <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-[#2DD4A0]/5 rounded-full blur-[140px] pointer-events-none -z-10" />
       <div className="fixed bottom-10 right-10 w-[450px] h-[450px] bg-blue-600/5 rounded-full blur-[150px] pointer-events-none -z-10" />
 
-      {/* Top Welcome Header */}
-      <header className="bg-[#11161D]/90 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-30 shadow-xl pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#2DD4A0] block mb-0.5 font-bold">
-              TORQUE CARE CONCIERGE
-            </span>
-            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-              Good Morning, {ownerName} 👋
-            </h1>
-          </div>
 
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setShowAddVehicleModal(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>Add Vehicle</span>
-            </button>
-            <button
-              onClick={() => {
-                logout();
-                router.replace('/');
-              }}
-              title="Sign out of account"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-medium transition-all border border-white/10 active:scale-95"
-            >
-              <LogOut className="w-3.5 h-3.5 text-white/50" />
-              <span className="hidden md:inline">Logout</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Multi-Vehicle Garage Tabs (Select active car) */}
-        {activeVehicles.length > 0 && (
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 pb-3 flex items-center gap-2 overflow-x-auto no-scrollbar">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-white/50 flex items-center gap-1 shrink-0 font-bold">
-              <Layers className="w-3.5 h-3.5 text-[#2DD4A0]" /> Garage:
-            </span>
-            {activeVehicles.map((veh, idx) => (
-              <button
-                key={veh.id || idx}
-                onClick={() => setSelectedVehicleIndex(idx)}
-                className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                  selectedVehicleIndex === idx
-                    ? 'bg-white text-black font-bold shadow-md ring-2 ring-[#2DD4A0]/40'
-                    : 'bg-[#161C25] hover:bg-white/10 text-white/70 border border-white/[0.08]'
-                }`}
-              >
-                <Car className="w-3 h-3" />
-                <span>{veh.make} {veh.model}</span>
-                <span className="text-[10px] opacity-75 font-mono">({veh.registration_number})</span>
-                {selectedVehicleIndex === idx && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0] ml-0.5" />
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-        {/* NEXT-DAY SUBSCRIPTION ACTIVATION REASSURANCE BANNER */}
-        {isSubscriptionStartingTomorrow && (
-          <div className="p-4 sm:p-5 rounded-[20px] bg-gradient-to-r from-emerald-500/10 via-[#11161D] to-[#11161D] border border-[#2DD4A0]/30 shadow-lg flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/20 border border-[#2DD4A0]/30 text-[#2DD4A0] flex items-center justify-center shrink-0">
-                <Calendar className="w-5 h-5 text-[#2DD4A0]" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-white">Subscription Active • Next-Day Activation</span>
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30">
-                    Starts Tomorrow
-                  </span>
-                </div>
-                <p className="text-xs text-white/70 mt-0.5">
-                  Subscribed today! Your regular morning wash service is effective from <strong>tomorrow onwards</strong> (completed before <strong>{primaryVehicle?.needWashBefore || '8:00 AM'}</strong>). All washing is completed before 10:30 AM everyday.
-                </p>
-              </div>
-            </div>
-            <div className="shrink-0 text-right font-mono hidden sm:block">
-              <span className="text-[10px] uppercase font-bold text-white/50 block">First Wash</span>
-              <span className="text-xs font-bold text-[#2DD4A0]">Tomorrow Morning</span>
-            </div>
-          </div>
-        )}
+
         {!hasVehicles ? (
           /* CLEAN RESET / EMPTY GARAGE ONBOARDING HERO BANNER */
           <div className="p-8 sm:p-10 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-2xl text-center space-y-6 max-w-2xl mx-auto my-4">
@@ -487,11 +537,11 @@ export default function OwnerDashboardPage() {
 
             <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
               <Link
-                href="/auth/onboarding"
+                href="/auth/signup"
                 className="w-full sm:w-auto px-6 py-3 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />
-                <span>Register Vehicle & Pick Plan</span>
+                <span>Register Vehicle for Daily Tracking</span>
               </Link>
               <button
                 onClick={() => setShowAddVehicleModal(true)}
@@ -520,120 +570,99 @@ export default function OwnerDashboardPage() {
               washerAvatar={assignedWasher.avatar}
               societiesCovered={washerSocietiesCovered}
               location={dashboardLocationDisplay}
+              todayFeedbackStatus={todayFeedbackStatus}
             />
+
+            {/* ORANGE FLAGGED ALERT BANNER IF OWNER SAID NO */}
+            {todayFeedbackStatus === 'no' && (
+              <div className="p-4 rounded-[20px] bg-gradient-to-r from-amber-500/15 via-[#11161D] to-[#11161D] border border-amber-500/40 text-amber-200 text-xs shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-white text-xs block">
+                      Flagged Orange in Calendar: Car Not Cleaned Today
+                    </span>
+                    <span className="text-[11px] text-white/70">
+                      You indicated your car was not cleaned today by {assignedWasher.name}. Today is flagged Orange in your Care Calendar.
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleDailyFeedbackAnswer('yes')}
+                    className="px-3 py-1.5 rounded-lg bg-[#2DD4A0]/20 hover:bg-[#2DD4A0]/30 text-[#2DD4A0] border border-[#2DD4A0]/40 font-mono text-[10px] font-bold transition-colors cursor-pointer"
+                  >
+                    Mark Cleaned ✓
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowDailyFeedbackModal(true)}
+                    className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white/80 hover:text-white font-mono text-[10px] transition-colors cursor-pointer"
+                  >
+                    Recheck
+                  </button>
+                </div>
+              </div>
+            )}
           </>
         )}
 
-        {/* SERVICE PILLARS STATUS (Selected Plan) */}
-        <div className="p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl space-y-2.5">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 flex items-center gap-1.5 font-bold">
-              <Home className="w-3.5 h-3.5 text-[#2DD4A0]" /> TORQUE HOME
-            </span>
-            <span className="text-[10px] font-mono uppercase font-bold text-[#2DD4A0] bg-[#2DD4A0]/10 px-2.5 py-0.5 rounded-full border border-[#2DD4A0]/30">
-              ACTIVE
-            </span>
-          </div>
-          <div className="text-xl font-bold text-white tracking-tight">{activePlanName}</div>
-          <p className="text-xs text-white/60 leading-relaxed">
-            Recurring society bay care for {primaryVehicle ? `${primaryVehicle.make} ${primaryVehicle.model}` : 'your vehicle'} by {assignedWasher.name} at {primaryVehicle?.society_name || 'Green Valley Residency'}.
-          </p>
-          {lastSyncTime && (
-            <div className="text-[10px] text-white/40 font-mono pt-1">
-              Synced with Firestore at {lastSyncTime}
-            </div>
-          )}
-        </div>
-
-        {/* NEXT WASH & WASHER INFO */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {/* Next Wash Schedule */}
-          <div className="p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl flex items-center justify-between">
-            <div>
-              <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 font-bold block mb-1">
-                NEXT CARE WINDOW
-              </span>
-              <div className="text-lg font-bold text-white tracking-tight">
-                Tomorrow • Before {primaryVehicle?.needWashBefore || (primaryVehicle?.preferred_wash_time?.startsWith('Before') ? primaryVehicle?.preferred_wash_time.replace(/^Before\s+/i, '') : (primaryVehicle?.preferred_wash_time || '8:00 AM'))}
-              </div>
-              <p className="text-xs text-white/60 mt-1 flex items-center gap-1.5 font-mono">
-                <MapPin className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />
-                <span className="truncate">{dashboardLocationDisplay}</span>
-              </p>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-[#161C25] border border-white/[0.08] text-[#2DD4A0] flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5" />
-            </div>
-          </div>
-
-          {/* Backup Coverage Alert if active */}
-          {primaryVehicle?.isBackupActive && (
-            <div className="p-4 rounded-[20px] bg-gradient-to-r from-amber-500/15 via-[#11161D] to-[#11161D] border border-amber-500/30 text-amber-200 text-xs shadow-xl flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
-                <div>
-                  <span className="font-bold text-white">Temporary Backup Coverage Active:</span>{' '}
-                  Certified Specialist <strong>{assignedWasher.name}</strong> is handling your vehicle while{' '}
-                  <strong>{primaryVehicle.primaryWasherName || 'your primary specialist'}</strong> is unavailable. Service schedule remains 100% active.
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Regular Washer Info / Backup Specialist Info */}
-          <div className="p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl flex items-center justify-between">
-            <div className="flex items-center gap-3.5">
-              <div className="relative w-12 h-12 rounded-2xl overflow-hidden border border-white/10 shrink-0 shadow-md bg-neutral-900">
-                <Image
-                  src={assignedWasher.avatar || '/images/washer_amit.jpg'}
-                  alt={assignedWasher.name}
-                  fill
-                  className="object-cover"
-                />
+        {/* STEP 4: WASHER APPOINTMENT NOTICE IF NONE APPOINTED */}
+        {(!user.assigned_washer_id && !primaryVehicle?.assigned_washer_id && !storedAssignedWasherId) && (
+          <div className="p-5 rounded-[22px] bg-gradient-to-r from-[#2DD4A0]/20 via-[#162325]/70 to-[#11161D] border border-[#2DD4A0]/40 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-[#2DD4A0]/20 border border-[#2DD4A0]/40 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5 sm:mt-0">
+                <Sparkles className="w-5 h-5" />
               </div>
               <div>
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 font-bold block">
-                    {primaryVehicle?.isBackupActive ? 'BACKUP SPECIALIST (ACTIVE)' : 'ASSIGNED SPECIALIST'}
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#2DD4A0] text-black">
+                    STEP 4 • FINAL STEP
                   </span>
-                  {primaryVehicle?.isBackupActive && (
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                      Covering for {primaryVehicle.primaryWasherName || 'Primary Washer'}
-                    </span>
-                  )}
+                  <span className="text-xs font-mono text-white/50">Doorstep Morning Care</span>
                 </div>
-                <div className="text-base font-bold text-white flex items-center gap-2">
-                  <span>{assignedWasher.name}</span>
-                  {primaryVehicle?.isBackupActive && (
-                    <span className="text-[11px] font-normal text-emerald-400 font-mono">
-                      (Active Today)
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1.5 text-xs text-white/70 font-medium mt-0.5">
-                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                  <span className="font-bold text-white">{assignedWasher.rating || '4.98'}</span>
-                  <span className="text-white/40 text-[11px] font-mono">
-                    ({assignedWasher.totalLifetimeWashes || 140} washes)
-                  </span>
-                </div>
+                <h3 className="text-base font-bold text-white mt-1">
+                  Choose Your Dedicated Society Washer Specialist
+                </h3>
+                <p className="text-xs text-white/70 mt-0.5">
+                  Your vehicle is registered. Appoint your certified washer partner in Settings to start your daily morning wash route.
+                </p>
               </div>
             </div>
             <Link
-              href="/owner/washes/history"
-              className="p-2.5 rounded-full bg-[#161C25] hover:bg-white/10 text-white/70 hover:text-white transition-colors border border-white/[0.08]"
+              href="/owner/settings"
+              className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold uppercase tracking-wider transition-all shadow-lg text-center shrink-0"
             >
-              <ChevronRight className="w-4 h-4" />
+              Choose Specialist in Settings →
             </Link>
           </div>
-        </div>
+        )}
+
+
+
+        {/* Backup Coverage Alert if active */}
+        {primaryVehicle?.isBackupActive && (
+          <div className="p-4 rounded-[20px] bg-gradient-to-r from-amber-500/15 via-[#11161D] to-[#11161D] border border-amber-500/30 text-amber-200 text-xs shadow-xl flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
+              <div>
+                <span className="font-bold text-white">Temporary Backup Coverage Active:</span>{' '}
+                Certified Specialist <strong>{assignedWasher.name}</strong> is handling your vehicle while{' '}
+                <strong>{primaryVehicle.primaryWasherName || 'your primary specialist'}</strong> is unavailable. Service schedule remains 100% active.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* THIS MONTH METRICS */}
         <div>
           <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 block mb-3 px-1 font-bold">
             THIS MONTH OVERVIEW
           </span>
-          <div className="grid grid-cols-3 gap-3.5">
+          <div className="grid grid-cols-2 gap-3.5">
             <div className="p-5 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white">
                 {verifiedWashesCount}
@@ -648,50 +677,70 @@ export default function OwnerDashboardPage() {
 
             <div className="p-5 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white/90">
-                0
+                {todayFeedbackStatus === 'no' ? 1 : 0}
               </div>
               <div className="text-xs font-semibold text-white/70 mt-1">
                 Missed
               </div>
-              <span className="text-[10px] text-white/40 block mt-0.5 font-mono">
-                Auto-credited
+              <span className="text-[10px] text-amber-400/80 block mt-0.5 font-mono">
+                Flagged Unwashed
               </span>
-            </div>
-
-            <div className="p-5 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center shadow-xl relative overflow-hidden">
-              <div className="text-2xl sm:text-3xl font-black text-white">
-                ₹{subscriptionPrice.toLocaleString('en-IN')}
-              </div>
-              <div className="text-xs font-semibold text-white/70 mt-1">
-                Subscription
-              </div>
-              <span className="text-[10px] text-[#2DD4A0] font-mono font-bold block mt-0.5 uppercase tracking-wide">
-                {activePlanName}
-              </span>
-              {primaryVehicle && (
-                <span className="text-[9px] text-white/40 block font-mono mt-1 truncate">
-                  {primaryVehicle.make} {primaryVehicle.model}
-                </span>
-              )}
             </div>
           </div>
         </div>
 
-        {/* MONTHLY PROOF CALENDAR */}
-        <OwnerProofCalendar
-          assignedWasherName={assignedWasher.name}
-          assignedWasherAvatar={assignedWasher.avatar}
-          parkingLocation={primaryVehicle?.parking_location}
-          washes={allVehicleWashes}
-          todayWash={activeTodayWash}
-          selectedVehicleId={primaryVehicle?.id}
-        />
+        {/* INTERACTIVE MONTHLY WASH AUDIT & PROOF CALENDAR */}
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 block font-bold">
+              MONTHLY WASH AUDIT &amp; PROOF CALENDAR
+            </span>
+            <Link
+              href="/owner/washes/history"
+              className="text-xs text-[#2DD4A0] hover:underline flex items-center gap-1 font-mono font-medium"
+            >
+              <span>Full History</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+          <OwnerProofCalendar
+            assignedWasherName={assignedWasher.name}
+            assignedWasherAvatar={assignedWasher.avatar}
+            parkingLocation={dashboardLocationDisplay}
+            selectedVehicleId={primaryVehicle?.id}
+            todayWash={activeTodayWash || todayWash}
+            todayFeedbackStatus={todayFeedbackStatus}
+            feedbacks={allDailyFeedbacks}
+          />
+        </div>
+
+
       </main>
 
       {/* Modals */}
       <AddVehicleModal
         isOpen={showAddVehicleModal}
         onClose={() => setShowAddVehicleModal(false)}
+      />
+      <EditLocationSocietyModal
+        isOpen={showEditLocationModal}
+        onClose={() => {
+          setShowEditLocationModal(false);
+          loadFirebaseDashboard();
+        }}
+      />
+      <DailyWashFeedbackModal
+        isOpen={showDailyFeedbackModal}
+        onClose={handleDailyFeedbackClose}
+        onAnswer={handleDailyFeedbackAnswer}
+        vehicleName={
+          primaryVehicle?.registration_number
+            ? `${primaryVehicle.registration_number} • ${primaryVehicle.make || ''} ${primaryVehicle.model || ''}`.trim()
+            : primaryVehicle?.model || 'Your Vehicle'
+        }
+        parkingLocation={dashboardLocationDisplay || 'Assigned Bay'}
+        washerName={assignedWasher.name}
+        dateDisplay={todayIst.dateDisplay}
       />
 
       {/* Mobile Bottom Navigation */}

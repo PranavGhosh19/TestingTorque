@@ -8,7 +8,6 @@ import {
   ShieldCheck,
   Star,
   Award,
-  Landmark,
   Calendar,
   Phone,
   ChevronRight,
@@ -20,6 +19,9 @@ import {
   LogOut,
   Clock,
   Users,
+  Building2,
+  MapPin,
+  Sparkles,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import WasherBottomNav from '@/components/WasherBottomNav';
@@ -29,14 +31,17 @@ import {
   fetchPeerWashersInSameSocieties,
   markWasherAbsentTodayInFirestore,
   fetchWasherDashboardDataFromFirestore,
+  fetchDistrictSocietiesForWasher,
+  OwnerDistrictSociety,
 } from '@/lib/firebaseService';
 
 export default function WasherProfilePage() {
   const router = useRouter();
-  const { user, washerEarnings, logout } = useStore();
+  const { user, logout, washers } = useStore();
   const [firebaseWasher, setFirebaseWasher] = useState<WasherPartner | null>(null);
   const [peerWashers, setPeerWashers] = useState<WasherPartner[]>([]);
   const [loadingPeers, setLoadingPeers] = useState(false);
+  const [districtOwnerSocieties, setDistrictOwnerSocieties] = useState<OwnerDistrictSociety[]>([]);
   const [isAbsentToday, setIsAbsentToday] = useState(false);
   const [isMarkingAbsent, setIsMarkingAbsent] = useState(false);
   const [absentNotice, setAbsentNotice] = useState<string | null>(null);
@@ -86,6 +91,22 @@ export default function WasherProfilePage() {
               if (isMounted) setLoadingPeers(false);
             }
 
+            // Fetch common societies where car owners are registered in the washer's district
+            if (fetched.district) {
+              try {
+                const ownerSocieties = await fetchDistrictSocietiesForWasher({
+                  state: fetched.state,
+                  city: fetched.city,
+                  district: fetched.district,
+                });
+                if (isMounted) {
+                  setDistrictOwnerSocieties(ownerSocieties);
+                }
+              } catch (dErr) {
+                console.warn('Profile district owner societies notice:', dErr);
+              }
+            }
+
             // Fetch live operational metrics
             try {
               const dashData = await fetchWasherDashboardDataFromFirestore(fetched.id, fetched.phone);
@@ -133,12 +154,66 @@ export default function WasherProfilePage() {
     }
   };
 
-  const storedWasherName = mounted && typeof window !== 'undefined' ? localStorage.getItem('torque_washer_name') : null;
+  const storedWasherName =
+    mounted && typeof window !== 'undefined' ? localStorage.getItem('torque_washer_name') : null;
   const washerDisplayName =
     firebaseWasher?.name ||
     (mounted && storedWasherName ? storedWasherName : null) ||
     (user?.role === 'washer' && user?.name && user.name !== 'Vehicle Owner' ? user.name : null) ||
     'Amit Kumar';
+
+  // Resolved list of societies the washer has selected / been assigned
+  const washerSocieties: string[] = React.useMemo(() => {
+    // 1. Array in firebaseWasher
+    if (Array.isArray(firebaseWasher?.societies) && firebaseWasher.societies.length > 0) {
+      return firebaseWasher.societies.filter(Boolean);
+    }
+    // 2. Comma-separated string in firebaseWasher
+    if (firebaseWasher?.society) {
+      return firebaseWasher.society.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    // 3. From store washers
+    const currentId =
+      firebaseWasher?.id ||
+      user?.id ||
+      (typeof window !== 'undefined' ? localStorage.getItem('torque_washer_id') : null);
+    const currentPhone =
+      firebaseWasher?.phone ||
+      user?.phone ||
+      (typeof window !== 'undefined' ? localStorage.getItem('torque_washer_phone') : null);
+
+    const storeWasher = washers.find(
+      (w) =>
+        (currentId && w.id === currentId) ||
+        (currentPhone &&
+          w.phone &&
+          w.phone.replace(/\D/g, '').endsWith(currentPhone.replace(/\D/g, '').slice(-10)))
+    );
+    if (Array.isArray(storeWasher?.societies) && storeWasher.societies.length > 0) {
+      return storeWasher.societies.filter(Boolean);
+    }
+    if (storeWasher?.society) {
+      return storeWasher.society.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+    return [];
+  }, [firebaseWasher, user?.id, user?.phone, washers]);
+
+  const locationSummary = React.useMemo(() => {
+    const currentId = firebaseWasher?.id || user?.id;
+    const storeWasher = washers.find((w) => w.id === currentId);
+    const state = firebaseWasher?.state || storeWasher?.state;
+    const city = firebaseWasher?.city || storeWasher?.city;
+    const district = firebaseWasher?.district || storeWasher?.district;
+    const parts = [district, city, state].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : null;
+  }, [firebaseWasher, washers, user?.id]);
+
+  // Societies where car owners are registered in the washer's district that aren't on this washer's route yet
+  const untrackedDemandSocieties = React.useMemo(() => {
+    return districtOwnerSocieties.filter(
+      (os) => !washerSocieties.some((ws) => ws.toLowerCase() === os.societyName.toLowerCase())
+    );
+  }, [districtOwnerSocieties, washerSocieties]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -265,7 +340,7 @@ export default function WasherProfilePage() {
         </div>
 
         {/* Operational Badges (Dynamic, no dummy data) */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <div className="p-4 bg-white rounded-2xl border border-slate-200 text-center">
             <div className="text-2xl font-extrabold text-[#0B132B]" suppressHydrationWarning>
               {firebaseWasher?.totalLifetimeWashes ?? liveMetrics?.completedCount ?? 0}
@@ -273,16 +348,142 @@ export default function WasherProfilePage() {
             <span className="text-[11px] text-slate-500 font-medium">Total Washes</span>
           </div>
           <div className="p-4 bg-white rounded-2xl border border-slate-200 text-center">
-            <div className="text-2xl font-extrabold text-emerald-600" suppressHydrationWarning>
-              {firebaseWasher?.completionRate || (liveMetrics && liveMetrics.totalTarget > 0 ? `${liveMetrics.progressPercent}%` : '100%')}
-            </div>
-            <span className="text-[11px] text-slate-500 font-medium">Completion Rate</span>
-          </div>
-          <div className="p-4 bg-white rounded-2xl border border-slate-200 text-center">
             <div className="text-2xl font-extrabold text-blue-600" suppressHydrationWarning>
               {liveMetrics?.totalTarget ?? (firebaseWasher?.assignedCarsPerDay ?? 0)}
             </div>
             <span className="text-[11px] text-slate-500 font-medium">Active Daily Cars</span>
+          </div>
+        </div>
+
+        {/* Assigned Operational Societies Card */}
+        <div className="premium-card p-5 sm:p-6 bg-white border-slate-200/90 shadow-xs space-y-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap sm:flex-nowrap">
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 block mb-0.5">
+                Route Coverage
+              </span>
+              <h3 className="text-base sm:text-lg font-extrabold text-[#0B132B] flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>Assigned Societies</span>
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Societies and residential communities allocated to your morning wash queue
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-bold font-mono bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                {washerSocieties.length} {washerSocieties.length === 1 ? 'Society' : 'Societies'}
+              </span>
+            </div>
+          </div>
+
+          {/* Location Details (District, City, State) */}
+          {locationSummary && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-600 bg-slate-50 px-3.5 py-2 rounded-xl border border-slate-200/70">
+              <MapPin className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Location Cluster:</span>
+              <span className="font-bold text-slate-900">{locationSummary}</span>
+            </div>
+          )}
+
+          {/* Societies Grid */}
+          {washerSocieties.length === 0 ? (
+            <div className="p-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-center space-y-2">
+              <Building2 className="w-8 h-8 text-slate-400 mx-auto" />
+              <p className="text-xs font-bold text-slate-700">No societies assigned yet</p>
+              <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                Select your operational societies to receive assigned morning vehicle wash routes.
+              </p>
+              <Link
+                href="/washer/onboarding"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-xs mt-2"
+              >
+                <span>Select Societies</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {washerSocieties.map((societyName, idx) => (
+                <div
+                  key={`${societyName}-${idx}`}
+                  className="p-3.5 bg-gradient-to-br from-slate-50 to-white hover:from-emerald-50/40 hover:to-white rounded-2xl border border-slate-200/80 hover:border-emerald-300 flex items-center justify-between gap-3 transition-all group shadow-2xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-100/80 text-emerald-700 flex items-center justify-center font-bold text-sm shrink-0 border border-emerald-200/60 group-hover:scale-105 transition-transform">
+                      <Building2 className="w-4 h-4 text-emerald-700" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-bold text-slate-900 truncate group-hover:text-emerald-950">
+                        {societyName}
+                      </h4>
+                      <span className="text-[10px] text-slate-500 font-medium block">
+                        Morning Bay Route • Active
+                      </span>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 shrink-0">
+                    Active Bay
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Car Owner Demand in Washer's District */}
+          {untrackedDemandSocieties.length > 0 && (
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white border border-emerald-200/90 space-y-2.5 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-emerald-950 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-emerald-600" />
+                  Car Owners Waiting in Your District ({firebaseWasher?.district || 'Nearby'})
+                </span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white">
+                  {untrackedDemandSocieties.length} {untrackedDemandSocieties.length === 1 ? 'Society' : 'Societies'} Available
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-2 pt-0.5">
+                {untrackedDemandSocieties.map((os) => (
+                  <span
+                    key={os.societyName}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-emerald-200 text-xs font-semibold text-slate-800 shadow-2xs"
+                  >
+                    <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{os.societyName}</span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-md">
+                      ⚡ {os.ownerCount} {os.ownerCount === 1 ? 'Owner' : 'Owners'}
+                    </span>
+                  </span>
+                ))}
+              </div>
+              <div className="pt-1 flex items-center justify-between text-xs">
+                <span className="text-[11px] text-slate-500">
+                  Add these societies to your route to service these waiting vehicle owners.
+                </span>
+                <Link
+                  href="/washer/onboarding"
+                  className="font-bold text-emerald-700 hover:text-emerald-800 hover:underline flex items-center gap-1 shrink-0"
+                >
+                  <span>+ Add to Route</span>
+                  <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Manage Societies Footer Link */}
+          <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+            <span className="text-[11px] text-slate-400">
+              Need to add another society or change your route cluster?
+            </span>
+            <Link
+              href="/washer/onboarding"
+              className="font-bold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1 shrink-0 cursor-pointer"
+            >
+              <span>Manage Societies</span>
+              <ChevronRight className="w-3 h-3" />
+            </Link>
           </div>
         </div>
 
@@ -369,27 +570,6 @@ export default function WasherProfilePage() {
           )}
         </div>
 
-        {/* Bank & Payout Settings */}
-        <div className="premium-card p-5 bg-white border-slate-200/90 space-y-3">
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-            Bank Settlement Account
-          </span>
-          <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-3">
-              <Landmark className="w-5 h-5 text-blue-600" />
-              <div>
-                <div className="font-bold text-slate-900">HDFC Bank Limited</div>
-                <div className="text-slate-500" suppressHydrationWarning>
-                  Account ending in •••• {mounted ? (washerEarnings?.bank_account_last4 || '3819') : '3819'}
-                </div>
-              </div>
-            </div>
-            <span className="text-emerald-700 font-bold bg-emerald-100/70 px-2 py-0.5 rounded text-[10px]">
-              Verified
-            </span>
-          </div>
-        </div>
-
         {/* Quick Operational Links */}
         <div className="premium-card bg-white border-slate-200/90 divide-y divide-slate-100 overflow-hidden text-xs font-semibold">
           <Link
@@ -398,16 +578,6 @@ export default function WasherProfilePage() {
           >
             <span className="flex items-center gap-2 text-slate-700">
               <Calendar className="w-4 h-4 text-slate-400" /> Request Leave & Assign Backup
-            </span>
-            <ChevronRight className="w-4 h-4 text-slate-400" />
-          </Link>
-
-          <Link
-            href="/washer/earnings"
-            className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors"
-          >
-            <span className="flex items-center gap-2 text-slate-700">
-              <Landmark className="w-4 h-4 text-slate-400" /> Payout History & Tax Summaries
             </span>
             <ChevronRight className="w-4 h-4 text-slate-400" />
           </Link>

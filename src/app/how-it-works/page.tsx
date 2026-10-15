@@ -49,10 +49,10 @@ export default function HowItWorksPage() {
               01
             </span>
             <h3 className="text-xl font-bold text-white tracking-tight">
-              Subscribe & Set Bay
+              Register Car & Set Bay
             </h3>
             <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
-              Add your vehicle and specify your parking bay. Choose a flexible monthly plan with zero lock-in starting at ₹499/mo.
+              Add your vehicle and specify your parking bay. Your assigned society specialist will handle your morning route.
             </p>
           </div>
 
@@ -138,10 +138,10 @@ export default function HowItWorksPage() {
                   <ShieldAlert className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-white">
-                  Missed-Wash Auto-Refund
+                  Orange Calendar Audit Flag
                 </h3>
                 <p className="text-xs text-white/60 leading-relaxed">
-                  If a wash is missed due to weather or unresolvable access, you receive an automated wallet credit. You only pay for washes verified by photo.
+                  If a wash is missed, answering &apos;No&apos; on your morning verification flags the day Orange in your calendar for immediate operational review.
                 </p>
               </div>
 
@@ -151,10 +151,10 @@ export default function HowItWorksPage() {
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <h3 className="text-lg font-bold text-white">
-                  100% Digital Invoicing
+                  100% Digital Audit History
                 </h3>
                 <p className="text-xs text-white/60 leading-relaxed">
-                  Zero cash exchanges. Pay securely via UPI, cards, or auto-debit. Auto-generated monthly GST invoices with itemized proof breakdown.
+                  Complete digital transparency. Timestamped before/after photos, bay inspection stamps, and full historical log accessible anytime from your phone.
                 </p>
               </div>
             </div>
@@ -165,7 +165,7 @@ export default function HowItWorksPage() {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
               <div className="space-y-2.5 max-w-2xl">
                 <div className="inline-flex items-center gap-2 text-[10px] font-mono font-bold text-amber-300 bg-amber-500/10 px-3 py-0.5 rounded-full border border-amber-400/20 uppercase">
-                  FAIR PLAY & PRESENCE POLICY
+                  FAIR PLAY &amp; PRESENCE POLICY
                 </div>
                 <h3 className="text-2xl font-bold text-white">
                   Customer / Vehicle Unavailable Protocol
@@ -186,13 +186,13 @@ export default function HowItWorksPage() {
                 <div className="p-3.5 rounded-xl bg-[#161C25] border border-white/[0.06] text-center min-w-[120px]">
                   <span className="text-[10px] uppercase font-bold text-white/50 block">Service</span>
                   <span className="text-sm font-bold text-white/80 block mt-0.5">
-                    Not possible
+                    Vehicle Away
                   </span>
                 </div>
                 <div className="p-3.5 rounded-xl bg-[#161C25] border border-white/[0.06] text-center min-w-[140px]">
-                  <span className="text-[10px] uppercase font-bold text-white/50 block">Washer payout</span>
+                  <span className="text-[10px] uppercase font-bold text-white/50 block">Route Audit</span>
                   <span className="text-sm font-bold text-[#2DD4A0] flex items-center justify-center gap-1 mt-0.5">
-                    Protected ✓
+                    Recorded ✓
                   </span>
                 </div>
               </div>
@@ -234,9 +234,8 @@ export default function HowItWorksPage() {
               </div>
               <div className="space-y-1">
                 <h3 className="text-xl font-bold text-white">Torque Care Home</h3>
-                <div className="text-2xl font-black text-white">
-                  <span className="text-xs font-semibold text-white/50 block">Starting at</span>
-                  ₹499<span className="text-xs font-normal text-white/50">/month</span>
+                <div className="text-xl font-bold text-[#2DD4A0]">
+                  Mon–Sat Daily Care
                 </div>
               </div>
               <p className="text-xs text-white/60 leading-relaxed">
@@ -283,10 +282,10 @@ export default function HowItWorksPage() {
               <span>Subscribe Your Car Today</span>
             </Link>
             <Link
-              href="/pricing"
+              href="/get-started"
               className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#161C25] hover:bg-white/10 text-white font-bold text-sm border border-white/[0.08] transition-all"
             >
-              <span>View Pricing Plans</span>
+              <span>Get Started</span>
             </Link>
           </div>
         </div>

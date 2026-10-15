@@ -336,9 +336,9 @@ export default function AdminDashboardPage() {
                         <div className="mt-3">
                           <Link
                             href="/admin/societies"
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0B132B] hover:bg-slate-800 text-white font-bold text-xs"
                           >
-                            + Onboard First Society
+                            View Societies Directory
                           </Link>
                         </div>
                       </td>

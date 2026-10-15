@@ -31,154 +31,7 @@ import {
   DirectoryWasher,
 } from '@/lib/firebaseService';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Modal: Onboard Society
-// ─────────────────────────────────────────────────────────────────────────────
-function OnboardModal({
-  onClose,
-  onCreated,
-}: {
-  onClose: () => void;
-  onCreated: (s: FirestoreSociety) => void;
-}) {
-  const [name, setName] = useState('');
-  const [district, setDistrict] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim() || !district.trim() || !city.trim() || !state.trim()) {
-      setError('All fields are required.');
-      return;
-    }
-    setLoading(true);
-    setError('');
-    const result = await createSociety({ name, district, city, state });
-    setLoading(false);
-    if (!result.success) {
-      setError(result.error || 'Failed to create society.');
-      return;
-    }
-    onCreated({
-      societyId: result.societyId,
-      name: name.trim(),
-      district: district.trim(),
-      city: city.trim(),
-      state: state.trim(),
-      status: 'active',
-      createdBy: '',
-    });
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-7 relative animate-in fade-in zoom-in-95 duration-200">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-[#0B132B] flex items-center justify-center text-white shrink-0">
-            <Building2 className="w-5 h-5" />
-          </div>
-          <div>
-            <h2 className="text-base font-extrabold text-[#0B132B]">Onboard Society</h2>
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
-              Society Name <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Green Valley Residency"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
-              District <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={district}
-              onChange={(e) => setDistrict(e.target.value)}
-              placeholder="e.g. Thane"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
-                City <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="e.g. Mumbai"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-500 block mb-1.5">
-                State <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={state}
-                onChange={(e) => setState(e.target.value)}
-                placeholder="e.g. Maharashtra"
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-slate-50 text-sm font-semibold text-[#0B132B] focus:outline-none focus:border-[#0B132B] focus:ring-1 focus:ring-[#0B132B]/20 transition-all"
-                required
-              />
-            </div>
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2 text-rose-600 text-xs font-medium bg-rose-50 border border-rose-200 rounded-xl px-3 py-2.5">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {error}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0B132B] hover:bg-slate-800 disabled:opacity-50 transition-colors flex items-center gap-1.5"
-            >
-              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {loading ? 'Creating…' : 'Create Society'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  );
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Modal: Edit Society
@@ -525,7 +378,7 @@ export default function AdminSocietiesPage() {
   const [allWashers, setAllWashers] = useState<DirectoryWasher[]>([]);
   const [loadingSocieties, setLoadingSocieties] = useState(true);
   const [loadingWashers, setLoadingWashers] = useState(true);
-  const [showOnboardModal, setShowOnboardModal] = useState(false);
+
   const [manageWashersSociety, setManageWashersSociety] = useState<FirestoreSociety | null>(null);
   const [editingSociety, setEditingSociety] = useState<FirestoreSociety | null>(null);
   const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
@@ -593,13 +446,6 @@ export default function AdminSocietiesPage() {
             >
               <RefreshCw className={`w-4 h-4 ${loadingSocieties ? 'animate-spin' : ''}`} />
             </button>
-            <button
-              onClick={() => setShowOnboardModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-[#0B132B] hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Onboard Society</span>
-            </button>
           </div>
         </div>
 
@@ -646,18 +492,10 @@ export default function AdminSocietiesPage() {
               <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
                 <Building2 className="w-7 h-7 text-slate-400" />
               </div>
-              <h3 className="text-sm font-bold text-[#0B132B] mb-1">No societies onboarded yet.</h3>
+              <h3 className="text-sm font-bold text-[#0B132B] mb-1">No societies active yet.</h3>
               <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
-                Use the <span className="font-bold">"Onboard Society"</span> button above to add the
-                first society. All data is stored in Firestore — no dummy data.
+                Societies appear here dynamically as residents and washers choose common residential complexes across districts.
               </p>
-              <button
-                onClick={() => setShowOnboardModal(true)}
-                className="mt-5 px-5 py-2.5 rounded-xl bg-[#0B132B] text-white font-bold text-xs flex items-center gap-1.5 hover:bg-slate-800 transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                Onboard Society
-              </button>
             </div>
           )}
 
@@ -777,16 +615,7 @@ export default function AdminSocietiesPage() {
         </div>
       </main>
 
-      {/* Modals */}
-      {showOnboardModal && (
-        <OnboardModal
-          onClose={() => setShowOnboardModal(false)}
-          onCreated={(newSociety) => {
-            setSocieties((prev) => [newSociety, ...prev]);
-            setShowOnboardModal(false);
-          }}
-        />
-      )}
+
 
       {manageWashersSociety && (
         <ManageWashersModal

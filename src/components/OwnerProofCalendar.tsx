@@ -9,7 +9,6 @@ import {
   AlertTriangle,
   Clock,
   Sparkles,
-  ShieldCheck,
   X,
   Camera,
   Car,
@@ -19,21 +18,21 @@ import {
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { WashRecord } from '@/lib/types';
+import { fetchDailyWashFeedbackFromFirestore } from '@/lib/firebaseService';
+import { getTodayISTDate } from '@/lib/washUtils';
 
 interface DayStatus {
   date: number; // Day of month: 1-31
   fullDate: Date;
   dateString: string; // e.g. '01 Oct'
   dayOfWeek: string; // 'Mon', 'Tue', etc.
-  isBeforeSubscription: boolean; // Before owner subscribed
-  hasSubscription: boolean; // Covered by subscription
   hasProofUploaded: boolean; // Real wash completed with photo
   isMissingProof: boolean; // Wash flagged/missed
   isVehicleUnavailable: boolean; // Car was not in bay
   isToday: boolean;
   isPast: boolean;
   isFuture: boolean;
-  isSunday: boolean; // Rest day for 6-day Mon-Sat plan
+  isSunday: boolean; // Rest day for Mon-Sat care
   wash?: WashRecord;
 }
 
@@ -44,6 +43,8 @@ interface OwnerProofCalendarProps {
   washes?: WashRecord[];
   todayWash?: WashRecord | null;
   selectedVehicleId?: string;
+  todayFeedbackStatus?: 'yes' | 'no' | null;
+  feedbacks?: Record<string, 'yes' | 'no'>;
 }
 
 export default function OwnerProofCalendar({
@@ -53,6 +54,8 @@ export default function OwnerProofCalendar({
   washes: propWashes,
   todayWash: propTodayWash,
   selectedVehicleId: propSelectedVehicleId,
+  todayFeedbackStatus,
+  feedbacks: propFeedbacks,
 }: OwnerProofCalendarProps = {}) {
   const { washes: storeWashes, todayWash: storeTodayWash, vehicles, user } = useStore();
 
@@ -84,37 +87,6 @@ export default function OwnerProofCalendar({
     return vehicles[0] || null;
   }, [vehicles, selectedVehicleId]);
 
-  // Determine owner's subscription start date
-  const subscriptionStartDate = useMemo(() => {
-    // 1. Check user registration / creation date
-    if (user?.created_at) {
-      const d = new Date(user.created_at);
-      if (!isNaN(d.getTime())) return d;
-    }
-    // 2. Check current vehicle subscription start date
-    if ((currentVehicle as any)?.subscription?.startDate) {
-      const d = new Date((currentVehicle as any).subscription.startDate);
-      if (!isNaN(d.getTime())) return d;
-    }
-    // 3. Check localStorage fallback
-    if (typeof window !== 'undefined') {
-      try {
-        const storedUser = localStorage.getItem('torque_user');
-        if (storedUser) {
-          const u = JSON.parse(storedUser);
-          if (u.created_at) {
-            const d = new Date(u.created_at);
-            if (!isNaN(d.getTime())) return d;
-          }
-        }
-      } catch (e) {
-        // ignore
-      }
-    }
-    // Default to real current date (e.g. today)
-    return new Date();
-  }, [user, currentVehicle]);
-
   // Current real date (start of day)
   const realNow = useMemo(() => new Date(), []);
 
@@ -126,9 +98,48 @@ export default function OwnerProofCalendar({
   const [activePhotoTab, setActivePhotoTab] = useState<'after' | 'before'>('after');
   const [mounted, setMounted] = useState<boolean>(false);
 
+  const [dailyFeedbacks, setDailyFeedbacks] = useState<Record<string, 'yes' | 'no'>>({});
+
   useEffect(() => {
     setMounted(true);
-  }, []);
+
+    // Clean up legacy local storage cache
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.removeItem('torque_daily_wash_feedbacks');
+      } catch (e) {}
+    }
+
+    if (propFeedbacks && Object.keys(propFeedbacks).length > 0) {
+      setDailyFeedbacks((prev) => ({ ...prev, ...propFeedbacks }));
+    }
+
+    // Always fetch directly from Firestore
+    const targetOwnerId =
+      user?.id && user.id !== 'usr_guest'
+        ? user.id
+        : typeof window !== 'undefined'
+        ? localStorage.getItem('torque_owner_id')
+        : null;
+
+    if (targetOwnerId) {
+      fetchDailyWashFeedbackFromFirestore(targetOwnerId).then((fb) => {
+        if (fb) {
+          setDailyFeedbacks((prev) => ({ ...prev, ...fb }));
+        }
+      });
+    }
+  }, [user?.id, propFeedbacks]);
+
+  useEffect(() => {
+    if (todayFeedbackStatus) {
+      const todayIst = getTodayISTDate();
+      setDailyFeedbacks((prev) => ({
+        ...prev,
+        [todayIst.dateIso]: todayFeedbackStatus,
+      }));
+    }
+  }, [todayFeedbackStatus]);
 
   const assignedWasherName =
     propWasherName ||
@@ -173,15 +184,6 @@ export default function OwnerProofCalendar({
     d1.getFullYear() === d2.getFullYear() &&
     d1.getMonth() === d2.getMonth() &&
     d1.getDate() === d2.getDate();
-
-  // Normalized midnight dates for comparisons
-  const subStartMidnight = useMemo(() => {
-    return new Date(
-      subscriptionStartDate.getFullYear(),
-      subscriptionStartDate.getMonth(),
-      subscriptionStartDate.getDate()
-    );
-  }, [subscriptionStartDate]);
 
   const todayMidnight = useMemo(() => {
     return new Date(realNow.getFullYear(), realNow.getMonth(), realNow.getDate());
@@ -270,31 +272,45 @@ export default function OwnerProofCalendar({
         });
       }
 
+      const dPadded = d < 10 ? `0${d}` : `${d}`;
+      const isoDate = `${monthData.year}-${String(monthData.month + 1).padStart(2, '0')}-${dPadded}`;
+      const dayFeedback = dailyFeedbacks[isoDate] || (matchingWash?.status === 'missed' ? 'no' : undefined);
+
       let hasProofUploaded = false;
       let isMissingProof = false;
       let isVehicleUnavailable = false;
 
-      if (matchingWash) {
-        if (matchingWash.status === 'completed' && (matchingWash.after_photo || (matchingWash as any).proof_photo)) {
-          hasProofUploaded = true;
-        } else if (matchingWash.status === 'vehicle_unavailable') {
-          isVehicleUnavailable = true;
-        } else if (matchingWash.status === 'missed' || matchingWash.status === 'attempted') {
+      // RULE:
+      // If Sunday -> Rest day (no wash)
+      // If owner answered 'no' -> Flag it Orange in the Calendar!
+      // If owner answered 'yes' -> Consider it cleaned!
+      // If owner didn't open the app in 24hr route -> Consider it cleaned!
+      if (!isSunday) {
+        if (dayFeedback === 'no') {
           isMissingProof = true;
+        } else if (dayFeedback === 'yes') {
+          hasProofUploaded = true;
+        } else if (matchingWash) {
+          if (matchingWash.status === 'completed' && (matchingWash.after_photo || (matchingWash as any).proof_photo)) {
+            hasProofUploaded = true;
+          } else if (matchingWash.status === 'vehicle_unavailable') {
+            isVehicleUnavailable = true;
+          } else if (matchingWash.status === 'missed' || matchingWash.status === 'attempted') {
+            isMissingProof = true;
+          } else {
+            hasProofUploaded = true;
+          }
+        } else if (isPast || isToday) {
+          // In 24 hour route, if the owner didn't open the app, consider it cleaned
+          hasProofUploaded = true;
         }
       }
-
-      // If a real verified wash exists, it is NEVER before subscription!
-      const isBeforeSubscription = matchingWash ? false : fullDate < subStartMidnight;
-      const hasSubscription = !isBeforeSubscription;
 
       list.push({
         date: d,
         fullDate,
         dateString,
         dayOfWeek,
-        isBeforeSubscription,
-        hasSubscription,
         hasProofUploaded,
         isMissingProof,
         isVehicleUnavailable,
@@ -310,10 +326,10 @@ export default function OwnerProofCalendar({
   }, [
     monthData,
     todayMidnight,
-    subStartMidnight,
     activeTodayWash,
     allWashes,
     currentVehicle,
+    dailyFeedbacks,
   ]);
 
   // Summary counts for current month view
@@ -322,24 +338,8 @@ export default function OwnerProofCalendar({
     (d) => d.isMissingProof || d.isVehicleUnavailable
   ).length;
   const scheduledCount = days.filter(
-    (d) => d.hasSubscription && (d.isFuture || d.isToday) && !d.isSunday
+    (d) => (d.isFuture || d.isToday) && !d.isSunday && !d.hasProofUploaded && !d.isMissingProof
   ).length;
-
-  // Formatted subscription start label
-  const formattedSubStart = useMemo(() => {
-    return subscriptionStartDate.toLocaleDateString('en-US', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
-  }, [subscriptionStartDate]);
-
-  // Days active into subscription
-  const daysActive = useMemo(() => {
-    const diffMs = todayMidnight.getTime() - subStartMidnight.getTime();
-    const days = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
-    return Math.max(1, Math.min(30, days));
-  }, [todayMidnight, subStartMidnight]);
 
   return (
     <div className="w-full rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
@@ -353,10 +353,10 @@ export default function OwnerProofCalendar({
           <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0] animate-pulse" />
             <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
-              SUBSCRIPTION AUDIT LOG
+              DAILY WASH AUDIT LOG
             </span>
             <span className="text-[10px] font-mono text-white/50 bg-[#161C25] px-2.5 py-0.5 rounded-full border border-white/[0.08]">
-              Subscribed: {formattedSubStart} (Day {daysActive} of 30)
+              Mon–Sat Morning Care • Sundays Rest
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
@@ -471,12 +471,7 @@ export default function OwnerProofCalendar({
             let dotColor = 'bg-[#2DD4A0]/40';
             let titleText = `Day ${day.date}: Scheduled care`;
 
-            if (day.isBeforeSubscription) {
-              cellClasses =
-                'bg-transparent text-white/30 border border-white/[0.03] opacity-40';
-              dotColor = 'bg-transparent';
-              titleText = `Day ${day.date}: Prior to subscription (${formattedSubStart})`;
-            } else if (day.hasProofUploaded) {
+            if (day.hasProofUploaded) {
               cellClasses =
                 'bg-[#2DD4A0]/10 text-white border border-[#2DD4A0]/30 hover:bg-[#2DD4A0]/20';
               dotColor = 'bg-[#2DD4A0] shadow-[0_0_8px_rgba(45,212,160,0.8)]';
@@ -492,22 +487,29 @@ export default function OwnerProofCalendar({
               cellClasses =
                 'bg-white/[0.01] text-white/30 border border-white/[0.04]';
               dotColor = 'bg-white/20';
-              titleText = `Day ${day.date}: Sunday rest day (Mon-Sat care plan)`;
+              titleText = `Day ${day.date}: Sunday rest day (Mon–Sat wash schedule)`;
             } else if (day.isFuture) {
               cellClasses =
                 'bg-[#161C25]/40 text-white/80 border border-white/[0.06] hover:border-[#2DD4A0]/30';
               dotColor = 'bg-[#2DD4A0]/30';
-              titleText = `Day ${day.date}: Covered care (07:30 AM window)`;
+              titleText = `Day ${day.date}: Scheduled care (07:30 AM window)`;
             }
 
             // Highlighting TODAY
             if (day.isToday) {
-              cellClasses =
-                'bg-[#2DD4A0] text-[#0A0D12] font-black shadow-[0_0_15px_rgba(45,212,160,0.4)] border-[#2DD4A0] scale-[1.02]';
-              dotColor = 'bg-[#0A0D12]';
-              titleText = `Day ${day.date}: Today • ${
-                day.hasProofUploaded ? 'Wash completed ✓' : 'Scheduled morning route'
-              }`;
+              if (day.isMissingProof) {
+                cellClasses =
+                  'bg-amber-500/20 text-amber-200 font-black border-2 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.5)] scale-[1.02]';
+                dotColor = 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]';
+                titleText = `Day ${day.date}: Today • Flagged: Car not cleaned by washer (Orange)`;
+              } else {
+                cellClasses =
+                  'bg-[#2DD4A0] text-[#0A0D12] font-black shadow-[0_0_15px_rgba(45,212,160,0.4)] border-[#2DD4A0] scale-[1.02]';
+                dotColor = 'bg-[#0A0D12]';
+                titleText = `Day ${day.date}: Today • ${
+                  day.hasProofUploaded ? 'Wash completed ✓' : 'Scheduled morning route'
+                }`;
+              }
             }
 
             return (
@@ -540,7 +542,7 @@ export default function OwnerProofCalendar({
                   <>
                     <span
                       className={`text-xs sm:text-sm font-bold ${
-                        day.isToday ? 'text-[#0A0D12] font-black' : ''
+                        day.isToday ? (day.isMissingProof ? 'text-amber-300 font-black' : 'text-[#0A0D12] font-black') : ''
                       }`}
                     >
                       {day.date}
@@ -563,13 +565,13 @@ export default function OwnerProofCalendar({
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-[#2DD4A0] shadow-[0_0_6px_rgba(45,212,160,0.8)]" />
           <span className="text-[11px] font-medium text-white/70">
-            Proof Uploaded ({verifiedCount})
+            Cleaned / Verified ({verifiedCount})
           </span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-400" />
+          <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
           <span className="text-[11px] font-medium text-white/70">
-            Flagged / Away ({missingOrAlertCount})
+            Flagged Orange: Not Cleaned ({missingOrAlertCount})
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -583,20 +585,6 @@ export default function OwnerProofCalendar({
           <span className="text-[11px] font-medium text-white/40">
             Sunday Rest (Mon–Sat)
           </span>
-        </div>
-      </div>
-
-      {/* FOOTER NOTE: ASSIGNMENT & PROTECTION GUARANTEE */}
-      <div className="pt-3 border-t border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-white/60">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-[#2DD4A0]" />
-          <span>
-            Every completed wash is verified with live bay stamp & time verification.
-          </span>
-        </div>
-        <div className="text-[11px] text-white/50 font-mono">
-          Assigned Specialist: <span className="text-white font-bold">{assignedWasherName}</span> •{' '}
-          {parkingLocation}
         </div>
       </div>
 
@@ -617,7 +605,7 @@ export default function OwnerProofCalendar({
                       ? 'bg-[#2DD4A0] text-[#0A0D12]'
                       : selectedDay.isMissingProof || selectedDay.isVehicleUnavailable
                       ? 'bg-amber-400 text-[#0A0D12]'
-                      : selectedDay.isBeforeSubscription
+                      : selectedDay.isSunday
                       ? 'border border-white/10 bg-[#161C25] text-white/40'
                       : 'border border-[#2DD4A0]/40 bg-[#2DD4A0]/10 text-[#2DD4A0]'
                   }`}
@@ -643,17 +631,12 @@ export default function OwnerProofCalendar({
                       <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-amber-400 text-[#0A0D12] font-bold">
                         {selectedDay.isVehicleUnavailable
                           ? 'Vehicle Unavailable'
-                          : 'Proof Missing • Credited'}
+                          : 'Flagged Orange • Not Cleaned'}
                       </span>
                     )}
-                    {selectedDay.isBeforeSubscription && (
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-white/10 text-white/50 border border-white/10">
-                        Prior to Subscription
-                      </span>
-                    )}
-                    {!selectedDay.isBeforeSubscription && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
+                    {!selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
                       <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30 font-bold">
-                        {selectedDay.isSunday ? 'Sunday Rest' : 'Covered Care'}
+                        {selectedDay.isSunday ? 'Sunday Rest' : 'Scheduled Care'}
                       </span>
                     )}
                   </div>
@@ -796,21 +779,8 @@ export default function OwnerProofCalendar({
                 </div>
               )}
 
-              {/* CASE 2: BEFORE SUBSCRIPTION */}
-              {selectedDay.isBeforeSubscription && (
-                <div className="p-6 rounded-xl bg-[#161C25] border border-white/[0.08] space-y-3 text-center">
-                  <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/[0.08] flex items-center justify-center mx-auto text-white/50">
-                    <Info className="w-6 h-6" />
-                  </div>
-                  <h4 className="text-base font-bold text-white">Prior to Membership</h4>
-                  <p className="text-xs text-white/60 max-w-md mx-auto leading-relaxed">
-                    Your Torque Care membership commenced on <span className="text-white font-bold">{formattedSubStart}</span>. Wash logs and morning route records are tracked starting from this date.
-                  </p>
-                </div>
-              )}
-
-              {/* CASE 3: SCHEDULED / TODAY / FUTURE CARE */}
-              {!selectedDay.isBeforeSubscription && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
+              {/* CASE 2: SCHEDULED / TODAY / SUNDAY / FUTURE CARE */}
+              {!selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
                 <div className="space-y-6">
                   <div className="p-5 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 text-white space-y-2">
                     <div className="flex items-center gap-2 font-bold text-sm text-[#2DD4A0]">
@@ -819,7 +789,7 @@ export default function OwnerProofCalendar({
                         {selectedDay.isToday
                           ? "Today's Scheduled Care Window"
                           : selectedDay.isSunday
-                          ? 'Sunday Rest Day (6-Day Mon–Sat Plan)'
+                          ? 'Sunday Rest Day (Mon–Sat Care Schedule)'
                           : 'Upcoming Scheduled Care'}
                       </span>
                     </div>
@@ -827,8 +797,8 @@ export default function OwnerProofCalendar({
                       {selectedDay.isToday
                         ? `Specialist ${assignedWasherName} is assigned to wash your vehicle at ${parkingLocation} during the 06:30 AM – 09:30 AM route window. Photo proof will appear here once completed.`
                         : selectedDay.isSunday
-                        ? 'Sunday is a rest day under the HOME BASIC 6-day (Mon–Sat) plan. Your service resumes on Monday morning.'
-                        : `This date is covered under your active membership. Service partner ${assignedWasherName} will attend to ${currentVehicle?.registration_number || 'your vehicle'} during the morning route.`}
+                        ? 'Sunday is a rest day for washers. Morning wash tracking resumes on Monday.'
+                        : `This date is scheduled for morning care. Service partner ${assignedWasherName} will attend to ${currentVehicle?.registration_number || 'your vehicle'} during the morning route.`}
                     </p>
                   </div>
 
@@ -861,13 +831,13 @@ export default function OwnerProofCalendar({
                       <span>
                         {selectedDay.isVehicleUnavailable
                           ? 'Vehicle Unavailable Protocol'
-                          : 'Wash Flagged • Missed-Wash Protection'}
+                          : 'Flagged: Car Not Cleaned by Washer (Orange)'}
                       </span>
                     </div>
                     <p className="text-xs text-white/80 leading-relaxed">
                       {selectedDay.isVehicleUnavailable
                         ? `The service partner arrived at ${parkingLocation}, but the vehicle was not parked in its assigned bay.`
-                        : 'The service was not completed during the designated window. Under Torque Care protection, a credit will be adjusted towards your renewal.'}
+                        : 'Owner flagged that the vehicle was not cleaned today. Under Torque Care protection, priority re-wash protocol is activated.'}
                     </p>
                   </div>
                 </div>

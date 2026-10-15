@@ -269,7 +269,7 @@ export default function AdminCustomersPage() {
       'In-Charge Admin ID',
       'Vehicles',
       'Number Plates (Last 4 Digits)',
-      'Subscription Plan',
+      'Care Protocol',
       'Account Status',
     ];
 
@@ -354,7 +354,7 @@ export default function AdminCustomersPage() {
             washerName: 'Amit Kumar',
             washerAvatar: '/images/washer_amit.jpg',
             gpsVerified: false,
-            notes: 'Washer absent on morning route. Auto-credited +₹35 penalty compensation to owner wallet.',
+            notes: 'Washer absent on morning route. Flagged unwashed in daily verification log.',
           });
         } else {
           days.push({
@@ -615,7 +615,7 @@ export default function AdminCustomersPage() {
               </h3>
               <p className="text-xs text-slate-500 max-w-sm mx-auto">
                 {customers.length === 0
-                  ? 'Customer registrations and vehicle subscription records will automatically appear here once owners onboard.'
+                  ? 'Customer registrations and vehicle tracking records will automatically appear here once owners onboard.'
                   : 'Try adjusting your search query, territory scope, or reset the column filter options.'}
               </p>
               {customers.length > 0 && (
@@ -825,7 +825,7 @@ export default function AdminCustomersPage() {
                           {openFilterDropdown === 'plan' && (
                             <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl p-2 z-30 space-y-1 normal-case font-normal text-slate-700">
                               <div className="px-2.5 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-100">
-                                Subscription Plan
+                                Care Protocol
                               </div>
                               <button
                                 type="button"
@@ -1333,7 +1333,7 @@ export default function AdminCustomersPage() {
             {/* Modal Footer */}
             <div className="p-4 sm:p-5 bg-[#0B132B] border-t border-white/10 flex items-center justify-between">
               <span className="text-xs text-slate-400 font-mono">
-                Subscription Plan: {selectedContext.customer.plan} • Daily Morning Care
+                Care Protocol: Daily Morning Care • Mon–Sat Route
               </span>
               <button
                 type="button"

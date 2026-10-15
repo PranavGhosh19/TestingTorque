@@ -21,7 +21,7 @@ export default function ContactPage() {
             We&apos;re Here to Help.
           </h1>
           <p className="text-sm text-white/60 max-w-md mx-auto">
-            Need help with your subscription, have a touchup inquiry, or want to bring Torque Care to your apartment society?
+            Need help with your daily wash tracking, have a vehicle inquiry, or want to bring Torque Care to your apartment society?
           </p>
         </div>
 
@@ -148,7 +148,7 @@ export default function ContactPage() {
                   <textarea
                     rows={4}
                     required
-                    placeholder="Tell us about your vehicle query, society requirement, or subscription feedback..."
+                    placeholder="Tell us about your vehicle query, society requirement, or daily care feedback..."
                     className="w-full p-3 bg-[#161C25] border border-white/[0.08] focus:border-[#2DD4A0] rounded-xl text-xs font-medium text-white placeholder:text-white/30 focus:outline-hidden transition-colors"
                   />
                 </div>

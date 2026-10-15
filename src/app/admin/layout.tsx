@@ -16,17 +16,13 @@ export default function AdminLayout({
   const { isHydrated, isLoggedIn, user, role } = useStore();
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
-  // 1. /admin/leads is public!
-  const isPublicLeads =
-    pathname === '/admin/leads' || pathname.startsWith('/admin/leads/');
-
-  // 2. /admin/login is the URL-accessible login page
+  // /admin/login is the URL-accessible login page
   const isLoginPage =
     pathname === '/admin/login' || pathname.startsWith('/admin/login/');
 
   useEffect(() => {
-    // If it's the public leads page or login page, allow immediately without restrictions
-    if (isPublicLeads || isLoginPage) {
+    // If it's the login page, allow immediately without restrictions
+    if (isLoginPage) {
       setIsAuthorized(true);
       return;
     }
@@ -41,10 +37,10 @@ export default function AdminLayout({
       setIsAuthorized(false);
       router.replace('/');
     }
-  }, [pathname, isHydrated, isLoggedIn, user, role, isPublicLeads, isLoginPage, router]);
+  }, [pathname, isHydrated, isLoggedIn, user, role, isLoginPage, router]);
 
-  // If public leads or login page, render immediately
-  if (isPublicLeads || isLoginPage) {
+  // If login page, render immediately
+  if (isLoginPage) {
     return <>{children}</>;
   }
 

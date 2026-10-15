@@ -3,41 +3,29 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sparkles, Car, IndianRupee, Info } from 'lucide-react';
+import { Sparkles, ShieldCheck } from 'lucide-react';
 
 export default function PublicBottomNav() {
   const pathname = usePathname();
 
-  // Show only on public marketing pages (landing, how-it-works, for-owners, pricing, about)
-  const isPublicMarketingPage =
-    pathname === '/' ||
-    pathname.startsWith('/how-it-works') ||
-    pathname.startsWith('/for-owners') ||
-    pathname.startsWith('/pricing') ||
-    pathname.startsWith('/about');
+  // Do not render bottom navbar on landing page as requested
+  if (pathname === '/') return null;
+
+  // Show only on public marketing pages (how-it-works)
+  const isPublicMarketingPage = pathname.startsWith('/how-it-works');
 
   if (!isPublicMarketingPage) return null;
 
   const links = [
     {
-      href: '/how-it-works',
-      label: 'How it works',
+      href: '/',
+      label: 'Home',
       icon: Sparkles,
     },
     {
-      href: '/for-owners',
-      label: 'Car Owners',
-      icon: Car,
-    },
-    {
-      href: '/pricing',
-      label: 'Pricing',
-      icon: IndianRupee,
-    },
-    {
-      href: '/about',
-      label: 'About',
-      icon: Info,
+      href: '/how-it-works',
+      label: 'How it works',
+      icon: ShieldCheck,
     },
   ];
 
@@ -46,7 +34,7 @@ export default function PublicBottomNav() {
       aria-label="Public bottom navigation"
       className="fixed bottom-0 left-0 right-0 z-40 bg-[#080D1A]/95 backdrop-blur-xl border-t border-white/10 px-2 py-1.5 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:hidden shadow-[0_-8px_25px_rgba(0,0,0,0.6)]"
     >
-      <div className="grid grid-cols-4 max-w-md mx-auto items-center">
+      <div className="grid grid-cols-2 max-w-xs mx-auto items-center">
         {links.map((link) => {
           const Icon = link.icon;
           const isActive = pathname === link.href || (link.href !== '/' && pathname.startsWith(link.href));

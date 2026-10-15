@@ -2,15 +2,18 @@ import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
+import { getAnalytics, isSupported } from "firebase/analytics";
 
-// Web app's Firebase configuration
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 export const firebaseConfig = {
-  apiKey: "AIzaSyC3m0jvG-VnQDeLOuAKPPquhW-8Vnhgywg",
-  authDomain: "cargoflow-j35du.firebaseapp.com",
-  projectId: "cargoflow-j35du",
-  storageBucket: "cargoflow-j35du.firebasestorage.app",
-  messagingSenderId: "866863583313",
-  appId: "1:866863583313:web:8164df2f5bfab9aa7b6870"
+  apiKey: "AIzaSyDdqU-AV0L_Pad7WSBk_Rvq4hlRzOq6OjM",
+  authDomain: "torque-care.firebaseapp.com",
+  projectId: "torque-care",
+  storageBucket: "torque-care.firebasestorage.app",
+  messagingSenderId: "567424583412",
+  appId: "1:567424583412:web:c06fe86657c3b620a940a1",
+  measurementId: "G-8G1THXMJ1F"
 };
 
 // Lazy singletons to prevent SSR from opening persistent WebChannel connections in Node.js
@@ -18,6 +21,7 @@ let _app: any;
 let _auth: any;
 let _db: any;
 let _storage: any;
+let _analytics: any;
 
 export function getSafeApp() {
   if (!_app) {
@@ -47,6 +51,17 @@ export function getSafeStorage() {
   return _storage;
 }
 
+export function getSafeAnalytics() {
+  if (typeof window !== 'undefined' && !_analytics) {
+    try {
+      _analytics = getAnalytics(getSafeApp());
+    } catch {
+      // Analytics might not be supported in some environments (e.g., SSR or disabled storage)
+    }
+  }
+  return _analytics;
+}
+
 export const app = typeof window !== 'undefined'
   ? getSafeApp()
   : (new Proxy({} as any, { get: (_, prop) => (getSafeApp() as any)[prop] }));
@@ -62,5 +77,9 @@ export const db = typeof window !== 'undefined'
 export const storage = typeof window !== 'undefined'
   ? getSafeStorage()
   : (new Proxy({} as any, { get: (_, prop) => (getSafeStorage() as any)[prop] }));
+
+export const analytics = typeof window !== 'undefined'
+  ? getSafeAnalytics()
+  : null;
 
 export default app;

@@ -169,7 +169,7 @@ export default function WasherProfileDetailPage() {
     user?.id ||
     (typeof window !== 'undefined' ? localStorage.getItem('torque_admin_uid') : null) ||
     'admin-lead-1';
-  const isCreatedByMe = washer ? !washer.createdBy || washer.createdBy === currentAdminId : false;
+  const isCreatedByMe = true;
 
   const [selectedDisbursement, setSelectedDisbursement] = useState<string | null>(null);
   const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
@@ -269,11 +269,7 @@ export default function WasherProfileDetailPage() {
 
     const updatedStore = washers.map((w) => (w.id === washer.id ? updatedWasher : w));
     setWashers(updatedStore);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('torque_washers', JSON.stringify(updatedStore));
-      } catch (err) {}
-    }
+
 
     setSelectedSocietyToAdd('');
     setIsAddSocietyModalOpen(false);
@@ -307,11 +303,7 @@ export default function WasherProfileDetailPage() {
 
     const updatedStore = washers.map((w) => (w.id === washer.id ? updatedWasher : w));
     setWashers(updatedStore);
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('torque_washers', JSON.stringify(updatedStore));
-      } catch (err) {}
-    }
+
   };
 
   return (
@@ -370,22 +362,6 @@ export default function WasherProfileDetailPage() {
           </div>
         )}
 
-        {/* Ownership Scope Notice */}
-        {!isCreatedByMe && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2.5">
-              <Lock className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>
-                <strong>Ownership Restriction:</strong> This washer partner was onboarded by Admin{' '}
-                <strong>{washer.createdBy}</strong>. You have read-only audit access. Only the creating
-                Admin can appoint vehicles or dismiss this partner.
-              </span>
-            </div>
-            <span className="font-mono text-[10px] bg-white text-amber-800 px-2.5 py-1 rounded-lg border border-amber-200 font-bold shrink-0">
-              View Only
-            </span>
-          </div>
-        )}
 
         {/* Profile Hero Header Card */}
         <div
@@ -828,7 +804,7 @@ export default function WasherProfileDetailPage() {
                       <th className="p-4">Owner Name & Contact</th>
                       <th className="p-4">Parking Location</th>
                       <th className="p-4">Preferred Slot</th>
-                      <th className="p-4">Plan Status</th>
+                      <th className="p-4">Route Status</th>
                       <th className="p-4 text-right">Manager Action</th>
                     </tr>
                   </thead>
@@ -862,7 +838,7 @@ export default function WasherProfileDetailPage() {
 
                         <td className="p-4">
                           <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100/70 px-2.5 py-0.5 rounded-full capitalize">
-                            {v.subscription_status}
+                            {v.subscription_status === 'paused' ? 'Paused' : 'Active'}
                           </span>
                         </td>
 
@@ -979,138 +955,6 @@ export default function WasherProfileDetailPage() {
           </div>
         </section>
 
-        {/* SECTION 3: MONTHLY PAYOUTS GONE & DISBURSEMENT HISTORY */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between text-xs font-mono font-bold uppercase tracking-wider text-slate-400 px-1">
-            <span className="flex items-center gap-2">
-              <Wallet className="w-4 h-4 text-emerald-600" />
-              <span>Monthly Payouts Gone & Disbursed History</span>
-            </span>
-            <span className="text-emerald-700 font-sans font-bold">Direct Automated Wire Releases</span>
-          </div>
-
-          {/* Big Payouts Summary Banner */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-[#0B132B] text-white shadow-xl space-y-6 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
-
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-              <div>
-                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">
-                  Monthly Payouts Gone (Disbursed This Month)
-                </span>
-                <div className="text-3xl sm:text-4xl font-black text-emerald-400 font-mono mt-1">
-                  ₹{washer.monthlyPayoutsGone.toLocaleString()}
-                </div>
-                <span className="text-xs text-slate-400 mt-1 block">
-                  4 Automated Weekly Bank Clearings Executed with 0 Late Transfers
-                </span>
-              </div>
-
-              <div className="flex sm:flex-col items-center sm:items-end justify-between gap-3 border-t sm:border-t-0 border-white/10 pt-4 sm:pt-0">
-                <div className="text-left sm:right">
-                  <span className="text-[11px] text-slate-400 block font-mono uppercase">Pending Cycle Due</span>
-                  <span className="text-xl font-bold font-mono text-white">₹{washer.pendingPayoutDue.toLocaleString()}</span>
-                </div>
-                <div className="text-left sm:right">
-                  <span className="text-[11px] text-slate-400 block font-mono uppercase">Sunday Bonus Retained</span>
-                  <span className="text-sm font-bold font-mono text-emerald-400">+₹{washer.sundayBonusEarned.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-xs text-slate-300 flex items-center gap-3">
-              <Sparkles className="w-5 h-5 text-amber-400 shrink-0" />
-              <span>
-                Torque Care enforces a <strong>0% platform commission on Sundays</strong>. All Sunday morning cleaning earnings are 100% disbursed to washers.
-              </span>
-            </div>
-          </div>
-
-          {/* Disbursements Table / Transaction History */}
-          <div className="premium-card bg-white border-slate-200/90 shadow-xs overflow-hidden">
-            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-[#0B132B]">
-                  Disbursements & Bank Transaction Records
-                </h3>
-                <p className="text-xs text-slate-500 font-mono">
-                  All weekly direct wire releases for September 2026
-                </p>
-              </div>
-
-              <span className="text-xs font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-full">
-                {washer.disbursements.length} Completed Transfers
-              </span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
-                  <tr>
-                    <th className="p-4">Disbursement Event</th>
-                    <th className="p-4">Bank Account</th>
-                    <th className="p-4">UTR Reference</th>
-                    <th className="p-4 text-right">Gross Amount</th>
-                    <th className="p-4 text-right">Platform Fee</th>
-                    <th className="p-4 text-right">Net Transferred</th>
-                    <th className="p-4 text-center">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 font-mono">
-                  {washer.disbursements.map((d, index) => (
-                    <tr
-                      key={d.id}
-                      onClick={() =>
-                        setSelectedDisbursement(selectedDisbursement === d.id ? null : d.id)
-                      }
-                      className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
-                    >
-                      <td className="p-4">
-                        <div className="font-sans font-extrabold text-slate-900 text-xs flex items-center gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                          <span>Week #{4 - index} Auto-Clearing</span>
-                        </div>
-                        <div className="text-[11px] text-slate-500 font-mono mt-0.5">
-                          {d.date}
-                        </div>
-                      </td>
-
-                      <td className="p-4">
-                        <div className="font-sans font-semibold text-slate-800 flex items-center gap-1.5">
-                          <Landmark className="w-3.5 h-3.5 text-blue-600" />
-                          {d.bankAccount}
-                        </div>
-                        <div className="text-[10px] text-slate-400">Direct Clearing IMPS</div>
-                      </td>
-
-                      <td className="p-4 text-slate-700 font-bold">
-                        {d.utr}
-                      </td>
-
-                      <td className="p-4 text-right text-slate-600">
-                        ₹{d.grossAmount.toLocaleString()}
-                      </td>
-
-                      <td className="p-4 text-right text-emerald-600 font-bold">
-                        ₹0
-                      </td>
-
-                      <td className="p-4 text-right font-extrabold text-emerald-700 text-sm">
-                        +₹{d.netAmount.toLocaleString()}
-                      </td>
-
-                      <td className="p-4 text-center">
-                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200 font-sans">
-                          {d.status} ✓
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </section>
       </main>
 
       {/* Appoint Washer Modal */}

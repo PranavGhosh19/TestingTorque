@@ -4,413 +4,116 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // ===============================================================
-    // TORQUE CARE — FIRESTORE SECURITY RULES
+    // TORQUE CARE — DAILY WASH TRACKING FIRESTORE SECURITY RULES
     //
-    // ROLE HIERARCHY
-    //
-    // super_admin
-    //     ↓
-    // admin / Area Manager
-    //     ↓
-    // washer
-    //     ↓
-    // customer
-    //
-    // Firebase Auth UID is the canonical identity.
-    // Custom Auth claims are the canonical source of authorization.
-    //
-    // NEVER use:
-    // - email domain as a role
-    // - phone number as UID
-    // - public wildcard access
+    // Pure Mon–Sat daily car wash tracking & verification (Sundays rest).
+    // Washers and Car Owners self-onboard; Admin oversees operations.
     // ===============================================================
 
-
-    // ===============================================================
-    // 1. AUTHENTICATION
-    // ===============================================================
+    // ---------------------------------------------------------------
+    // AUTHENTICATION & ROLE HELPERS
+    // ---------------------------------------------------------------
 
     function isAuthenticated() {
       return request.auth != null;
     }
 
-
-    // ===============================================================
-    // 2. ROLE HELPERS
-    // ===============================================================
-
-    function isSuperAdmin() {
-      return isAuthenticated()
-        && 'role' in request.auth.token
-        && request.auth.token.role == 'super_admin';
-    }
-
-
-    function isAreaManager() {
-      return isAuthenticated()
-        && 'role' in request.auth.token
-        && request.auth.token.role == 'admin';
-    }
-
-
     function isAdmin() {
       return isAuthenticated()
-        && 'role' in request.auth.token
         && (
-          request.auth.token.role == 'admin'
-          || request.auth.token.role == 'super_admin'
+          ('role' in request.auth.token && request.auth.token.role == 'admin')
+          || exists(/databases/$(database)/documents/area_managers/$(request.auth.uid))
         );
     }
 
-
-    // ===============================================================
-    // 3. OWNER
-    // ===============================================================
-
     function isOwner(userId) {
-      return isAuthenticated()
-        && request.auth.uid == userId;
+      return isAuthenticated() && request.auth.uid == userId;
     }
 
 
     // ===============================================================
-    // 4. WASHER OWNERSHIP
-    // ===============================================================
-
-    function ownsWasher(washerId) {
-      return isAreaManager()
-        && exists(
-          /databases/$(database)/documents/Washers/$(washerId)
-        )
-        && get(
-          /databases/$(database)/documents/Washers/$(washerId)
-        ).data.createdBy == request.auth.uid;
-    }
-
-
-    // ===============================================================
-    // 5. AREA MANAGERS
-    //
-    // area_managers/{managerId}
-    //
-    // READ:
-    //   Own profile
-    //   Super Admin
-    //
-    // CREATE:
-    //   Super Admin only
-    //
-    // UPDATE:
-    //   Own profile
-    //   Super Admin
-    //
-    // DELETE:
-    //   Super Admin only
-    // ===============================================================
-
-    match /area_managers/{managerId} {
-
-      allow read: if isOwner(managerId)
-        || isSuperAdmin();
-
-      allow create: if isSuperAdmin();
-
-      allow update: if isOwner(managerId)
-        || isSuperAdmin();
-
-      allow delete: if isSuperAdmin();
-    }
-
-
-    // ===============================================================
-    // 6. WASHERS — PRIVATE OPERATIONAL DATA
-    //
-    // Washers/{washerId}
-    //
-    // CUSTOMER:
-    //   NO ACCESS
-    //
-    // AREA MANAGER:
-    //   Own washers only
-    //
-    // SUPER ADMIN:
-    //   All washers
-    //
-    // WASHER:
-    //   Own profile only
-    //
-    // IMPORTANT:
-    // createdBy cannot be changed.
-    // ===============================================================
-
-    match /Washers/{washerId} {
-
-      // -------------------------------------------------------------
-      // CREATE
-      // -------------------------------------------------------------
-
-      allow create: if (
-        isAreaManager()
-        && request.resource.data.createdBy == request.auth.uid
-      )
-      || isSuperAdmin();
-
-
-      // -------------------------------------------------------------
-      // READ
-      // -------------------------------------------------------------
-
-      allow read: if (
-        isAreaManager()
-        && resource.data.createdBy == request.auth.uid
-      )
-      || isSuperAdmin()
-      || (
-        isAuthenticated()
-        && request.auth.uid == washerId
-      )
-      || true;
-
-
-      // -------------------------------------------------------------
-      // UPDATE
-      // -------------------------------------------------------------
-
-      allow update: if (
-        isAreaManager()
-        && resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdBy == resource.data.createdBy
-      )
-      || (
-        isSuperAdmin()
-        && request.resource.data.createdBy == resource.data.createdBy
-      )
-      || (
-        isAuthenticated()
-        && request.auth.uid == washerId
-        && request.resource.data.createdBy == resource.data.createdBy
-      );
-
-
-      // -------------------------------------------------------------
-      // DELETE
-      // -------------------------------------------------------------
-
-      allow delete: if (
-        isAreaManager()
-        && resource.data.createdBy == request.auth.uid
-      )
-      || isSuperAdmin();
-    }
-
-
-    // ===============================================================
-    // 7. WASHER DIRECTORY — CUSTOMER DISCOVERY
-    //
-    // washer_directory/{washerId}
-    //
-    // THIS IS THE COLLECTION USED BY /auth/signup.
-    //
-    // ONLY STORE NON-SENSITIVE INFORMATION HERE.
-    //
-    // Example:
-    //
-    // {
-    //   washerId: "firebaseUID",
-    //   name: "Rakesh Kumar",
-    //   photoURL: "...",
-    //   societies: ["society_001", "society_002"],
-    //   status: "active",
-    //   availableForSignup: true,
-    //   createdBy: "adminUID"
-    // }
-    //
-    // DO NOT STORE:
-    // - Aadhaar
-    // - PAN
-    // - bank account
-    // - IFSC
-    // - KYC documents
-    // - salary
-    // - private address
-    // - sensitive contact information
-    // ===============================================================
-
-    match /washer_directory/{washerId} {
-
-      // -------------------------------------------------------------
-      // READ
-      //
-      // Authenticated users can discover available washers.
-      //
-      // Since this collection contains ONLY sanitized public/service
-      // discovery data, this is safe for signup.
-      // -------------------------------------------------------------
-
-      allow read: if true;
-
-
-      // -------------------------------------------------------------
-      // CREATE
-      //
-      // Only Area Managers or Super Admin.
-      //
-      // createdBy must match the Area Manager creating it.
-      // -------------------------------------------------------------
-
-      allow create: if (
-        isAreaManager()
-        && request.resource.data.createdBy == request.auth.uid
-      )
-      || isSuperAdmin();
-
-
-      // -------------------------------------------------------------
-      // UPDATE
-      // -------------------------------------------------------------
-
-      allow update: if (
-        isAreaManager()
-        && resource.data.createdBy == request.auth.uid
-        && request.resource.data.createdBy == resource.data.createdBy
-      )
-      || (
-        isSuperAdmin()
-        && request.resource.data.createdBy == resource.data.createdBy
-      );
-
-
-      // -------------------------------------------------------------
-      // DELETE
-      // -------------------------------------------------------------
-
-      allow delete: if (
-        isAreaManager()
-        && resource.data.createdBy == request.auth.uid
-      )
-      || isSuperAdmin();
-    }
-
-
-    // ===============================================================
-    // 8. CAR OWNERS
-    //
-    // Car_Owners/{ownerId}
-    //
-    // CUSTOMER:
-    //   Own profile
-    //
-    // AREA MANAGER:
-    //   Operational access
-    //
-    // SUPER ADMIN:
-    //   Global access
-    //
-    // NOTE:
-    // Customer-to-Admin relationship can later be tightened using
-    // assignedWasherId / areaManagerId.
+    // 1. CAR OWNERS & VEHICLES & DAILY WASH TRACKING
     // ===============================================================
 
     match /Car_Owners/{ownerId} {
-
-      allow read: if isOwner(ownerId)
-        || isAdmin();
-
-      allow create: if isOwner(ownerId)
-        || isAdmin();
-
-      allow update: if isOwner(ownerId)
-        || isAdmin();
-
+      allow read: if true;
+      allow create, update: if true;
       allow delete: if isAdmin();
 
+      // Daily calendar status & owner verification feedback (Yes/No)
+      match /DailyFeedback/{dateId} {
+        allow read, write: if true;
+      }
 
-      // =============================================================
-      // 8A. VEHICLES
-      // =============================================================
-
+      // Vehicles registered by the car owner
       match /Vehicles/{vehicleId} {
-
-        allow read: if isOwner(ownerId)
-          || isAdmin();
-
-        allow create: if isOwner(ownerId)
-          || isAdmin();
-
-        allow update: if isOwner(ownerId)
-          || isAdmin();
-
+        allow read: if true;
+        allow create, update: if true;
         allow delete: if isAdmin();
 
-
-        // ===========================================================
-        // 8B. LEGACY MONTH / DATE STRUCTURE
-        // ===========================================================
-
-        match /{monthCol}/{dateDoc} {
-
-          allow read: if isOwner(ownerId)
-            || isAdmin();
-
-          allow create: if isOwner(ownerId)
-            || isAdmin();
-
-          allow update: if isOwner(ownerId)
-            || isAdmin();
-
-          allow delete: if isAdmin();
+        // Daily wash records & before/after photo evidence
+        match /Washes/{washId} {
+          allow read, write: if true;
         }
 
-
-        // ===========================================================
-        // 8C. MONTHS / DATES
-        // ===========================================================
-
+        // Daily calendar status & owner verification feedback (Yes/No)
         match /Months/{monthDoc} {
-
-          allow read: if isOwner(ownerId)
-            || isAdmin();
-
-          allow create: if isOwner(ownerId)
-            || isAdmin();
-
-          allow update: if isOwner(ownerId)
-            || isAdmin();
-
-          allow delete: if isAdmin();
-
+          allow read, write: if true;
 
           match /Dates/{dateDoc} {
-
-            allow read: if isOwner(ownerId)
-              || isAdmin();
-
-            allow create: if isOwner(ownerId)
-              || isAdmin();
-
-            allow update: if isOwner(ownerId)
-              || isAdmin();
-
-            allow delete: if isAdmin();
+            allow read, write: if true;
           }
         }
 
+        // Month-by-month historical subcollections
+        match /{monthCol}/{dateDoc} {
+          allow read, write: if true;
+        }
+      }
+    }
 
-        // ===========================================================
-        // 8D. WASH RECORDS
-        // ===========================================================
 
-        match /Washes/{washId} {
+    // ===============================================================
+    // 2. WASHERS (Self-Onboarded Partner Network)
+    // ===============================================================
 
-          allow read: if isOwner(ownerId)
-            || isAdmin();
+    match /Washers/{washerId} {
+      // Allow read so prospective washers can query their registration
+      allow read: if true;
+      // Washers onboard themselves, set passwords, and update route state
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
 
-          allow create: if isOwner(ownerId)
-            || isAdmin();
 
-          allow update: if isOwner(ownerId)
-            || isAdmin();
+    // ===============================================================
+    // 3. WASHER DIRECTORY (Common District & Society Discovery)
+    // ===============================================================
 
+    match /washer_directory/{washerId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+
+    // ===============================================================
+    // 4. SOCIETIES (Housing Clusters & Coverage Areas)
+    // ===============================================================
+
+    match /Societies/{societyId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+
+      match /Car_Owners/{ownerId} {
+        allow read: if true;
+        allow create, update: if true;
+        allow delete: if isAdmin();
+
+        match /Vehicles/{vehicleId} {
+          allow read: if true;
+          allow create, update: if true;
           allow delete: if isAdmin();
         }
       }
@@ -418,28 +121,30 @@ service cloud.firestore {
 
 
     // ===============================================================
-    // 8F. LEAD REGISTRATIONS (INTERESTED CUSTOMERS)
+    // 5. ADMIN & OPERATIONAL NOTIFICATIONS
     // ===============================================================
 
-    match /Lead_Registrations/{leadId} {
+    match /Admin_Notifications/{notifId} {
       allow read, write: if true;
     }
 
+
     // ===============================================================
-    // 9. LEGACY USERS COLLECTION
+    // 6. AREA MANAGERS / ADMIN PROFILES
     // ===============================================================
 
-    match /users/{userId} {
-
-      allow read, write: if false;
+    match /area_managers/{managerId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
     }
 
 
     // ===============================================================
-    // 10. DEFAULT DENY
-    //
-    // Everything not explicitly allowed above is DENIED.
+    // 7. LEGACY USERS
     // ===============================================================
 
+    match /users/{userId} {
+      allow read, write: if false;
+    }
   }
 }

@@ -24,8 +24,7 @@ export default function AdminSidebar() {
   const pathname = usePathname();
   const { user, role, washers } = useStore();
 
-  const currentAdminId = user?.uid || user?.id || '';
-  const myWashersCount = washers.filter((w) => w.id !== 'wsh_amit' && (!w.createdBy || w.createdBy === currentAdminId)).length;
+  const myWashersCount = washers.filter((w) => w.id !== 'wsh_amit').length;
 
   if (role === 'washer') {
     return (
@@ -67,14 +66,12 @@ export default function AdminSidebar() {
       items: [
         { href: '/admin/dashboard', label: 'Overview Dashboard', icon: Activity },
         { href: '/admin/operations', label: 'Live Operations', icon: Layers },
-        { href: '/admin/substitutions', label: 'Substitutions & Leaves', icon: RefreshCw },
         { href: '/admin/complaints', label: 'Exceptions & Issues', icon: AlertTriangle },
       ],
     },
     {
       title: 'Customers',
       items: [
-        { href: '/admin/leads', label: 'Interested Leads', icon: Sparkles, badge: 'Leads' },
         { href: '/admin/customers', label: 'Owners & Vehicles', icon: Users },
       ],
     },
@@ -85,9 +82,8 @@ export default function AdminSidebar() {
           href: '/admin/washers',
           label: 'Washer Network',
           icon: Sparkles,
-          badge: `${myWashersCount} Mine`,
+          badge: `${myWashersCount} Active`,
         },
-        { href: '/admin/payouts', label: 'Disbursements', icon: Wallet },
       ],
     },
     {

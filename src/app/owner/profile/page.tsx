@@ -1,23 +1,126 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User, Phone, MapPin, Building2, Shield, LogOut, ChevronRight, Car, Bell, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
+import {
+  MapPin,
+  Building2,
+  LogOut,
+  ChevronRight,
+  Car,
+  Bell,
+  RefreshCw,
+  Settings,
+  Edit2,
+  ShieldCheck,
+} from 'lucide-react';
 import { useStore } from '@/lib/store';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
+import EditLocationSocietyModal from '@/components/modals/EditLocationSocietyModal';
+import {
+  fetchAllWashersFromFirestore,
+  isWasherMatchForOwner,
+  fetchCarOwnerProfileData,
+} from '@/lib/firebaseService';
+import { WasherPartner } from '@/lib/types';
 
 export default function OwnerProfilePage() {
   const router = useRouter();
-  const { user, vehicles, setRole, resetOwnerData, isLoggedIn, isHydrated, logout } = useStore();
-  const [showConfirmReset, setShowConfirmReset] = useState(false);
-  const [isResetting, setIsResetting] = useState(false);
+  const { user, setUser, vehicles, setVehicles, isLoggedIn, isHydrated, logout } = useStore();
+  const [showEditLocationModal, setShowEditLocationModal] = useState(false);
+  const [liveWashers, setLiveWashers] = useState<WasherPartner[]>([]);
+  const [isLoadingWashers, setIsLoadingWashers] = useState(false);
+
+  // Live Firestore Car Owner Profile Data
+  const [firestoreOwner, setFirestoreOwner] = useState<any>(null);
+  const [firestoreVehicles, setFirestoreVehicles] = useState<any[]>([]);
+  const [isLoadingOwnerData, setIsLoadingOwnerData] = useState(false);
 
   useEffect(() => {
     if (isHydrated && !isLoggedIn) {
       router.replace('/');
     }
   }, [isHydrated, isLoggedIn, router]);
+
+  // Load Car Owner profile and vehicles from Firestore
+  useEffect(() => {
+    let isMounted = true;
+    async function loadOwnerFromFirestore() {
+      setIsLoadingOwnerData(true);
+      try {
+        const storedId =
+          typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') : null;
+        const ownerId =
+          user?.role === 'owner' && user?.id && user.id !== 'usr_guest'
+            ? user.id
+            : storedId || undefined;
+        const res = await fetchCarOwnerProfileData(ownerId, user?.phone);
+        if (isMounted && res) {
+          setFirestoreOwner(res.owner);
+          setFirestoreVehicles(res.vehicles);
+          if (res.vehicles && res.vehicles.length > 0) {
+            setVehicles(res.vehicles);
+          }
+        }
+      } catch (err) {
+        console.warn('Notice loading owner profile from firestore:', err);
+      } finally {
+        if (isMounted) setIsLoadingOwnerData(false);
+      }
+    }
+    loadOwnerFromFirestore();
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id, user?.phone, setVehicles]);
+
+  // Load all washers to find common / equal match for this owner's State, City, District, Society
+  useEffect(() => {
+    let isMounted = true;
+    async function loadWashers() {
+      setIsLoadingWashers(true);
+      try {
+        const list = await fetchAllWashersFromFirestore();
+        if (isMounted) {
+          setLiveWashers(list);
+        }
+      } catch (e) {
+        console.warn('Notice loading washers for profile:', e);
+      } finally {
+        if (isMounted) setIsLoadingWashers(false);
+      }
+    }
+    loadWashers();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // Compute matching washer based on live Firestore location
+  const ownerState = firestoreOwner?.state || user.state;
+  const ownerCity = firestoreOwner?.city || user.city;
+  const ownerDistrict = firestoreOwner?.district || user.district;
+  const ownerSociety =
+    firestoreOwner?.societyName || firestoreOwner?.society || user.societyName || user.society;
+
+  const matchedWasher = useMemo(() => {
+    const ownerLocation = {
+      state: ownerState,
+      city: ownerCity,
+      district: ownerDistrict,
+      society: ownerSociety,
+      societyName: ownerSociety,
+    };
+    if (!ownerLocation.society) return null;
+    return liveWashers.find((w) => isWasherMatchForOwner(w, ownerLocation)) || null;
+  }, [ownerState, ownerCity, ownerDistrict, ownerSociety, liveWashers]);
+
+  const effectiveWasherName =
+    matchedWasher?.name ||
+    user.assigned_washer_name ||
+    user.selectedWasherName ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null);
 
   if (!isHydrated || !isLoggedIn) {
     return (
@@ -59,49 +162,135 @@ export default function OwnerProfilePage() {
           </div>
         </div>
 
-        {/* Society & Parking Info */}
-        <div className="p-6 bg-[#11161D] rounded-[20px] border border-white/[0.08] space-y-3">
-          <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white/50">
-            Primary Society Residence
-          </h3>
-          <div className="p-4 bg-[#161C25] rounded-xl border border-white/[0.06] space-y-2 text-xs">
+        {/* Society & Location Residence Card */}
+        <div className="p-6 bg-[#11161D] rounded-[20px] border border-white/[0.08] space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white/50">
+              Primary Society Residence & Location
+            </h3>
+            <button
+              onClick={() => setShowEditLocationModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#161C25] hover:bg-white/10 text-[#2DD4A0] text-xs font-bold transition-all border border-white/[0.08] active:scale-95 cursor-pointer"
+            >
+              <Edit2 className="w-3.5 h-3.5" />
+              <span>Change Society</span>
+            </button>
+          </div>
+
+          <div className="p-4 bg-[#161C25] rounded-xl border border-white/[0.06] space-y-2.5 text-xs">
             <div className="flex justify-between items-center">
               <span className="text-white/60 flex items-center gap-1.5">
                 <Building2 className="w-4 h-4 text-[#2DD4A0]" /> Society:
               </span>
-              <span className="font-bold text-white">Green Valley Residency</span>
+              <span className="font-bold text-white text-sm">
+                {firestoreOwner?.societyName || firestoreOwner?.society || user.societyName || user.society || '—'}
+              </span>
             </div>
+
             <div className="flex justify-between items-center">
               <span className="text-white/60 flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-[#2DD4A0]" /> Tower & Flat:
+                <MapPin className="w-4 h-4 text-[#2DD4A0]" /> District & City:
               </span>
-              <span className="font-mono text-white/90">Tower B • Flat 402</span>
+              <span className="text-white/90 font-medium">
+                {[
+                  firestoreOwner?.district || user.district,
+                  firestoreOwner?.city || user.city,
+                ].filter(Boolean).join(', ') || '—'}
+              </span>
             </div>
+
+            {(firestoreOwner?.state || user.state) && (
+              <div className="flex justify-between items-center">
+                <span className="text-white/60">State:</span>
+                <span className="text-white/90 font-medium">{firestoreOwner?.state || user.state}</span>
+              </div>
+            )}
+
             <div className="flex justify-between items-center">
-              <span className="text-white/60">Registered Vehicles:</span>
-              <span className="font-mono font-bold text-[#2DD4A0]">{vehicles.length} Active in Garage</span>
+              <span className="text-white/60">Tower & Flat:</span>
+              <span className="font-mono text-white/90">
+                {firestoreOwner?.flat ||
+                  firestoreOwner?.flatNumber ||
+                  firestoreOwner?.address ||
+                  user.flat ||
+                  user.flatNumber ||
+                  user.address ||
+                  '—'}
+              </span>
             </div>
+
+            <div className="flex justify-between items-center pt-1 border-t border-white/[0.06]">
+              <span className="text-white/60">Registered Vehicles:</span>
+              <span className="font-mono font-bold text-[#2DD4A0]">
+                {firestoreVehicles.length > 0 ? firestoreVehicles.length : vehicles.length} Active in Garage
+              </span>
+            </div>
+          </div>
+
+          {/* DEDICATED WASHER SPECIALIST SECTION (Shows Washer Name when Common) */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-[#2DD4A0]/10 via-[#161C25] to-[#161C25] border border-[#2DD4A0]/30 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0] flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                Dedicated Society Washer Specialist
+              </span>
+              {matchedWasher && (
+                <span className="text-[10px] font-mono text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  ✓ Matched Route
+                </span>
+              )}
+            </div>
+
+            {effectiveWasherName ? (
+              <div className="flex items-center justify-between pt-1">
+                <div>
+                  <h4 className="text-base font-bold text-white flex items-center gap-2">
+                    <span>{effectiveWasherName}</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[#2DD4A0]/20 text-[#2DD4A0] font-mono font-semibold">
+                      Assigned Partner
+                    </span>
+                  </h4>
+                  <p className="text-[11px] text-white/60 mt-0.5">
+                    Covers morning bay wash for <strong>{user.societyName || user.society || 'your society'}</strong>
+                    {user.district ? ` in ${user.district}` : ''}.
+                  </p>
+                </div>
+                <Link
+                  href="/owner/settings"
+                  className="text-xs font-mono font-bold text-[#2DD4A0] hover:underline shrink-0 pl-2"
+                >
+                  Manage →
+                </Link>
+              </div>
+            ) : (
+              <div className="pt-1 text-xs text-white/60">
+                <p>No washer specialist currently matched for this society cluster.</p>
+                <p className="text-[11px] text-white/40 mt-0.5">
+                  When a washer registers with State: <strong>{user.state || 'Selected'}</strong>, City: <strong>{user.city || 'Selected'}</strong>, District: <strong>{user.district || 'Selected'}</strong>, and Society: <strong>{user.societyName || user.society || 'Selected'}</strong>, their name will appear here automatically.
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Quick Actions */}
         <div className="bg-[#11161D] rounded-[20px] border border-white/[0.08] divide-y divide-white/[0.06] overflow-hidden text-xs font-medium">
           <Link
-            href="/owner/vehicles"
+            href="/owner/settings"
             className="p-4 flex items-center justify-between hover:bg-white/[0.04] transition-colors"
           >
             <span className="flex items-center gap-2.5 text-white/80">
-              <Car className="w-4 h-4 text-[#2DD4A0]" /> Manage Fleet ({vehicles.length} cars)
+              <Settings className="w-4 h-4 text-[#2DD4A0]" /> Dedicated Washer & Society Settings
             </span>
             <ChevronRight className="w-4 h-4 text-white/40" />
           </Link>
 
           <Link
-            href="/owner/payments"
+            href="/owner/vehicles"
             className="p-4 flex items-center justify-between hover:bg-white/[0.04] transition-colors"
           >
             <span className="flex items-center gap-2.5 text-white/80">
-              <Shield className="w-4 h-4 text-[#2DD4A0]" /> Billing & Invoices
+              <Car className="w-4 h-4 text-[#2DD4A0]" /> Manage Fleet ({vehicles.length} cars)
             </span>
             <ChevronRight className="w-4 h-4 text-white/40" />
           </Link>
@@ -117,27 +306,6 @@ export default function OwnerProfilePage() {
           </Link>
         </div>
 
-        {/* Danger Zone: Reset Owner Data */}
-        <div className="p-5 bg-rose-500/[0.06] border border-rose-500/20 rounded-[20px] space-y-3">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h3 className="text-xs font-mono font-bold text-rose-300 uppercase tracking-wider">
-                Reset Owner Data (Testing Sandbox)
-              </h3>
-              <p className="text-[11px] text-white/60 mt-0.5">
-                Wipe all registered cars, subscriptions, and proof history to test fresh onboarding.
-              </p>
-            </div>
-            <button
-              onClick={() => setShowConfirmReset(true)}
-              className="px-4 py-2 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/30 text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 shrink-0 self-start sm:self-auto cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Reset Owner</span>
-            </button>
-          </div>
-        </div>
-
         {/* Sign Out Button */}
         <div className="pt-2 flex flex-col items-center gap-3">
           <button
@@ -150,68 +318,17 @@ export default function OwnerProfilePage() {
             <LogOut className="w-4 h-4" />
             <span>Sign Out from Torque Care</span>
           </button>
-
-          <button
-            onClick={() => setRole('washer')}
-            className="text-xs font-mono text-[#2DD4A0] hover:underline"
-          >
-            Switch to Washer Partner Mode →
-          </button>
         </div>
       </main>
 
-      {/* Confirmation Modal */}
-      {showConfirmReset && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in">
-          <div className="w-full max-w-md bg-[#11161D] border border-white/[0.08] rounded-[20px] p-6 sm:p-7 shadow-2xl space-y-5">
-            <div className="w-12 h-12 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold text-white">Reset All Owner Data?</h3>
-              <p className="text-xs text-white/60 mt-1 leading-relaxed">
-                This will delete your registered vehicles, chosen plan, assigned specialist, and wash logs from both local storage and Firebase Firestore.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowConfirmReset(false)}
-                disabled={isResetting}
-                className="px-4 py-2.5 rounded-full bg-[#161C25] text-white/70 text-xs font-bold transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={async () => {
-                  setIsResetting(true);
-                  try {
-                    await resetOwnerData();
-                    setShowConfirmReset(false);
-                  } finally {
-                    setIsResetting(false);
-                  }
-                }}
-                disabled={isResetting}
-                className="px-5 py-2.5 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-1.5 cursor-pointer"
-              >
-                {isResetting ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Resetting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    <span>Yes, Reset Everything</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <EditLocationSocietyModal
+        isOpen={showEditLocationModal}
+        onClose={() => setShowEditLocationModal(false)}
+        onSaved={(updatedUser) => {
+          setUser(updatedUser);
+          setFirestoreOwner((prev: any) => ({ ...prev, ...updatedUser }));
+        }}
+      />
 
       <OwnerBottomNav />
     </div>

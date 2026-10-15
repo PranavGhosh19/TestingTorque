@@ -14,7 +14,6 @@ import {
   Calendar,
   AlertTriangle,
   Camera,
-  Wallet,
   WifiOff,
   Building2,
   ChevronDown,
@@ -25,8 +24,6 @@ import {
   User,
   RefreshCw,
   Star,
-  Landmark,
-  CreditCard,
   Award,
   Search,
 } from 'lucide-react';
@@ -106,14 +103,7 @@ export default function WasherDashboardPage() {
   // Firebase Washer Partner live state
   const [firebaseWasher, setFirebaseWasher] = useState<WasherPartner | null>(null);
   const [liveRouteStops, setLiveRouteStops] = useState<RouteStop[]>([]);
-  const [liveEarnings, setLiveEarnings] = useState<{
-    available: number;
-    this_week: number;
-    total_earnings: number;
-    pending: number;
-    bank_account: string;
-    ifsc_code: string;
-  } | null>(null);
+
   const [isLoadingWasher, setIsLoadingWasher] = useState(true);
   const [backupCoverage, setBackupCoverage] = useState<{
     isCovered: boolean;
@@ -151,7 +141,6 @@ export default function WasherDashboardPage() {
         }
       }
       setLiveRouteStops(data.routeStops);
-      setLiveEarnings(data.earnings);
       setRouteStops(data.routeStops);
       setWasherEarnings({
         available: data.earnings.available,
@@ -226,15 +215,12 @@ export default function WasherDashboardPage() {
   const washerPhone = firebaseWasher?.phone || user?.phone || storedWasherPhone || '';
   const washerSociety = firebaseWasher?.society || (user as any)?.society || 'Green Valley Residency';
   const washerAssignedTarget = Number(firebaseWasher?.assignedCarsPerDay ?? (user as any)?.assignedCarsPerDay ?? 30);
-  const washerRouteWindow = firebaseWasher?.routeWindow || (user as any)?.routeWindow || '06:00 AM - 10:30 AM';
   const washerAadhaar = firebaseWasher?.aadhaarNumber || '4821 9912 3410';
   const washerKyc = firebaseWasher?.kyc || 'Verified (Aadhaar & Police Clear)';
   const washerRating = firebaseWasher?.rating || '5.0';
   const washerReviewsCount = firebaseWasher?.reviewsCount || 1;
   const washerAvgTimePerCar = firebaseWasher?.avgTimePerCar || '5.5 mins';
   const washerCompletionRate = firebaseWasher?.completionRate || '100%';
-  const washerBankAccount = firebaseWasher?.bankAccount || liveEarnings?.bank_account || '1111';
-  const washerIfsc = firebaseWasher?.ifscCode || liveEarnings?.ifsc_code || 'HDFC0001234';
 
   // Real route stops fetched from Firestore (no dummy generated data)
   const displayRouteStops = liveRouteStops;
@@ -277,17 +263,6 @@ export default function WasherDashboardPage() {
   const unavailableCount = unavailableStops.length;
   const pendingCount = Math.max(0, totalTargetCount - completedCount - unavailableCount);
   const progressPercent = totalTargetCount > 0 ? Math.min(100, Math.round((completedCount / totalTargetCount) * 100)) : 0;
-
-  // Shift earnings calculation based on vehicle tier (excluding vehicles covered and washed by backup washer)
-  const myActionableStops = currentStops.filter((s) => !s.is_covered_for_me);
-  const totalExpectedPayout = myActionableStops.reduce((sum, s) => sum + (s.payout_amount || 12), 0);
-  const earnedSoFar = myActionableStops
-    .filter((s) => s.status === 'completed' || s.status === 'vehicle_unavailable')
-    .reduce((sum, s) => sum + (s.payout_amount || 12), 0);
-
-  // Available for withdrawal and weekly total calculated from real Firestore data
-  const availableForWithdrawal = liveEarnings?.available ?? earnedSoFar;
-  const weeklyTotal = liveEarnings?.this_week ?? (availableForWithdrawal || earnedSoFar);
 
   const handleOpenUploadProof = (stop: RouteStop) => {
     setActiveStop(stop);
@@ -412,36 +387,13 @@ export default function WasherDashboardPage() {
                   You are covering peer vehicles on your morning route today
                 </h3>
                 <p className="text-xs text-white/70 mt-0.5">
-                  Assigned vehicles have been added to your worklist below. All completed washes and proofs will be credited to you with full shift payouts.
+                  Assigned vehicles have been added to your worklist below. Upload verified photo proofs for each completed car.
                 </p>
               </div>
             </div>
           </div>
         )}
 
-        {/* MANDATORY 10:30 AM TARGET COMPLETION DEADLINE BANNER */}
-        <div className="p-4 sm:p-4.5 rounded-[18px] bg-gradient-to-r from-emerald-500/10 via-[#11161D] to-amber-500/10 border border-[#2DD4A0]/30 shadow-lg flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/20 border border-[#2DD4A0]/30 text-[#2DD4A0] flex items-center justify-center shrink-0">
-              <Clock className="w-5 h-5 text-[#2DD4A0]" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-xs font-bold text-white">Daily Target Deadline: 10:30 AM Everyday</span>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
-                  Strict Operational Rule
-                </span>
-              </div>
-              <p className="text-xs text-white/70 mt-0.5">
-                All washing should be done before 10:30 AM. Washers should complete their targets before 10:30 everyday.
-              </p>
-            </div>
-          </div>
-          <div className="text-right shrink-0 font-mono hidden sm:block">
-            <span className="text-[10px] uppercase font-bold text-white/50 block">Target Cutoff</span>
-            <span className="text-sm font-black text-[#2DD4A0]">10:30 AM</span>
-          </div>
-        </div>
 
         {/* ============================================================ */}
         {/* 2. TOTAL TARGET OVERVIEW CARD                                */}
@@ -449,31 +401,17 @@ export default function WasherDashboardPage() {
         <section className="p-6 sm:p-7 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl relative overflow-hidden">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-5 border-b border-white/[0.08] pb-5">
             <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0] flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> SHIFT MILESTONES
-              </span>
-              <div className="flex items-center gap-2.5 flex-wrap mt-1">
-                <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight" suppressHydrationWarning>
-                  Target: {totalTargetCount} {totalTargetCount === 1 ? 'Vehicle' : 'Vehicles'}
-                </h2>
-                <span className="text-[10px] font-mono font-bold uppercase px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-amber-400" />
-                  <span>Deadline: 10:30 AM Everyday</span>
-                </span>
-              </div>
-              <p className="text-xs text-white/70 mt-1 flex items-center gap-1.5 flex-wrap" suppressHydrationWarning>
-                <span>Shift: {washerRouteWindow}</span>
-                <span className="text-white/40">•</span>
-                <span className="text-[#2DD4A0] font-medium">All washing must be done before 10:30 AM everyday</span>
-              </p>
+              <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight" suppressHydrationWarning>
+                Target: {totalTargetCount} {totalTargetCount === 1 ? 'Vehicle' : 'Vehicles'}
+              </h2>
             </div>
 
             <div className="text-left sm:text-right bg-[#161C25] sm:bg-transparent p-3 sm:p-0 rounded-xl border border-white/[0.08] sm:border-0">
               <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 block font-bold">
-                SHIFT EARNINGS
+                ROUTE STATUS
               </span>
               <div className="text-2xl sm:text-3xl font-black text-[#2DD4A0] font-mono" suppressHydrationWarning>
-                ₹{earnedSoFar} <span className="text-xs font-bold text-white/40 font-sans">/ ₹{totalExpectedPayout}</span>
+                {completedCount} <span className="text-xs font-bold text-white/40 font-sans">/ {totalTargetCount} Washed</span>
               </div>
             </div>
           </div>
@@ -750,10 +688,6 @@ export default function WasherDashboardPage() {
                           <span className="text-white/60 font-sans">
                             Owner: <strong className="text-white font-bold">{stop.owner_name}</strong>
                           </span>
-                          <span>•</span>
-                          <span className="text-[#2DD4A0] font-bold">
-                            +₹{stop.payout_amount}
-                          </span>
                         </div>
                       </div>
                     </div>
@@ -819,42 +753,6 @@ export default function WasherDashboardPage() {
           </div>
         </section>
 
-        {/* ============================================================ */}
-        {/* 5. EARNINGS WALLET SHORTCUT                                  */}
-        {/* ============================================================ */}
-        <div className="pt-2">
-          <div className="p-6 rounded-[20px] bg-[#11161D] border border-white/[0.08] flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-[#161C25] text-[#2DD4A0] border border-white/[0.08] flex items-center justify-center shrink-0">
-                <Wallet className="w-6 h-6" />
-              </div>
-              <div>
-                <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0] block">
-                  AVAILABLE FOR WITHDRAWAL
-                </span>
-                <div className="text-2xl font-black text-white font-mono mt-0.5" suppressHydrationWarning>
-                  ₹{availableForWithdrawal}
-                  <span className="text-xs text-white/50 font-sans font-normal ml-2">
-                    (Weekly Total: ₹{weeklyTotal})
-                  </span>
-                </div>
-                <div className="text-[11px] text-white/50 mt-1 flex items-center gap-1.5 flex-wrap">
-                  <Landmark className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                  <span>Settling to: <strong className="text-white font-mono">{washerBankAccount}</strong></span>
-                  <span>•</span>
-                  <span className="font-mono text-[#2DD4A0]">IFSC: {washerIfsc}</span>
-                </div>
-              </div>
-            </div>
-
-            <Link
-              href="/washer/earnings"
-              className="px-6 py-2.5 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] text-xs font-bold shadow-md transition-all active:scale-95 text-center shrink-0"
-            >
-              Withdraw Now →
-            </Link>
-          </div>
-        </div>
       </main>
 
       {/* ============================================================ */}
@@ -914,8 +812,8 @@ export default function WasherDashboardPage() {
                   <span className="text-white font-mono font-semibold">{formatCapturedTime(viewingProofStop)}</span>
                 </div>
                 <div className="flex justify-between text-white/60">
-                  <span>Payout Protected:</span>
-                  <span className="text-[#2DD4A0] font-bold font-mono">+₹{viewingProofStop.payout_amount}</span>
+                  <span>Wash Status:</span>
+                  <span className="text-[#2DD4A0] font-bold font-mono">Verified Complete ✓</span>
                 </div>
               </div>
             </div>

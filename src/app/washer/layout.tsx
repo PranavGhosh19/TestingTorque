@@ -16,11 +16,12 @@ export default function WasherLayout({
   const { isHydrated, isLoggedIn, user, role } = useStore();
   const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
 
-  // Authentication entry routes (login, first-time password set, otp verification)
+  // Authentication entry routes (login, onboarding, first-time password set, otp verification)
   const isAuthRoute =
     pathname === '/washer/login' ||
     pathname.startsWith('/washer/login/') ||
-    pathname.startsWith('/washer/auth') ||
+    pathname === '/washer/onboarding' ||
+    pathname.startsWith('/washer/onboarding/') ||
     pathname === '/washer/set-password' ||
     pathname.startsWith('/washer/set-password/');
 

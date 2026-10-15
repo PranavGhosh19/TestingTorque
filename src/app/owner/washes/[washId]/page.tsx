@@ -195,14 +195,14 @@ export default function WashDetailsPage() {
 
                 <div className="p-3.5 rounded-2xl bg-white border border-slate-200 shadow-2xs">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
-                    Washer Payout
+                    Route Protocol
                   </span>
                   <div className="text-base font-black text-emerald-600 flex items-center gap-1.5 mt-1">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    Protected ✓
+                    Verified ✓
                   </div>
                   <span className="text-[10px] text-slate-500 block mt-0.5">
-                    Partner compensated (+₹20)
+                    Verified Bay Inspection
                   </span>
                 </div>
               </div>

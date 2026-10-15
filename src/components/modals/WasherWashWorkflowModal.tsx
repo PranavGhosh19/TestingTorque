@@ -589,7 +589,7 @@ export default function WasherWashWorkflowModal({
             <span className="truncate">{liveTimeStr || 'Live Timestamp'} IST</span>
           </div>
           <div className="text-emerald-400 font-bold shrink-0">
-            +₹{stop.payout_amount} Payout
+            Daily Route Proof
           </div>
         </div>
 
@@ -646,7 +646,7 @@ export default function WasherWashWorkflowModal({
                 )}
               </button>
               <span className="text-[11px] font-bold text-amber-300 tracking-wide uppercase drop-shadow-sm">
-                {isSaving ? 'Saving Evidence & Closing...' : 'Tap tick to record empty bay & protect payout'}
+                {isSaving ? 'Saving Evidence & Closing...' : 'Tap tick to record empty bay & save proof'}
               </span>
             </div>
 

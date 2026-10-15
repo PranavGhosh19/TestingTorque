@@ -2,12 +2,13 @@ import { initializeApp } from 'firebase/app';
 import { getFirestore, collection, doc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 
 const firebaseConfig = {
-  apiKey: 'AIzaSyC3m0jvG-VnQDeLOuAKPPquhW-8Vnhgywg',
-  authDomain: 'cargoflow-j35du.firebaseapp.com',
-  projectId: 'cargoflow-j35du',
-  storageBucket: 'cargoflow-j35du.firebasestorage.app',
-  messagingSenderId: '866863583313',
-  appId: '1:866863583313:web:8164df2f5bfab9aa7b6870',
+  apiKey: 'AIzaSyDdqU-AV0L_Pad7WSBk_Rvq4hlRzOq6OjM',
+  authDomain: 'torque-care.firebaseapp.com',
+  projectId: 'torque-care',
+  storageBucket: 'torque-care.firebasestorage.app',
+  messagingSenderId: '567424583412',
+  appId: '1:567424583412:web:c06fe86657c3b620a940a1',
+  measurementId: 'G-8G1THXMJ1F',
 };
 
 const app = initializeApp(firebaseConfig);

@@ -15,6 +15,7 @@ export interface User {
   flatNumber?: string;
   state?: string;
   city?: string;
+  district?: string;
   society?: string;
   societyId?: string;
   societyName?: string;

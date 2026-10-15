@@ -168,9 +168,22 @@ export async function sendPhoneOtp(
     }
     return confirmationResult;
   } catch (error: any) {
-    console.error('Firebase signInWithPhoneNumber error:', error);
-    // Reset recaptcha on failure so the user can retry without getting widget errors
     resetRecaptcha();
+
+    const isRegionOrQuotaError =
+      error?.code === 'auth/operation-not-allowed' ||
+      error?.code === 'auth/quota-exceeded' ||
+      error?.code === 'auth/too-many-requests' ||
+      error?.message?.includes('region enabled') ||
+      error?.message?.includes('operation-not-allowed');
+
+    if (isRegionOrQuotaError) {
+      console.warn(
+        'Firebase Phone Auth Notice: Live SMS delivery is restricted by Firebase SMS Region Policy. In Firebase Console, go to Authentication > Settings > SMS Region Policy to enable India (+91), or use test code 123456 in dev.'
+      );
+    } else {
+      console.error('Firebase signInWithPhoneNumber error:', error);
+    }
     throw error;
   }
 }
@@ -247,9 +260,89 @@ export async function syncAuthUserToFirestore(
 ): Promise<{ uid: string; name: string; role: string; phoneNumber: string }> {
   const uid = user.uid;
   const phoneNumber = user.phoneNumber || profileData.phone || '';
+  const finalRole = profileData.role || 'owner';
+
+  // 1. WASHER ROLE: Put data in Washers collection (and lowercase washers)
+  if (finalRole === 'washer') {
+    const cleanPhone = (phoneNumber || '').replace(/\D/g, '');
+    const phoneWithCountry = cleanPhone.length >= 10 ? `+91 ${cleanPhone.slice(-10)}` : phoneNumber;
+    const phoneRaw = cleanPhone.slice(-10);
+    const finalName = profileData.name || 'Washer Partner';
+
+    const washerPayload = {
+      id: uid,
+      washerId: uid,
+      name: finalName,
+      phone: phoneWithCountry,
+      phone_raw: phoneRaw,
+      role: 'washer',
+      status: profileData.status || 'Active on Route',
+      assignedCarsPerDay: profileData.assignedCarsPerDay || 30,
+      assigned_cars_per_day: profileData.assignedCarsPerDay || 30,
+      routeWindow: profileData.routeWindow || '06:30 AM - 09:30 AM',
+      route_window: profileData.routeWindow || '06:30 AM - 09:30 AM',
+      avatar: profileData.avatar || profileData.avatar_url || '/images/washer_amit.jpg',
+      avatar_url: profileData.avatar || profileData.avatar_url || '/images/washer_amit.jpg',
+      rating: String(profileData.rating || '5.0'),
+      reviewsCount: Number(profileData.reviewsCount || 1),
+      avgTimePerCar: profileData.avgTimePerCar || '5.5 mins',
+      completionRate: profileData.completionRate || '100%',
+      totalLifetimeWashes: profileData.totalLifetimeWashes || 0,
+      society: profileData.society || 'Green Valley Residency',
+      societies: Array.isArray(profileData.societies) && profileData.societies.length > 0 ? profileData.societies : ['Green Valley Residency'],
+      kyc: profileData.kyc || 'Verified (Aadhaar & Police Clear)',
+      passwordSet: Boolean(profileData.passwordSet !== false),
+      hasPassword: Boolean(profileData.hasPassword !== false),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+      last_login_at: serverTimestamp(),
+      ...profileData,
+    };
+
+    // Save exclusively to Washers collection
+    const targetWasherId = profileData.washerId || uid;
+    try {
+      const washerRef = doc(db, 'Washers', targetWasherId);
+      await setDoc(washerRef, { ...washerPayload, id: targetWasherId, washerId: targetWasherId, firebaseUid: uid }, { merge: true });
+    } catch (err: any) {
+      console.warn('Notice: Washers sync in syncAuthUserToFirestore:', err?.message || err);
+    }
+
+    // Also write to washer_directory for society discovery
+    try {
+      const dirRef = doc(db, 'washer_directory', uid);
+      await setDoc(dirRef, {
+        washerId: uid,
+        id: uid,
+        name: washerPayload.name,
+        phone: phoneWithCountry,
+        phone_raw: phoneRaw,
+        avatar: washerPayload.avatar,
+        photoURL: washerPayload.avatar,
+        status: 'active',
+        availableForSignup: true,
+        rating: washerPayload.rating,
+        reviewsCount: washerPayload.reviewsCount,
+        routeWindow: washerPayload.routeWindow,
+        society: washerPayload.society,
+        societies: washerPayload.societies,
+        updatedAt: serverTimestamp(),
+      }, { merge: true });
+    } catch (e) {
+      // ignore
+    }
+
+    return {
+      uid,
+      name: finalName,
+      role: 'washer',
+      phoneNumber,
+    };
+  }
+
+  // 2. OWNER ROLE: Write to Car_Owners collection
   const ownerRef = doc(db, 'Car_Owners', uid);
 
-  // Read existing doc if present to preserve fields
   let existingData: any = {};
   try {
     const snap = await getDoc(ownerRef);
@@ -260,7 +353,6 @@ export async function syncAuthUserToFirestore(
     // ignore
   }
 
-  const finalRole = profileData.role || existingData.role || 'owner';
   const finalName = profileData.name || existingData.name || 'Vehicle Owner';
 
   const ownerDocPayload = {
@@ -293,6 +385,11 @@ export async function fetchUserFromFirestore(uid: string): Promise<any | null> {
     const snap = await getDoc(ownerRef);
     if (snap.exists()) {
       return snap.data();
+    }
+    const washerRef = doc(db, 'Washers', uid);
+    const washerSnap = await getDoc(washerRef);
+    if (washerSnap.exists()) {
+      return washerSnap.data();
     }
     return null;
   } catch (error) {

@@ -231,7 +231,7 @@ export default function WasherRoutePage() {
                       </div>
                       {isUnavailable && (
                         <span className="text-[10px] font-mono font-bold uppercase text-amber-300 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-400/30">
-                          Unavailable • Payout Protected
+                          Unavailable • Bay Verified
                         </span>
                       )}
                     </div>
@@ -246,10 +246,6 @@ export default function WasherRoutePage() {
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-xs font-mono font-bold text-[#2DD4A0] mr-1">
-                    +₹{stop.payout_amount}
-                  </span>
-
                   {isDone ? (
                     <span className="text-[11px] font-mono font-bold text-[#2DD4A0] bg-[#2DD4A0]/10 px-3 py-1 rounded-full border border-[#2DD4A0]/20">
                       ✓ Done

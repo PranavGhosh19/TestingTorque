@@ -38,7 +38,6 @@ import {
   fetchAdminCustomers,
   AdminCustomer,
 } from '@/lib/firebaseService';
-import OnboardWasherModal from '@/components/modals/OnboardWasherModal';
 import AppointWasherModal from '@/components/modals/AppointWasherModal';
 import DismissWasherModal from '@/components/modals/DismissWasherModal';
 import { encryptWasherId } from '@/lib/idSecurity';
@@ -88,20 +87,11 @@ export default function AdminWashersPage() {
             setAdminCustomers(custList);
           }
 
-          // Reconcile browser localStorage & in-memory store so deleted Firestore washers do not linger
+          // Set washers directly from Firestore without caching locally
+          setWashers(cleanRemote);
           if (typeof window !== 'undefined') {
-            const remoteIds = new Set(cleanRemote.map((w) => w.id));
             try {
-              const stored = localStorage.getItem('torque_washers');
-              if (stored) {
-                const parsed = JSON.parse(stored);
-                if (Array.isArray(parsed)) {
-                  // Keep only washers that currently exist in Firestore
-                  const reconciled = parsed.filter((w: any) => !isDummyWasher(w) && remoteIds.has(w.id));
-                  localStorage.setItem('torque_washers', JSON.stringify(reconciled));
-                  setWashers(reconciled);
-                }
-              }
+              localStorage.removeItem('torque_washers');
             } catch (e) {}
           }
         }
@@ -117,7 +107,6 @@ export default function AdminWashersPage() {
     };
   }, [currentAdminId, setWashers]);
 
-  const [isOnboardModalOpen, setIsOnboardModalOpen] = useState(false);
   const [isAppointModalOpen, setIsAppointModalOpen] = useState(false);
   const [appointPreselectedWasherId, setAppointPreselectedWasherId] = useState<string | undefined>();
   const [isDismissModalOpen, setIsDismissModalOpen] = useState(false);
@@ -149,18 +138,10 @@ export default function AdminWashersPage() {
     return Array.from(map.values());
   }, [washers, firestoreWashers, firestoreLoaded]);
 
-  // Admin scoped washers: washers created/onboarded by this admin
+  // All registered washers in the system
   const adminWashers = useMemo(() => {
-    return combinedWashers.filter((w) => {
-      if (isDummyWasher(w)) return false;
-      if (!w.createdBy) return true;
-      return (
-        w.createdBy === currentAdminId ||
-        (user?.uid && w.createdBy === user.uid) ||
-        (user?.id && w.createdBy === user.id)
-      );
-    });
-  }, [combinedWashers, currentAdminId, user?.uid, user?.id]);
+    return combinedWashers.filter((w) => !isDummyWasher(w));
+  }, [combinedWashers]);
 
   // Counts
   const myCount = adminWashers.length;
@@ -293,28 +274,12 @@ export default function AdminWashersPage() {
             <button
               type="button"
               onClick={(e) => handleOpenAppoint(e)}
-              className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-50 text-slate-900 border border-slate-300 font-bold text-xs flex items-center gap-1.5 shadow-2xs cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
-            >
-              <Car className="w-4 h-4 text-emerald-600" />
-              <span>Appoint Washer to Car</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsOnboardModalOpen(true)}
               className="px-4 py-2.5 rounded-xl bg-[#0B132B] hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
-              <Plus className="w-4 h-4" />
-              <span>Onboard New Partner</span>
+              <Car className="w-4 h-4 text-emerald-400" />
+              <span>Appoint Washer to Car</span>
             </button>
           </div>
-        </div>
-
-        {/* Ownership Scope Notice */}
-        <div className="p-3.5 bg-blue-50/80 border border-blue-200/90 rounded-2xl flex items-center gap-2.5 text-xs text-blue-900">
-          <Lock className="w-4 h-4 text-blue-600 shrink-0" />
-          <span>
-            <strong>Admin Scoped Access:</strong> Admins have control only over washers they created. Washers do not have control over other washers.
-          </span>
         </div>
 
         {/* Filter Tabs & Search Bar */}
@@ -329,7 +294,7 @@ export default function AdminWashersPage() {
                   : 'text-slate-600 hover:bg-slate-100'
               }`}
             >
-              <span>Onboarded Partners</span>
+              <span>Registered Partners</span>
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${
                 activeTab === 'all' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
               }`}>
@@ -398,24 +363,15 @@ export default function AdminWashersPage() {
                 ? `No partners match your search query "${searchQuery}". Try a different name or society.`
                 : activeTab === 'dismissed'
                 ? 'No washer partners are currently dismissed. All registered partners are active!'
-                : 'No washer partners available. Onboard your first washer partner with government Aadhaar Card verification.'}
+                : 'No washer partners registered yet. Washers register directly via the Washer Portal.'}
             </p>
-            {activeTab === 'dismissed' ? (
+            {activeTab === 'dismissed' && (
               <button
                 type="button"
                 onClick={() => setActiveTab('all')}
                 className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-bold"
               >
                 View All Partners
-              </button>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsOnboardModalOpen(true)}
-                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs inline-flex items-center gap-2 shadow-md cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Onboard Partner with Aadhaar</span>
               </button>
             )}
           </div>
@@ -494,7 +450,7 @@ export default function AdminWashersPage() {
                             <div className="text-[10px] text-slate-500 font-medium flex items-center gap-1 mt-1">
                               <Calendar className="w-3 h-3 text-blue-600" />
                               <span>
-                                Onboarded: {new Date(w.created_at).toLocaleDateString('en-IN', {
+                                Registered: {new Date(w.created_at).toLocaleDateString('en-IN', {
                                   day: 'numeric',
                                   month: 'short',
                                   year: 'numeric',
@@ -627,9 +583,9 @@ export default function AdminWashersPage() {
                         </div>
                       </div>
                       <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-100">
-                        <div className="text-[10px] text-emerald-700 font-medium">Payouts Disbursed</div>
+                        <div className="text-[10px] text-emerald-700 font-medium">Lifetime Washes</div>
                         <div className="text-sm font-black text-emerald-800 font-mono mt-0.5">
-                          ₹{w.monthlyPayoutsGone.toLocaleString()}
+                          {w.totalLifetimeWashes || 0}
                         </div>
                       </div>
                     </div>
@@ -640,7 +596,7 @@ export default function AdminWashersPage() {
                         <div className="flex justify-between items-center pb-1.5 border-b border-slate-200/70">
                           <span className="text-slate-500 flex items-center gap-1.5 font-medium">
                             <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                            <span>Created / Onboarded:</span>
+                            <span>Registered Date:</span>
                           </span>
                           <span className="font-bold text-slate-800">
                             {new Date(w.created_at).toLocaleDateString('en-IN', {
@@ -755,14 +711,7 @@ export default function AdminWashersPage() {
         )}
       </main>
 
-      {/* Onboard Washer Partner Modal */}
-      <OnboardWasherModal
-        isOpen={isOnboardModalOpen}
-        onClose={() => setIsOnboardModalOpen(false)}
-        onSuccess={(newPartner) => {
-          setFirestoreWashers((prev) => [newPartner, ...prev.filter((p) => p.id !== newPartner.id)]);
-        }}
-      />
+
 
       {/* Appoint Washer Modal */}
       <AppointWasherModal
