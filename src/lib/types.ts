@@ -155,6 +155,10 @@ export interface WashRecord {
   offline_queued?: boolean;
   service_type?: 'home' | 'away' | 'detail';
   city?: string; // e.g. 'Delhi', 'Jaipur'
+  flaggedNotCleaned?: boolean;
+  ownerFeedback?: 'yes' | 'no' | string;
+  feedbackSubmittedAt?: string;
+  updatedAt?: any;
 }
 
 export interface RouteStop {
