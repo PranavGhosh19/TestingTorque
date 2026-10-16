@@ -13,7 +13,6 @@ import {
   Sparkles,
   ArrowRight,
   ChevronRight,
-  Play,
   Check,
   BarChart3,
   Calendar,
@@ -214,18 +213,6 @@ export default function HomePage() {
               >
                 <span>Track Your Car</span>
                 <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-              </Link>
-
-              {/* Secondary Translucent Glass Pill */}
-              <Link
-                href="/how-it-works"
-                className="inline-flex items-center justify-center gap-2.5 px-6 py-3.5 rounded-full bg-[#11161D]/80 hover:bg-[#161C25] text-white text-sm font-medium border border-white/[0.12] backdrop-blur-md hover:border-white/25 hover:scale-[1.02] active:scale-[0.98] transition-all"
-              >
-                <div className="w-5 h-5 rounded-full bg-white/10 flex items-center justify-center">
-                  <Play className="w-2.5 h-2.5 fill-white text-white ml-0.5" />
-                </div>
-                <span>See how it works</span>
-                <ChevronRight className="w-4 h-4 text-white/40" />
               </Link>
             </motion.div>
 
@@ -533,12 +520,6 @@ export default function HomePage() {
               className="w-full sm:w-auto px-8 py-4 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] font-bold text-sm shadow-[0_0_30px_rgba(255,255,255,0.3)] transition-all hover:scale-105"
             >
               Start Tracking Today
-            </Link>
-            <Link
-              href="/how-it-works"
-              className="w-full sm:w-auto px-7 py-4 rounded-full bg-[#161C25] hover:bg-[#1f2835] text-white font-medium text-sm border border-white/[0.15] backdrop-blur-md transition-all hover:scale-105"
-            >
-              See How It Works
             </Link>
           </div>
         </div>

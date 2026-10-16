@@ -25,7 +25,6 @@ export default function Navbar() {
 
   const isPublicPage =
     pathname === '/' ||
-    pathname.startsWith('/how-it-works') ||
     pathname.startsWith('/about') ||
     pathname.startsWith('/contact') ||
     pathname.startsWith('/auth') ||
@@ -109,17 +108,6 @@ export default function Navbar() {
             >
               <UserCheck className="w-3.5 h-3.5" />
               <span>Profile</span>
-            </Link>
-          </nav>
-        ) : isPublicPage && pathname !== '/' ? (
-          <nav className="hidden md:flex items-center gap-8 text-xs font-medium tracking-wide text-white/70">
-            <Link
-              href="/how-it-works"
-              className={`hover:text-white transition-colors ${
-                pathname === '/how-it-works' ? 'text-white font-semibold' : ''
-              }`}
-            >
-              How it works
             </Link>
           </nav>
         ) : null}
