@@ -255,32 +255,10 @@ export default function SignatureProofCard({
               <Maximize2 className="w-3.5 h-3.5" />
             </button>
           </div>
-        ) : (
-          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-[#161C25] border border-white/[0.08] p-6 flex flex-col items-center justify-center text-center shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 flex items-center justify-center text-[#2DD4A0] mb-3.5 shadow-lg">
-              <Clock className="w-7 h-7 animate-pulse" />
-            </div>
-            <div className="text-base font-bold text-white uppercase tracking-wide">
-              {isSunday ? 'Sunday Rest Day' : 'Morning Doorstep Wash Scheduled'}
-            </div>
-            <p suppressHydrationWarning className="text-xs text-white/65 max-w-sm mt-1 leading-relaxed">
-              {isSunday
-                ? 'Under your 6-day Mon–Sat plan, Sunday is a scheduled rest day.'
-                : washerName
-                ? `Assigned partner ${washerName} will wash your car in the morning bay window before ${currentVehicle?.needWashBefore || '10:00 AM'}. Verified photo proof will be posted here before 10:30 AM.`
-                : `Your route specialist will wash your car in the morning bay window before ${currentVehicle?.needWashBefore || '10:00 AM'}. Verified photo proof will be posted here before 10:30 AM.`}
-            </p>
-            <div className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] font-mono text-white/70">
-              <MapPin className="w-3 h-3 text-[#2DD4A0]" />
-              <span>{parkingLocation}</span>
-              <span className="text-white/30">•</span>
-              <span>Need before: {currentVehicle?.needWashBefore || (currentVehicle?.preferred_wash_time?.startsWith('Before') ? currentVehicle.preferred_wash_time.replace(/^Before\s+/i, '') : (currentVehicle?.preferred_wash_time || '8:00 AM'))}</span>
-            </div>
-          </div>
-        )}
+        ) : null}
 
         {/* Below the Image: Car Number Plate & Washer Details (Same line on smaller & larger screens) */}
-        <div className="relative z-10 mt-3.5 flex flex-row items-center justify-between gap-2 sm:gap-3">
+        <div className={`relative z-10 flex flex-row items-center justify-between gap-2 sm:gap-3 ${hasProof && afterPhoto ? 'mt-3.5' : ''}`}>
           <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#161C25] border border-white/[0.12] text-white font-mono text-xs sm:text-sm font-bold tracking-wider shadow-sm shrink-0">
             <span className="text-[9px] sm:text-[10px] font-sans font-bold text-[#2DD4A0] border-r border-white/20 pr-1.5">IND</span>
             <span>{regNumber}</span>

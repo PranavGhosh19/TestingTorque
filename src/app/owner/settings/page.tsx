@@ -8,15 +8,11 @@ import {
   ArrowLeft,
   ShieldCheck,
   CheckCircle2,
-  Clock,
-  Star,
   Sparkles,
   RefreshCw,
   Check,
   AlertCircle,
   ChevronRight,
-  Shield,
-  Award,
   UserPlus,
   X,
   Loader2,
@@ -491,26 +487,8 @@ export default function OwnerSettingsPage() {
                     {activeWasherObj.phone && (
                       <span className="font-mono text-[#2DD4A0]">{activeWasherObj.phone}</span>
                     )}
-                    {activeWasherObj.phone && <span>•</span>}
-                    <div className="flex items-center gap-1">
-                      <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span className="font-bold text-white">{activeWasherObj.rating || '5.0'}</span>
-                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-2 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWasherError('');
-                    setShowAddWasherModal(true);
-                  }}
-                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono text-white/80 hover:text-white transition-colors cursor-pointer w-full sm:w-auto text-center"
-                >
-                  Change Washer
-                </button>
               </div>
             </div>
           ) : null}
@@ -585,46 +563,12 @@ export default function OwnerSettingsPage() {
                             {washer.name}
                             <ShieldCheck className="w-4 h-4 text-[#2DD4A0]" />
                           </h4>
-                          <div className="flex items-center gap-1.5 text-xs text-white/70 font-medium">
-                            <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                            <span className="font-bold text-white">{washer.rating || '5.0'}</span>
-                            <span className="text-white/40 text-[11px]">
-                              ({washer.reviewsCount || 1} reviews)
-                            </span>
-                          </div>
+                          {washer.phone && (
+                            <p className="text-xs font-mono text-[#2DD4A0] mt-0.5">
+                              {washer.phone}
+                            </p>
+                          )}
                         </div>
-                      </div>
-
-                      {/* Specialist Metrics */}
-                      <div className="space-y-2 p-3 rounded-xl bg-[#161C25]/80 border border-white/[0.06] text-xs font-mono text-white/80 mb-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-white/50 flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-[#2DD4A0]" /> Route Window:
-                          </span>
-                          <span className="font-bold text-white">
-                            {washer.routeWindow || '06:30 AM – 09:30 AM'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-white/50 flex items-center gap-1.5">
-                            <Award className="w-3.5 h-3.5 text-[#2DD4A0]" /> Completion:
-                          </span>
-                          <span className="font-bold text-[#2DD4A0]">
-                            {washer.completionRate || '100%'}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="text-white/50 flex items-center gap-1.5">
-                            <Shield className="w-3.5 h-3.5 text-[#2DD4A0]" /> Verified:
-                          </span>
-                          <span className="text-white/90">Aadhaar + Phone ✓</span>
-                        </div>
-                        {washer.phone && (
-                          <div className="pt-1 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-[#2DD4A0]">
-                            <span>Phone:</span>
-                            <span className="font-bold">{washer.phone}</span>
-                          </div>
-                        )}
                       </div>
                     </div>
 
