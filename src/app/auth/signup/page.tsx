@@ -581,7 +581,7 @@ export default function SignUpPage() {
                 Car Owner Registration
               </h1>
               <p className="text-xs sm:text-sm text-white/60 max-w-md mx-auto leading-relaxed">
-                Connect your Google account to get verified morning care at your society parking bay with certified daily photos.
+                Register and Start Tracking
               </p>
             </div>
 
