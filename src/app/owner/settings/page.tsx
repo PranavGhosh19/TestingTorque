@@ -10,31 +10,27 @@ import {
   CheckCircle2,
   Clock,
   Star,
-  MapPin,
-  Building2,
-  Car,
   Sparkles,
   RefreshCw,
   Check,
   AlertCircle,
   ChevronRight,
   Shield,
-  Layers,
   Award,
-  Edit2,
+  UserPlus,
+  X,
+  Loader2,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import {
-  fetchWashersBySocietyId,
   fetchWashersFromDirectory,
   fetchAllWashersFromFirestore,
   appointWasherToVehicleInFirestore,
-  fetchOwnerDashboardFromFirestore,
+  updateOwnerWasherInFirestore,
   isWasherMatchForOwner,
 } from '@/lib/firebaseService';
-import { WasherPartner, Vehicle } from '@/lib/types';
+import { WasherPartner } from '@/lib/types';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
-import EditLocationSocietyModal from '@/components/modals/EditLocationSocietyModal';
 
 export default function OwnerSettingsPage() {
   const router = useRouter();
@@ -53,7 +49,13 @@ export default function OwnerSettingsPage() {
   const [isLoadingWashers, setIsLoadingWashers] = useState(true);
   const [isAppointingId, setIsAppointingId] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [showEditLocationModal, setShowEditLocationModal] = useState(false);
+
+  // Add your Washer modal state
+  const [showAddWasherModal, setShowAddWasherModal] = useState(false);
+  const [washerNameInput, setWasherNameInput] = useState('');
+  const [washerPhoneInput, setWasherPhoneInput] = useState('');
+  const [washerError, setWasherError] = useState('');
+  const [isSavingWasher, setIsSavingWasher] = useState(false);
 
   // Authentication check
   useEffect(() => {
@@ -89,11 +91,6 @@ export default function OwnerSettingsPage() {
     );
   }, [vehicles, user]);
 
-  // Compute equal / common matched washer for current owner's State-City-District-Society
-  const matchedWasher = useMemo(() => {
-    return availableWashers.find((w) => isWasherMatchForOwner(w, user)) || null;
-  }, [availableWashers, user]);
-
   // Load available certified washer partners for this society / area
   useEffect(() => {
     let isMounted = true;
@@ -126,12 +123,12 @@ export default function OwnerSettingsPage() {
           console.warn('Notice loading washers from directory:', dErr);
         }
 
-        // 3. If no washers found yet, check store washers
+        // 3. If no washers found yet, check store washers (excluding dismissed)
         if (list.length === 0 && storeWashers.length > 0) {
           list = storeWashers.filter((w) => w.status !== 'Dismissed');
         }
 
-        // 4. Sort washers so those with common/equal State-City-District-Society appear first!
+        // 4. Sort washers so those matching owner's location appear first
         list.sort((a, b) => {
           const matchA = isWasherMatchForOwner(a, user);
           const matchB = isWasherMatchForOwner(b, user);
@@ -140,70 +137,10 @@ export default function OwnerSettingsPage() {
           return 0;
         });
 
-        // 5. Fallback certified partners guarantee so the owner always has top certified specialists
-        if (list.length === 0) {
-          list = [
-            {
-              id: 'wsh_amit_1',
-              name: 'Amit Kumar',
-              phone: '+91 98101 23456',
-              avatar: '/images/washer_amit.jpg',
-              rating: '4.98',
-              reviewsCount: 142,
-              society: user.society || 'Green Valley Residency',
-              societies: [user.society || 'Green Valley Residency'],
-              assignedCarsPerDay: 28,
-              routeWindow: '06:30 AM – 09:30 AM',
-              avgTimePerCar: '5.5 mins',
-              completionRate: '100%',
-              totalLifetimeWashes: 890,
-              status: 'Active on Route',
-              kyc: 'Torque Certified Partner',
-              aadhaarVerified: true,
-              phoneVerified: true,
-              absentThisMonth: 0,
-              absentDates: [],
-              leaveReason: '',
-              backupWasherName: 'Rajesh Sharma',
-              monthlyPayoutsGone: 0,
-              pendingPayoutDue: 0,
-              sundayBonusEarned: 0,
-              disbursements: [],
-            },
-            {
-              id: 'wsh_rajesh_2',
-              name: 'Rajesh Sharma',
-              phone: '+91 98202 34567',
-              avatar: '/images/washer_amit.jpg',
-              rating: '4.95',
-              reviewsCount: 118,
-              society: user.society || 'Green Valley Residency',
-              societies: [user.society || 'Green Valley Residency'],
-              assignedCarsPerDay: 26,
-              routeWindow: '06:00 AM – 09:00 AM',
-              avgTimePerCar: '5.0 mins',
-              completionRate: '99.4%',
-              totalLifetimeWashes: 720,
-              status: 'Active on Route',
-              kyc: 'Torque Certified Partner',
-              aadhaarVerified: true,
-              phoneVerified: true,
-              absentThisMonth: 0,
-              absentDates: [],
-              leaveReason: '',
-              backupWasherName: 'Amit Kumar',
-              monthlyPayoutsGone: 0,
-              pendingPayoutDue: 0,
-              sundayBonusEarned: 0,
-              disbursements: [],
-            },
-          ];
-        }
-
         if (isMounted) {
           setAvailableWashers(list);
 
-          // If there is a matched washer and user doesn't have an assigned washer yet, auto-select them!
+          // If there is a matched washer and user doesn't have an assigned washer yet, auto-select them
           const matched = list.find((w) => isWasherMatchForOwner(w, user));
           if (matched && !user.assigned_washer_id && !user.selectedWasherId) {
             setUser({
@@ -248,7 +185,6 @@ export default function OwnerSettingsPage() {
           await appointWasherToVehicle(veh.id, washer.id, ownerId);
         }
       } else {
-        // Fallback if no vehicles array loaded yet
         await appointWasherToVehicleInFirestore(ownerId, 'veh_default', washer.id, washer.name);
       }
 
@@ -259,12 +195,17 @@ export default function OwnerSettingsPage() {
         assigned_washer_name: washer.name,
         selectedWasherId: washer.id,
         selectedWasherName: washer.name,
+        assigned_washer_phone: washer.phone || (user as any).assigned_washer_phone,
+        assignedWasherPhone: washer.phone || (user as any).assignedWasherPhone,
       };
       setUser(updatedUser);
 
       if (typeof window !== 'undefined') {
         localStorage.setItem('torque_assigned_washer_id', washer.id);
         localStorage.setItem('torque_assigned_washer_name', washer.name);
+        if (washer.phone) {
+          localStorage.setItem('torque_assigned_washer_phone', washer.phone);
+        }
         localStorage.setItem('torque_user', JSON.stringify(updatedUser));
       }
 
@@ -278,15 +219,157 @@ export default function OwnerSettingsPage() {
     }
   };
 
+  // Handler for "Add your Washer" (Name + Phone Number)
+  const handleSaveWasher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWasherError('');
+
+    const cleanName = washerNameInput.trim();
+    if (!cleanName) {
+      setWasherError("Please enter your washer specialist's name.");
+      return;
+    }
+
+    const digits = washerPhoneInput.replace(/\D/g, '');
+    if (digits.length < 10) {
+      setWasherError('Please enter a valid 10-digit phone number for the washer.');
+      return;
+    }
+    const cleanPhone = `+91 ${digits.slice(-10)}`;
+
+    setIsSavingWasher(true);
+
+    try {
+      const storedId =
+        typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') : null;
+      const targetOwnerId =
+        user?.id && user.id !== 'usr_guest' ? user.id : storedId || `usr_${Date.now()}`;
+
+      // 1. Update in Firestore
+      await updateOwnerWasherInFirestore(targetOwnerId, cleanName, cleanPhone);
+
+      // 2. Update local user state
+      const updatedUser = {
+        ...user,
+        assigned_washer_name: cleanName,
+        assignedWasherName: cleanName,
+        selectedWasherName: cleanName,
+        assigned_washer_phone: cleanPhone,
+        assignedWasherPhone: cleanPhone,
+        selectedWasherPhone: cleanPhone,
+      };
+      setUser(updatedUser);
+
+      // 3. Update vehicles in store
+      if (vehicles.length > 0) {
+        setVehicles(
+          vehicles.map((v) => ({
+            ...v,
+            assigned_washer_name: cleanName,
+            washerName: cleanName,
+            assigned_washer_phone: cleanPhone,
+          }))
+        );
+      }
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('torque_assigned_washer_name', cleanName);
+        localStorage.setItem('torque_assigned_washer_phone', cleanPhone);
+        localStorage.setItem('torque_user', JSON.stringify(updatedUser));
+      }
+
+      // 4. Add to availableWashers list so they appear in grid immediately
+      const newPartner: WasherPartner = {
+        id: `wsh_${Date.now()}`,
+        name: cleanName,
+        phone: cleanPhone,
+        avatar: '/images/washer_amit.jpg',
+        rating: '5.0',
+        reviewsCount: 1,
+        society: user.societyName || user.society || '',
+        societies: [user.societyName || user.society || ''],
+        assignedCarsPerDay: vehicles.length || 1,
+        routeWindow: '06:30 AM – 09:30 AM',
+        avgTimePerCar: '6.0 mins',
+        completionRate: '100%',
+        totalLifetimeWashes: 0,
+        status: 'Active on Route',
+        kyc: 'Dedicated Specialist',
+        aadhaarVerified: true,
+        phoneVerified: true,
+        absentThisMonth: 0,
+        absentDates: [],
+        leaveReason: '',
+        backupWasherName: '',
+        monthlyPayoutsGone: 0,
+        pendingPayoutDue: 0,
+        sundayBonusEarned: 0,
+        disbursements: [],
+      };
+
+      setAvailableWashers((prev) => {
+        const remaining = prev.filter(
+          (w) => w.name.toLowerCase().trim() !== cleanName.toLowerCase()
+        );
+        return [newPartner, ...remaining];
+      });
+
+      setSuccessMessage(`✓ ${cleanName} has been added and appointed as your dedicated washer!`);
+      setShowAddWasherModal(false);
+      setWasherNameInput('');
+      setWasherPhoneInput('');
+    } catch (err: any) {
+      console.error('Error saving washer:', err);
+      setWasherError(err.message || 'Failed to save washer. Please try again.');
+    } finally {
+      setIsSavingWasher(false);
+    }
+  };
+
   // Find currently active washer object
   const activeWasherObj = useMemo(() => {
-    if (!currentAssignedWasherId && !currentAssignedWasherName) return null;
-    return availableWashers.find(
+    const assignedName = currentAssignedWasherName;
+    const assignedId = currentAssignedWasherId;
+    if (!assignedId && !assignedName) return null;
+
+    const found = availableWashers.find(
       (w) =>
-        (currentAssignedWasherId && (w.id === currentAssignedWasherId || (w as any).uid === currentAssignedWasherId)) ||
-        (currentAssignedWasherName && w.name.toLowerCase().trim() === currentAssignedWasherName.toLowerCase().trim())
+        (assignedId && (w.id === assignedId || (w as any).uid === assignedId)) ||
+        (assignedName && w.name.toLowerCase().trim() === assignedName.toLowerCase().trim())
     );
-  }, [availableWashers, currentAssignedWasherId, currentAssignedWasherName]);
+    if (found) return found;
+
+    if (assignedName) {
+      return {
+        id: assignedId || `wsh_${Date.now()}`,
+        name: assignedName,
+        phone: (user as any).assigned_washer_phone || (user as any).assignedWasherPhone || '',
+        avatar: '/images/washer_amit.jpg',
+        rating: '5.0',
+        reviewsCount: 1,
+        society: user.societyName || user.society || '',
+        societies: [user.societyName || user.society || ''],
+        assignedCarsPerDay: vehicles.length || 1,
+        routeWindow: '06:30 AM – 09:30 AM',
+        avgTimePerCar: '6.0 mins',
+        completionRate: '100%',
+        totalLifetimeWashes: 0,
+        status: 'Active on Route',
+        kyc: 'Dedicated Specialist',
+        aadhaarVerified: true,
+        phoneVerified: true,
+        absentThisMonth: 0,
+        absentDates: [],
+        leaveReason: '',
+        backupWasherName: '',
+        monthlyPayoutsGone: 0,
+        pendingPayoutDue: 0,
+        sundayBonusEarned: 0,
+        disbursements: [],
+      } as WasherPartner;
+    }
+    return null;
+  }, [availableWashers, currentAssignedWasherId, currentAssignedWasherName, user, vehicles]);
 
   return (
     <div className="min-h-screen bg-[#0A0D12] text-white pb-28 md:pb-16 selection:bg-[#2DD4A0] selection:text-black">
@@ -333,7 +416,7 @@ export default function OwnerSettingsPage() {
             </div>
             <button
               onClick={() => setSuccessMessage(null)}
-              className="text-white/50 hover:text-white text-xs font-mono font-bold px-2 py-1"
+              className="text-white/50 hover:text-white text-xs font-mono font-bold px-2 py-1 cursor-pointer"
             >
               DISMISS
             </button>
@@ -341,27 +424,39 @@ export default function OwnerSettingsPage() {
         )}
 
         {/* ============================================================ */}
-        {/* STEP 4 HERO: CHOOSE YOUR DEDICATED WASHER SPECIALIST */}
+        {/* WASHER SPECIALIST MANAGEMENT */}
         {/* ============================================================ */}
         <section className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#2DD4A0]/10 text-[#2DD4A0] border border-[#2DD4A0]/30">
-                  STEP 4 • SPECIALIST SELECTION
+                  SPECIALIST SELECTION
                 </span>
                 <span className="text-xs font-mono text-white/40">
-                  {availableWashers.length} Certified Partners Available
+                  {availableWashers.length} Specialist{availableWashers.length === 1 ? '' : 's'} Available
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
                 Choose Your Dedicated Washer Specialist
               </h2>
               <p className="text-xs sm:text-sm text-white/60 mt-0.5">
-                Select your certified morning care professional for daily doorstep cleaning at{' '}
-                <strong className="text-white">{user.society || 'your residential society'}</strong>.
+                Select or add your dedicated morning care professional for doorstep cleaning.
               </p>
             </div>
+
+            {/* BUTTON: Add your Washer */}
+            <button
+              type="button"
+              onClick={() => {
+                setWasherError('');
+                setShowAddWasherModal(true);
+              }}
+              className="px-4 py-2.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold font-mono uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-[0_0_20px_rgba(45,212,160,0.3)] active:scale-95 cursor-pointer shrink-0"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Add your Washer</span>
+            </button>
           </div>
 
           {/* Current Assigned Specialist Status Card */}
@@ -392,23 +487,29 @@ export default function OwnerSettingsPage() {
                     <ShieldCheck className="w-4 h-4 text-[#2DD4A0]" />
                   </h3>
                   <div className="flex items-center gap-2 text-xs text-white/70 font-medium mt-0.5">
+                    {activeWasherObj.phone && (
+                      <span className="font-mono text-[#2DD4A0]">{activeWasherObj.phone}</span>
+                    )}
+                    {activeWasherObj.phone && <span>•</span>}
                     <div className="flex items-center gap-1">
                       <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                      <span className="font-bold text-white">{activeWasherObj.rating || '4.98'}</span>
-                      <span className="text-white/40 text-[11px]">({activeWasherObj.reviewsCount || 140} reviews)</span>
+                      <span className="font-bold text-white">{activeWasherObj.rating || '5.0'}</span>
                     </div>
-                    <span>•</span>
-                    <span className="text-[#2DD4A0] font-mono font-bold">
-                      {activeWasherObj.completionRate || '100%'} On-Time
-                    </span>
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                <div className="px-3.5 py-2 rounded-xl bg-black/40 border border-white/10 text-xs font-mono text-white/70 w-full sm:w-auto text-center">
-                  Assigned to <strong className="text-[#2DD4A0]">{vehicles.length || 1} Vehicle(s)</strong>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWasherError('');
+                    setShowAddWasherModal(true);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-mono text-white/80 hover:text-white transition-colors cursor-pointer w-full sm:w-auto text-center"
+                >
+                  Change Washer
+                </button>
               </div>
             </div>
           ) : (
@@ -419,16 +520,26 @@ export default function OwnerSettingsPage() {
                 </div>
                 <div>
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300 block mb-0.5">
-                    ACTION NEEDED • STEP 4
+                    SPECIALIST REQUIRED
                   </span>
                   <h3 className="text-base font-bold text-white">
                     No Dedicated Washer Specialist Assigned Yet
                   </h3>
                   <p className="text-xs text-white/60 mt-0.5">
-                    Choose one of the verified partners below to activate your daily morning cleaning service.
+                    Add your dedicated washer or choose one below to activate daily tracking.
                   </p>
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setWasherError('');
+                  setShowAddWasherModal(true);
+                }}
+                className="px-4 py-2 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shrink-0"
+              >
+                Add your Washer
+              </button>
             </div>
           )}
 
@@ -438,24 +549,43 @@ export default function OwnerSettingsPage() {
               <div className="col-span-full p-12 text-center text-white/50 space-y-3">
                 <RefreshCw className="w-6 h-6 text-[#2DD4A0] animate-spin mx-auto" />
                 <p className="text-xs font-mono uppercase tracking-widest">
-                  Loading verified society washer specialists...
+                  Loading verified washer specialists...
                 </p>
               </div>
             ) : availableWashers.length === 0 ? (
-              <div className="col-span-full p-8 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center text-white/60">
-                <p className="text-sm font-semibold">No active washers found for this society yet.</p>
-                <p className="text-xs text-white/40 mt-1">
-                  Our operations team is deploying specialists to your area.
-                </p>
+              <div className="col-span-full p-8 rounded-[22px] bg-[#11161D] border border-white/[0.08] text-center space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 text-[#2DD4A0] flex items-center justify-center mx-auto">
+                  <UserPlus className="w-6 h-6" />
+                </div>
+                <div className="max-w-md mx-auto">
+                  <p className="text-base font-bold text-white">No active washers in your area yet</p>
+                  <p className="text-xs text-white/50 mt-1">
+                    Add your dedicated morning washer specialist directly with their name and phone number.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWasherError('');
+                    setShowAddWasherModal(true);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold font-mono uppercase tracking-wider inline-flex items-center gap-2 transition-all shadow-lg cursor-pointer active:scale-95"
+                >
+                  <UserPlus className="w-4 h-4" />
+                  <span>Add your Washer</span>
+                </button>
               </div>
             ) : (
               availableWashers.map((washer) => {
                 const isCurrent =
-                  (currentAssignedWasherId && (washer.id === currentAssignedWasherId || (washer as any).uid === currentAssignedWasherId)) ||
-                  (currentAssignedWasherName && washer.name.toLowerCase().trim() === currentAssignedWasherName.toLowerCase().trim());
+                  (currentAssignedWasherId &&
+                    (washer.id === currentAssignedWasherId ||
+                      (washer as any).uid === currentAssignedWasherId)) ||
+                  (currentAssignedWasherName &&
+                    washer.name.toLowerCase().trim() ===
+                      currentAssignedWasherName.toLowerCase().trim());
 
                 const isAppointing = isAppointingId === washer.id;
-
                 const isMatched = isWasherMatchForOwner(washer, user);
 
                 return (
@@ -501,9 +631,9 @@ export default function OwnerSettingsPage() {
                           </h4>
                           <div className="flex items-center gap-1.5 text-xs text-white/70 font-medium">
                             <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                            <span className="font-bold text-white">{washer.rating || '4.95'}</span>
+                            <span className="font-bold text-white">{washer.rating || '5.0'}</span>
                             <span className="text-white/40 text-[11px]">
-                              ({washer.reviewsCount || 120} reviews)
+                              ({washer.reviewsCount || 1} reviews)
                             </span>
                           </div>
                         </div>
@@ -531,14 +661,12 @@ export default function OwnerSettingsPage() {
                           <span className="text-white/50 flex items-center gap-1.5">
                             <Shield className="w-3.5 h-3.5 text-[#2DD4A0]" /> Verified:
                           </span>
-                          <span className="text-white/90">Aadhaar + Police KYC ✓</span>
+                          <span className="text-white/90">Aadhaar + Phone ✓</span>
                         </div>
-                        {isMatched && (
-                          <div className="pt-1 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-emerald-300">
-                            <span>Route Cluster:</span>
-                            <span className="font-bold truncate max-w-[140px]">
-                              {washer.district ? `${washer.district}, ` : ''}{washer.city || ''}
-                            </span>
+                        {washer.phone && (
+                          <div className="pt-1 border-t border-white/[0.06] flex items-center justify-between text-[11px] text-[#2DD4A0]">
+                            <span>Phone:</span>
+                            <span className="font-bold">{washer.phone}</span>
                           </div>
                         )}
                       </div>
@@ -581,157 +709,108 @@ export default function OwnerSettingsPage() {
             )}
           </div>
         </section>
+      </main>
 
-        {/* ============================================================ */}
-        {/* RESIDENTIAL & SOCIETY SUMMARY */}
-        {/* ============================================================ */}
-        <section className="p-6 rounded-[22px] bg-[#11161D] border border-white/[0.08] space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white/50">
-              Residential & Society Location
-            </h3>
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-mono text-[#2DD4A0] font-bold">
-                Verified Society Hub ✓
-              </span>
-              <button
-                type="button"
-                onClick={() => setShowEditLocationModal(true)}
-                className="px-2.5 py-1 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/10 text-white text-[11px] font-medium flex items-center gap-1 transition-colors"
-              >
-                <Edit2 className="w-3 h-3 text-[#2DD4A0]" />
-                <span>Change Society</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-            <div className="p-3.5 bg-[#161C25] rounded-xl border border-white/[0.06] space-y-1">
-              <span className="text-white/50 block font-mono text-[10px] uppercase">Society Name</span>
-              <div className="font-bold text-white text-sm flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                <span>{user.societyName || user.society || 'Green Valley Residency'}</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-[#161C25] rounded-xl border border-white/[0.06] space-y-1">
-              <span className="text-white/50 block font-mono text-[10px] uppercase">Area & City</span>
-              <div className="font-bold text-white text-sm flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                <span>
-                  {user.district ? `${user.district}, ` : ''}
-                  {user.city || 'Gurugram'}, {user.state || 'Haryana'}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-[#161C25] rounded-xl border border-white/[0.06] space-y-1">
-              <span className="text-white/50 block font-mono text-[10px] uppercase">Tower / Flat / Bay</span>
-              <div className="font-bold text-white text-sm font-mono">
-                {user.flat || user.flatNumber || user.address || 'Tower B, Flat 402'}
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-[#161C25] rounded-xl border border-white/[0.06] space-y-1">
-              <span className="text-white/50 block font-mono text-[10px] uppercase">Account Holder</span>
-              <div className="font-bold text-white text-sm">
-                {user.name} <span className="text-white/40 font-normal">({user.email || user.phone})</span>
-              </div>
-            </div>
-          </div>
-
-          {/* EQUAL / COMMON MATCHED WASHER BANNER */}
-          {matchedWasher ? (
-            <div className="p-4 rounded-xl bg-gradient-to-r from-[#2DD4A0]/15 via-[#162325]/80 to-[#11161D] border border-[#2DD4A0]/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+      {/* ============================================================ */}
+      {/* MODAL: ADD YOUR WASHER */}
+      {/* ============================================================ */}
+      {showAddWasherModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-[#11161D] border border-white/[0.1] rounded-[24px] p-6 shadow-2xl text-white space-y-5">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/20 border border-[#2DD4A0]/40 flex items-center justify-center text-[#2DD4A0] shrink-0">
-                  <Sparkles className="w-5 h-5" />
+                <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 text-[#2DD4A0] flex items-center justify-center">
+                  <UserPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <div className="text-[10px] font-mono uppercase text-[#2DD4A0] font-bold tracking-wider">
-                    Equal Location & Society Match Found
-                  </div>
-                  <div className="text-sm font-bold text-white flex items-center gap-2">
-                    <span>Dedicated Washer: <strong>{matchedWasher.name}</strong></span>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/30 font-mono">
-                      Active on Route
-                    </span>
-                  </div>
+                  <h3 className="text-base font-bold text-white">Add your Washer</h3>
+                  <p className="text-[11px] text-white/50 font-mono">
+                    Enter your dedicated morning specialist details
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => handleAppointWasher(matchedWasher)}
-                className="px-3.5 py-1.5 rounded-lg bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold transition-all shadow-md shrink-0 flex items-center justify-center gap-1.5"
+                onClick={() => setShowAddWasherModal(false)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
               >
-                <Check className="w-3.5 h-3.5" />
-                <span>Assign {matchedWasher.name}</span>
+                <X className="w-4 h-4" />
               </button>
             </div>
-          ) : (
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-white/50 flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-amber-400/80 shrink-0" />
-              <span>
-                When an onboarded washer has the same State, City, District & Society, their name will appear here automatically.
-              </span>
-            </div>
-          )}
-        </section>
 
-        {/* ============================================================ */}
-        {/* VEHICLE FLEET SUMMARY */}
-        {/* ============================================================ */}
-        <section className="p-6 rounded-[22px] bg-[#11161D] border border-white/[0.08] space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white/50">
-              Registered Vehicles ({vehicles.length})
-            </h3>
-            <Link
-              href="/owner/vehicles"
-              className="text-xs font-mono font-bold text-[#2DD4A0] hover:underline flex items-center gap-1"
-            >
-              <span>Manage Fleet</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
+            {washerError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{washerError}</span>
+              </div>
+            )}
 
-          <div className="space-y-3">
-            {vehicles.map((veh, index) => (
-              <div
-                key={veh.id || index}
-                className="p-4 bg-[#161C25] rounded-xl border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-white/[0.05] border border-white/[0.08] flex items-center justify-center text-[#2DD4A0] shrink-0">
-                    <Car className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="font-bold text-white text-sm">
-                      {veh.make} {veh.model}
-                    </div>
-                    <div className="text-white/60 font-mono mt-0.5">
-                      <span className="font-bold text-white/90">{veh.registration_number}</span>
-                      <span className="mx-1.5">•</span>
-                      <span>Target: {veh.preferred_wash_time || '07:30 AM'}</span>
-                    </div>
-                  </div>
-                </div>
+            <form onSubmit={handleSaveWasher} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">
+                  Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={washerNameInput}
+                  onChange={(e) => setWasherNameInput(e.target.value)}
+                  placeholder="e.g. Ramesh Sharma"
+                  className="w-full bg-[#161C25] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white placeholder-white/30 focus:outline-hidden focus:border-[#2DD4A0] transition-colors"
+                  autoFocus
+                />
+              </div>
 
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-1 rounded-lg bg-black/40 border border-white/10 text-white/70 font-mono text-[11px]">
-                    {veh.assigned_washer_name || currentAssignedWasherName || 'No washer assigned'}
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">
+                  Phone Number
+                </label>
+                <div className="flex items-center bg-[#161C25] border border-white/[0.08] rounded-xl overflow-hidden focus-within:border-[#2DD4A0] transition-colors">
+                  <span className="px-3.5 py-3 text-xs font-mono font-bold text-[#2DD4A0] bg-white/[0.02] border-r border-white/[0.08]">
+                    +91
                   </span>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    value={washerPhoneInput}
+                    onChange={(e) => setWasherPhoneInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="9876543210"
+                    className="flex-1 bg-transparent px-3.5 py-3 text-sm text-white placeholder-white/30 focus:outline-hidden font-mono"
+                  />
                 </div>
               </div>
-            ))}
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddWasherModal(false)}
+                  className="px-4 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingWasher}
+                  className="px-6 py-2.5 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingWasher ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Add Washer</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
-        </section>
-        {/* EDIT LOCATION & SOCIETY MODAL */}
-        <EditLocationSocietyModal
-          isOpen={showEditLocationModal}
-          onClose={() => setShowEditLocationModal(false)}
-        />
-      </main>
+        </div>
+      )}
 
       {/* Bottom Nav for mobile */}
       <OwnerBottomNav />
