@@ -44,7 +44,7 @@ export default function AboutPage() {
             Car owners felt frustrated by swirl marks, dry cloth scratches, missed days, and zero accountability. Washers felt undervalued, trapped in low-paying arrangements where they spent half their time chasing late monthly cash payments instead of taking pride in their craft.
           </p>
           <p>
-            We created <strong className="text-white">Torque Care</strong> with one clear mission: <em className="text-white">Your car. Always cared for.</em> By introducing verified morning photos, clustered neighborhood routes, washer-appointed peer backup coverage, and 100% Sunday bonus payments, we ensure owners wake up to spotless vehicles while care technicians earn predictable, dignified livelihoods.
+            We created <strong className="text-white">Torque Care</strong> with one clear mission: <em className="text-white">Your car. Always cared for.</em> By introducing daily Yes / No wash tracking, automated missed wash deductions, clustered neighborhood routes, and full monthly service audits, we ensure owners pay only for the washes they actually receive while care technicians earn predictable, dignified livelihoods.
           </p>
           <p>
             Whether your vehicle is parked in your society basement or parked at a hotel during out-of-town travel, Torque Care unifies your automotive maintenance under one verifiable standard of excellence.
@@ -55,8 +55,8 @@ export default function AboutPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <div className="p-8 rounded-[20px] bg-[#11161D] border border-white/[0.08] hover:border-white/20 shadow-xl transition-all text-center space-y-2 relative">
             <div className="text-4xl font-bold text-white">100%</div>
-            <div className="text-xs font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">Photo Verified</div>
-            <p className="text-xs text-white/60 mt-1">Every wash logged with parking bay proof & timestamps</p>
+            <div className="text-xs font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">Daily Tracked</div>
+            <p className="text-xs text-white/60 mt-1">Every wash confirmed with Yes / No checks and full monthly service audits</p>
           </div>
 
           <div className="p-8 rounded-[20px] bg-[#11161D] border border-white/[0.08] hover:border-white/20 shadow-xl transition-all text-center space-y-2 relative">

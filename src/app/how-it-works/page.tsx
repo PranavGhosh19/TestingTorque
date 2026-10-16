@@ -38,7 +38,7 @@ export default function HowItWorksPage() {
 
         {/* Subtitle */}
         <p className="text-base sm:text-lg text-white/60 max-w-2xl mx-auto leading-relaxed mb-16">
-          From the moment you register your parking bay to the morning proof certificate delivered directly to your phone.
+          Register with us. Track your missed washes with Yes / No and analyse your monthly services provided.
         </p>
 
         {/* 3 CORE STEPS */}
@@ -49,10 +49,10 @@ export default function HowItWorksPage() {
               01
             </span>
             <h3 className="text-xl font-bold text-white tracking-tight">
-              Register Car & Set Bay
+              Register With Us
             </h3>
             <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
-              Add your vehicle and specify your parking bay. Your assigned society specialist will handle your morning route.
+              Add your vehicle details and society parking bay. No hardware, devices, or changes to your current routine needed.
             </p>
           </div>
 
@@ -62,10 +62,10 @@ export default function HowItWorksPage() {
               02
             </span>
             <h3 className="text-xl font-bold text-white tracking-tight">
-              Water-Conscious Care
+              Track With Yes / No
             </h3>
             <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
-              Our verified partner follows gentle dual-bucket, scratch-safe microfiber care protocols between 06:30 AM and 09:30 AM.
+              Answer a simple daily question: &ldquo;Was your car washed today?&rdquo; Tap Yes if cleaned, or No if skipped.
             </p>
           </div>
 
@@ -75,10 +75,10 @@ export default function HowItWorksPage() {
               03
             </span>
             <h3 className="text-xl font-bold text-white tracking-tight">
-              Verified Photo Proof
+              Analyse &amp; Pay Only For Washes
             </h3>
             <p className="text-xs sm:text-sm text-white/60 leading-relaxed">
-              Wake up to a high-resolution car photo certificate with parking bay and timestamp logged directly in your portal.
+              Track your missed washes for the month, inspect your service audit calendar, and pay only for washes completed.
             </p>
           </div>
         </div>
@@ -154,7 +154,7 @@ export default function HowItWorksPage() {
                   100% Digital Audit History
                 </h3>
                 <p className="text-xs text-white/60 leading-relaxed">
-                  Complete digital transparency. Timestamped before/after photos, bay inspection stamps, and full historical log accessible anytime from your phone.
+                  Complete digital transparency. Daily Yes / No logs, missed wash tracking, and full monthly audit records accessible anytime from your phone.
                 </p>
               </div>
             </div>
@@ -204,7 +204,7 @@ export default function HowItWorksPage() {
                 <span>Not classified as a missed wash by the washer partner.</span>
               </div>
               <div className="text-[11px] text-white/40 font-mono">
-                Washer captures &apos;BAY EMPTY&apos; photo with geotag verification.
+                Washer marks vehicle unavailable; logged into your audit schedule.
               </div>
             </div>
           </div>
@@ -239,7 +239,7 @@ export default function HowItWorksPage() {
                 </div>
               </div>
               <p className="text-xs text-white/60 leading-relaxed">
-                Recurring society bay care. Timestamped photo every morning before your commute.
+                Recurring society bay care. Track with daily Yes / No checks before your morning commute.
               </p>
             </div>
 
@@ -267,10 +267,10 @@ export default function HowItWorksPage() {
         <div className="p-10 sm:p-14 rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-2xl space-y-6">
           <div className="space-y-2">
             <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
-              Ready for verified car care in your society?
+              Ready to track your car washes accurately?
             </h2>
             <p className="text-sm sm:text-base text-white/60 max-w-xl mx-auto leading-relaxed">
-              Join thousands of vehicle owners enjoying spotless cars and photo proof every single morning.
+              Join vehicle owners who track their missed washes with Yes / No and pay only for services actually provided.
             </p>
           </div>
 

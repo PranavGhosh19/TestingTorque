@@ -7,36 +7,30 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 import {
-  ShieldCheck,
   CheckCircle2,
+  AlertTriangle,
+  XCircle,
   Sparkles,
   ArrowRight,
-  MapPin,
-  Clock,
-  Shield,
-  Building2,
   ChevronRight,
-  Zap,
   Play,
-  History,
   Check,
   BarChart3,
-  Camera,
-  Droplets,
   Calendar,
-  Lock,
-  ThumbsUp,
   RefreshCw,
-  Sliders,
-  ChevronDown
+  Car,
+  ShieldCheck,
+  Building2,
+  DollarSign,
+  TrendingDown,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
+
 export default function HomePage() {
   const router = useRouter();
-  const { todayWash, isLoggedIn, isHydrated, role } = useStore();
+  const { isLoggedIn, isHydrated, role } = useStore();
   const [isRedirecting, setIsRedirecting] = useState(false);
-  const [activeProofView, setActiveProofView] = useState<'after' | 'before'>('after');
-  const [selectedFaq, setSelectedFaq] = useState<number | null>(null);
+  const [demoAnswer, setDemoAnswer] = useState<'yes' | 'no'>('yes');
   const [showFloatingCta, setShowFloatingCta] = useState(false);
 
   useEffect(() => {
@@ -88,15 +82,15 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#0A0D12] text-white selection:bg-[#2DD4A0] selection:text-black overflow-x-hidden font-sans">
       
       {/* ========================================================================= */}
-      {/* 1. HERO SECTION — PIXEL-PERFECT MATCH TO REFERENCE DESIGN */}
+      {/* 1. HERO SECTION — PURELY TO TRACK MISSED WASHES */}
       {/* ========================================================================= */}
       <section id="hero-section" className="relative min-h-[92vh] lg:min-h-[96vh] flex flex-col justify-between overflow-hidden border-b border-white/[0.08]">
         
-        {/* Cinematic Backdrop Image with Glowing Floor Halo */}
+        {/* Cinematic Backdrop Image with Floor Glow */}
         <div className="absolute inset-0 z-0">
           <Image
             src="/images/cinematic_bmw_hero.jpg"
-            alt="Torque Care BMW with floor glow halo"
+            alt="Torque Care vehicle tracking"
             fill
             priority
             sizes="100vw"
@@ -108,70 +102,61 @@ export default function HomePage() {
           <div className="absolute inset-0 bg-radial-[circle_at_25%_45%] from-transparent via-[#0A0D12]/20 to-[#0A0D12]/80 pointer-events-none" />
         </div>
 
-        {/* Floating Glassmorphic Proof Chips — Positioned around the car in 3D perspective */}
+        {/* Floating Tracking Chips */}
         <div className="absolute inset-0 z-10 pointer-events-none max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          {/* CHIP 1: "Wash completed - Today • 7:42 AM" (Top Center / Above Roofline) */}
+          {/* CHIP 1: "Daily Wash Check • Yes / No" */}
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="absolute top-[18%] left-[46%] sm:left-[48%] -translate-x-1/2 pointer-events-auto hidden md:block"
           >
-            <div className="flex items-center gap-3 px-4 py-2 rounded-2xl bg-[#11161D]/80 backdrop-blur-xl border border-white/[0.08] shadow-[0_12px_32px_rgba(0,0,0,0.6)] hover:border-[#2DD4A0]/40 transition-colors group cursor-default">
+            <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-[#11161D]/85 backdrop-blur-xl border border-white/[0.08] shadow-[0_12px_32px_rgba(0,0,0,0.6)] hover:border-[#2DD4A0]/40 transition-colors group cursor-default">
               <div className="w-6 h-6 rounded-full bg-[#2DD4A0] flex items-center justify-center text-slate-950 shrink-0 shadow-[0_0_12px_rgba(45,212,160,0.6)]">
                 <Check className="w-3.5 h-3.5 stroke-[3]" />
               </div>
               <div className="text-left pr-2">
-                <div className="text-xs font-semibold text-white tracking-tight">Wash completed</div>
-                <div className="text-[11px] text-white/65 font-medium">Today • 7:42 AM</div>
+                <div className="text-xs font-semibold text-white tracking-tight">Daily Wash Check</div>
+                <div className="text-[11px] text-white/65 font-medium">1-Tap Confirmation • Yes / No</div>
               </div>
             </div>
           </motion.div>
 
-          {/* CHIP 2: "VERIFIED - Photo captured" (Top Right / Above Trunk) */}
+          {/* CHIP 2: "MISSED WASH FLAGGED • Auto-Deducted" */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, delay: 0.35 }}
             className="absolute top-[18%] right-6 lg:right-12 pointer-events-auto hidden lg:block"
           >
-            <div className="flex items-center gap-3.5 p-2.5 pr-4 rounded-[20px] bg-[#11161D]/80 backdrop-blur-xl border border-white/[0.08] shadow-[0_12px_32px_rgba(0,0,0,0.6)] hover:border-[#2DD4A0]/40 transition-colors group cursor-default">
-              <div className="w-8 h-8 rounded-xl bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0">
-                <ShieldCheck className="w-4 h-4" />
+            <div className="flex items-center gap-3.5 p-3 pr-4 rounded-[20px] bg-[#11161D]/85 backdrop-blur-xl border border-amber-500/30 shadow-[0_12px_32px_rgba(0,0,0,0.6)] hover:border-amber-400/50 transition-colors group cursor-default">
+              <div className="w-8 h-8 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                <AlertTriangle className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <div className="text-xs font-bold text-white tracking-wider flex items-center gap-1.5">
-                  <span className="text-[#2DD4A0]">VERIFIED</span>
+                <div className="text-xs font-bold text-amber-300 tracking-wider flex items-center gap-1.5">
+                  <span>MISSED WASH FLAGGED</span>
                 </div>
-                <div className="text-[11px] text-white/65">Photo captured at bay</div>
-              </div>
-              <div className="w-10 h-8 rounded-lg overflow-hidden border border-white/10 bg-black/40 relative shrink-0 ml-1">
-                <Image
-                  src="/images/creta_after.jpg"
-                  alt="Verified Proof Thumbnail"
-                  fill
-                  sizes="40px"
-                  className="object-cover"
-                />
+                <div className="text-[11px] text-white/65">Deduct from your monthly bill</div>
               </div>
             </div>
           </motion.div>
 
-          {/* CHIP 3: "Tracked washes this month" (Bottom Right) */}
+          {/* CHIP 3: "Pay Only For Washes • Monthly Audit" */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5 }}
             className="absolute bottom-[16%] right-6 lg:right-16 pointer-events-auto hidden md:block"
           >
-            <div className="flex items-center gap-3.5 px-4 py-3 rounded-[20px] bg-[#11161D]/80 backdrop-blur-xl border border-white/[0.08] shadow-[0_16px_36px_rgba(0,0,0,0.7)] hover:border-white/20 transition-all cursor-default">
+            <div className="flex items-center gap-3.5 px-4 py-3 rounded-[20px] bg-[#11161D]/85 backdrop-blur-xl border border-white/[0.08] shadow-[0_16px_36px_rgba(0,0,0,0.7)] hover:border-white/20 transition-all cursor-default">
               <div className="w-8 h-8 rounded-xl bg-white/[0.06] border border-white/10 flex items-center justify-center text-[#2DD4A0]">
                 <BarChart3 className="w-4 h-4" />
               </div>
               <div className="text-left">
-                <div className="text-lg font-bold text-white leading-none font-mono">100%</div>
-                <div className="text-[11px] text-white/65 mt-0.5">Verified washes this month</div>
+                <div className="text-sm font-bold text-white leading-tight font-mono">Pay Only For Washes</div>
+                <div className="text-[11px] text-white/65 mt-0.5">Automated Monthly Service Audit</div>
               </div>
               <ChevronRight className="w-4 h-4 text-white/40 ml-2" />
             </div>
@@ -181,22 +166,21 @@ export default function HomePage() {
           <div className="absolute right-4 top-1/2 -translate-y-1/2 hidden xl:flex flex-col items-center gap-4 text-[10px] text-white/40 tracking-[0.25em] uppercase pointer-events-none">
             <div className="flex flex-col gap-1 items-center">
               <span className="w-1 h-1 rounded-full bg-[#2DD4A0]" />
+              <span className="w-1 h-1 rounded-full bg-amber-400" />
               <span className="w-1 h-1 rounded-full bg-white/40" />
-              <span className="w-1 h-1 rounded-full bg-white/20" />
-              <span className="w-1 h-1 rounded-full bg-white/20" />
               <span className="w-1 h-1 rounded-full bg-white/20" />
             </div>
             <div className="[writing-mode:vertical-lr] font-semibold text-white/65 tracking-[0.2em] py-2">
-              DAILY CAR WASH TRACKING &amp; AUDIT PLATFORM
+              TRACK MISSED WASHES • PAY ONLY FOR SERVICES PROVIDED
             </div>
           </div>
         </div>
 
-        {/* Main Hero Content (Left Staged) */}
+        {/* Main Hero Content */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-16 sm:pt-20 lg:pt-28 pb-12 sm:pb-16 flex-1 flex flex-col justify-center">
           <div className="max-w-2xl text-left">
             
-            {/* Bold Tracking Headline */}
+            {/* Bold Headline */}
             <motion.h1
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -206,14 +190,14 @@ export default function HomePage() {
               TRACK YOUR MISSED WASHES.
             </motion.h1>
 
-            {/* Subheading: 65% White Opacity */}
+            {/* Subheading */}
             <motion.p
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.15 }}
-              className="text-base sm:text-lg text-white/65 max-w-md font-normal leading-relaxed mb-10"
+              className="text-base sm:text-lg text-white/75 max-w-lg font-normal leading-relaxed mb-10"
             >
-              The daily car wash tracking platform. Mon–Sat morning doorstep wash with timestamped photo proof and instant owner verification.
+              Track your missed washes for the month and pay only for the washes. Register with us, track daily washes with a simple Yes / No, and analyse your monthly services provided.
             </motion.p>
 
             {/* CTAs */}
@@ -250,7 +234,7 @@ export default function HomePage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 2. CORE PHILOSOPHY & HOUSING SOCIETY DAILY WASH PROTOCOL */}
+      {/* 2. CORE PHILOSOPHY & ACCURATE BILLING */}
       {/* ========================================================================= */}
       <section className="py-24 sm:py-32 bg-[#0A0D12] relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -258,10 +242,10 @@ export default function HomePage() {
           {/* Philosophy Banner */}
           <div className="max-w-3xl mx-auto text-center mb-20">
             <h2 className="text-3xl sm:text-5xl font-bold tracking-tight text-white mb-6 uppercase font-automotive-title">
-              Never wonder if your car was cleaned today.
+              Stop paying for car washes you never received.
             </h2>
             <p className="text-base sm:text-lg text-white/65 leading-relaxed font-normal">
-              Informal apartment cleaners skip days, leave dry-wipe scratches, and leave you guessing. Torque Care transforms housing society car care into a transparent, tracked, and verifiable daily operation.
+              Informal apartment cleaners frequently skip days unnoticed and charge you for the full month regardless. Torque Care gives you complete control: track missed washes daily and pay only for the washes actually provided.
             </p>
           </div>
 
@@ -270,11 +254,14 @@ export default function HomePage() {
             <div className="absolute top-0 right-0 w-80 h-80 bg-[#2DD4A0]/5 rounded-full blur-3xl pointer-events-none" />
             
             <div className="space-y-4">
+              <span className="text-xs font-mono font-bold tracking-[0.2em] text-[#2DD4A0] uppercase">
+                FAIR BILLING &amp; SERVICE TRANSPARENCY
+              </span>
               <h3 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-                Everything verified before you leave for work.
+                Track your missed washes for the month and pay only for the washes.
               </h3>
               <p className="text-sm text-white/65 leading-relaxed">
-                Dedicated background-verified washers assigned exclusively to your society tower. Keyless exterior washes, scratch-free microfiber, and unquestionable morning photo proof.
+                Keep your existing cleaner or society wash partner. There is no complicated photo proof or camera inspection to manage. Just register with us, answer a simple daily question — “Was your car washed today?” — and analyse your monthly services provided with complete financial accuracy.
               </p>
             </div>
 
@@ -284,19 +271,19 @@ export default function HomePage() {
                 <div className="w-5 h-5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] flex items-center justify-center shrink-0 mt-0.5">
                   <Check className="w-3 h-3 stroke-[3]" />
                 </div>
-                <span>Timestamped photo verification</span>
+                <span>Daily 1-tap Yes / No tracking</span>
               </div>
               <div className="flex items-start gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] flex items-center justify-center shrink-0 mt-0.5">
                   <Check className="w-3 h-3 stroke-[3]" />
                 </div>
-                <span>Daily 1-tap owner Yes/No check</span>
+                <span>Automated monthly service audit</span>
               </div>
               <div className="flex items-start gap-2.5">
                 <div className="w-5 h-5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] flex items-center justify-center shrink-0 mt-0.5">
                   <Check className="w-3 h-3 stroke-[3]" />
                 </div>
-                <span>Mon–Sat care with Sunday rest</span>
+                <span>Pay only for actual washes done</span>
               </div>
             </div>
           </div>
@@ -304,110 +291,188 @@ export default function HomePage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 3. VERIFIED SERVICE SHOWCASE — THE MAIN BRAND IDEA IN UI */}
+      {/* 3. INTERACTIVE YES / NO TRACKER & AUDIT SHOWCASE */}
       {/* ========================================================================= */}
       <section className="py-24 sm:py-32 bg-[#11161D] border-y border-white/[0.08] relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
             
-            {/* Left Column: Context & Proof Mechanics */}
+            {/* Left Column: Context & Mechanics */}
             <div className="lg:col-span-6 space-y-8">
               <div className="space-y-4">
+                <span className="text-xs font-mono font-bold tracking-[0.2em] text-[#2DD4A0] uppercase">
+                  SIMPLICITY FIRST
+                </span>
                 <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-white uppercase font-automotive-title">
-                  You never have to wonder if your car was cleaned.
+                  Track your missed washes with Yes / No.
                 </h2>
                 <p className="text-base text-white/65 leading-relaxed font-normal">
-                  Every morning, our trained washer takes high-resolution verification photos from your designated society parking bay. The photo is automatically stamped with the time, date, and parking spot before you step into the elevator.
+                  No camera proof, no complicated uploads. Each day, simply mark whether your car was washed. If it was missed, flag it with one tap. We compile your complete monthly service audit so you never overpay again.
                 </p>
+              </div>
+
+              <div className="space-y-3 text-xs text-white/80">
+                <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] flex items-center gap-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#2DD4A0]/15 text-[#2DD4A0] flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-white text-sm">Instant 1-Tap Check</div>
+                    <div className="text-white/50 text-xs mt-0.5">Answer “Was your car washed today?” in 2 seconds.</div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] flex items-center gap-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/15 text-amber-400 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-white text-sm">Missed Wash Auto-Deduction</div>
+                    <div className="text-white/50 text-xs mt-0.5">Skipped washes are catalogued and deducted from your monthly bill.</div>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] flex items-center gap-3.5">
+                  <div className="w-9 h-9 rounded-xl bg-blue-500/15 text-blue-400 flex items-center justify-center shrink-0">
+                    <BarChart3 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="font-bold text-white text-sm">Monthly Service Analytics</div>
+                    <div className="text-white/50 text-xs mt-0.5">Analyse wash reliability, active days, and exact monthly fees.</div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Right Column: Interactive Verified PhotoProof Card */}
+            {/* Right Column: Interactive Live Demo Card */}
             <div className="lg:col-span-6">
-              <div className="p-6 sm:p-8 rounded-[20px] bg-[#161C25] border border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.6)] space-y-6">
+              <div className="p-6 sm:p-8 rounded-[24px] bg-[#161C25] border border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.6)] space-y-6">
                 
-                {/* Header with Verification Badge */}
-                <div className="flex items-center justify-between">
+                {/* Header */}
+                <div className="flex items-center justify-between pb-4 border-b border-white/[0.08]">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0]">
-                      <Camera className="w-5 h-5" />
+                    <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 flex items-center justify-center text-[#2DD4A0]">
+                      <Car className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="text-sm font-bold text-white flex items-center gap-2">
-                        <span>BMW 5-Series • DL 01 AB 9021</span>
-                      </div>
-                      <div className="text-xs text-white/65">Green Valley • Bay B-42</div>
+                      <div className="text-sm font-bold text-white">Maruti Suzuki Swift • DL 01 AB 4291</div>
+                      <div className="text-xs text-white/50">Tower 2 • Bay B-14</div>
                     </div>
                   </div>
 
-                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 text-[11px] font-bold text-[#2DD4A0]">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    Verified
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-[#11161D] border border-white/10 text-white/70">
+                    Live Demo
                   </span>
                 </div>
 
-                {/* Photo Display with Before/After Switch */}
-                <div className="relative aspect-16/10 rounded-2xl overflow-hidden border border-white/10 group">
-                  <Image
-                    src={activeProofView === 'after' ? '/images/creta_after.jpg' : '/images/honda_city_before.jpg'}
-                    alt="Verified Proof Showcase"
-                    fill
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+                {/* Question Prompt Box */}
+                <div className="p-5 rounded-2xl bg-[#11161D] border border-white/[0.08] space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">
+                      TODAY&apos;S WASH LOG
+                    </span>
+                    <span className="text-xs font-mono text-white/50">Today</span>
+                  </div>
 
-                  {/* Stamp Overlay */}
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-xs">
-                    <div className="bg-black/75 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 font-mono text-[11px] text-white">
-                      <span className="text-[#2DD4A0] font-bold">● LIVE STAMP:</span> TODAY 07:24 AM
+                  <p className="text-base sm:text-lg font-bold text-white tracking-tight">
+                    Was your car washed today?
+                  </p>
+
+                  {/* Yes / No Toggle Buttons */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setDemoAnswer('yes')}
+                      className={`p-3 rounded-xl border font-bold text-xs font-mono transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        demoAnswer === 'yes'
+                          ? 'bg-[#2DD4A0] text-black border-[#2DD4A0] shadow-[0_0_20px_rgba(45,212,160,0.4)] scale-[1.02]'
+                          : 'bg-[#161C25] text-white/70 border-white/10 hover:border-white/25 hover:text-white'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Yes, Cleaned</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setDemoAnswer('no')}
+                      className={`p-3 rounded-xl border font-bold text-xs font-mono transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                        demoAnswer === 'no'
+                          ? 'bg-amber-500 text-black border-amber-500 shadow-[0_0_20px_rgba(245,158,11,0.4)] scale-[1.02]'
+                          : 'bg-[#161C25] text-white/70 border-white/10 hover:border-white/25 hover:text-white'
+                      }`}
+                    >
+                      <XCircle className="w-4 h-4" />
+                      <span>No, Missed</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Dynamic Result State */}
+                <div className="space-y-3">
+                  {demoAnswer === 'yes' ? (
+                    <div className="p-4 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 text-xs text-white flex items-start gap-3">
+                      <CheckCircle2 className="w-4 h-4 text-[#2DD4A0] shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-[#2DD4A0]">Wash Logged as Completed ✓</div>
+                        <div className="text-white/70 mt-0.5">Today is logged into your audit calendar as serviced. Full accountability verified.</div>
+                      </div>
                     </div>
-                    <div className="flex bg-black/80 backdrop-blur-md p-1 rounded-lg border border-white/10 text-[11px]">
-                      <button
-                        type="button"
-                        onClick={() => setActiveProofView('before')}
-                        className={`px-2.5 py-1 rounded-md transition-colors ${activeProofView === 'before' ? 'bg-white/20 text-white font-bold' : 'text-white/60'}`}
-                      >
-                        Before
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setActiveProofView('after')}
-                        className={`px-2.5 py-1 rounded-md transition-colors ${activeProofView === 'after' ? 'bg-[#2DD4A0] text-black font-bold' : 'text-white/60'}`}
-                      >
-                        After Clean
-                      </button>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/25 text-xs text-white flex items-start gap-3">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <div className="font-bold text-amber-300">Missed Wash Flagged ⚠</div>
+                        <div className="text-white/70 mt-0.5">Today is flagged as not cleaned. Auto-deducted from your monthly billing statement.</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Monthly Summary Strip */}
+                  <div className="grid grid-cols-3 gap-2.5 text-center text-xs pt-1">
+                    <div className="p-3 rounded-xl bg-[#11161D] border border-white/[0.06]">
+                      <div className="text-[10px] text-white/40 uppercase font-mono">Washes Done</div>
+                      <div className="text-sm font-bold text-[#2DD4A0] mt-0.5 font-mono">
+                        {demoAnswer === 'yes' ? '25 Washes' : '24 Washes'}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[#11161D] border border-white/[0.06]">
+                      <div className="text-[10px] text-white/40 uppercase font-mono">Missed Flagged</div>
+                      <div className="text-sm font-bold text-amber-400 mt-0.5 font-mono">
+                        {demoAnswer === 'yes' ? '1 Missed' : '2 Missed'}
+                      </div>
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-[#11161D] border border-white/[0.06]">
+                      <div className="text-[10px] text-white/40 uppercase font-mono">Monthly Bill</div>
+                      <div className="text-sm font-bold text-white mt-0.5 font-mono">
+                        {demoAnswer === 'yes' ? '₹770 (Save ₹30)' : '₹740 (Save ₹60)'}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Washer Signature & Metrics */}
-                <div className="grid grid-cols-2 gap-3 text-center text-xs pt-2 border-t border-white/[0.08]">
-                  <div className="p-3 rounded-xl bg-[#11161D] border border-white/[0.05]">
-                    <div className="text-[11px] text-white/40 uppercase">Cleanliness</div>
-                    <div className="text-sm font-bold text-white mt-0.5">100% Spotless</div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#11161D] border border-white/[0.05]">
-                    <div className="text-[11px] text-white/40 uppercase">Assigned Care</div>
-                    <div className="text-sm font-bold text-white mt-0.5">Amit K. (Staff)</div>
-                  </div>
-                </div>
               </div>
             </div>
+
           </div>
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. THREE STEP PRECISION HOW IT WORKS */}
+      {/* 4. THREE STEP HOW IT WORKS */}
       {/* ========================================================================= */}
       <section className="py-24 sm:py-32 bg-[#0A0D12]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           <div className="text-center max-w-2xl mx-auto mb-20">
+            <span className="text-xs font-mono font-bold tracking-[0.2em] text-[#2DD4A0] uppercase block mb-3">
+              HOW IT WORKS
+            </span>
             <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white uppercase font-automotive-title">
-              Three steps to a verified clean car every morning
+              Three steps to track your monthly washes
             </h2>
           </div>
 
@@ -416,37 +481,35 @@ export default function HomePage() {
             {/* Step 1 */}
             <div className="p-8 rounded-[20px] bg-[#11161D] border border-white/[0.08] hover:border-white/20 transition-all space-y-5">
               <span className="text-4xl font-bold font-mono text-[#2DD4A0]">01</span>
-              <h3 className="text-xl font-bold text-white">Register Car &amp; Set Bay</h3>
+              <h3 className="text-xl font-bold text-white">Register With Us</h3>
               <p className="text-sm text-white/65 leading-relaxed">
-                Enter your vehicle registration and society parking spot (e.g. Tower 4, Bay B-42). No keys needed.
+                Add your vehicle and society details in under 2 minutes. No hardware, no upfront payments, and no disruptions to your current routine.
               </p>
             </div>
 
             {/* Step 2 */}
             <div className="p-8 rounded-[20px] bg-[#11161D] border border-white/[0.08] hover:border-white/20 transition-all space-y-5">
               <span className="text-4xl font-bold font-mono text-[#2DD4A0]">02</span>
-              <h3 className="text-xl font-bold text-white">Morning Clean &amp; Photo Proof</h3>
+              <h3 className="text-xl font-bold text-white">Track With Yes / No</h3>
               <p className="text-sm text-white/65 leading-relaxed">
-                Your assigned society washer cleans your car at dawn and captures timestamped inspection proof directly in the app.
+                Answer a quick daily question: &ldquo;Was your car washed today?&rdquo; Tap Yes if your vehicle was cleaned, or No if skipped.
               </p>
             </div>
 
             {/* Step 3 */}
             <div className="p-8 rounded-[20px] bg-[#11161D] border border-white/[0.08] hover:border-white/20 transition-all space-y-5">
               <span className="text-4xl font-bold font-mono text-[#2DD4A0]">03</span>
-              <h3 className="text-xl font-bold text-white">Track &amp; Verify in 1 Tap</h3>
+              <h3 className="text-xl font-bold text-white">Analyse &amp; Pay Only For Washes</h3>
               <p className="text-sm text-white/65 leading-relaxed">
-                Wake up to verified photo proof. Confirm with a quick Yes/No check and audit your monthly wash calendar.
+                Review your monthly service breakdown, see every missed wash deducted, and pay only for the washes actually provided.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-
-
       {/* ========================================================================= */}
-      {/* 7. FINAL CINEMATIC CALL TO ACTION BANNER */}
+      {/* 5. FINAL CALL TO ACTION BANNER */}
       {/* ========================================================================= */}
       <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
         <div className="p-10 sm:p-16 rounded-[20px] bg-[#11161D] border border-white/[0.12] shadow-[0_24px_60px_rgba(0,0,0,0.8)] relative overflow-hidden space-y-8">
@@ -454,13 +517,13 @@ export default function HomePage() {
 
           <div className="space-y-4 relative z-10 max-w-2xl mx-auto">
             <span className="text-xs font-mono font-bold tracking-[0.2em] text-[#2DD4A0] uppercase">
-              TORQUE CARE TRACKING PROTOCOL
+              TORQUE CARE AUDIT PLATFORM
             </span>
             <h2 className="text-3xl sm:text-5xl font-bold text-white tracking-tight uppercase font-automotive-title">
-              Track every wash. Verify with proof.
+              Track your missed washes. Pay only for the washes.
             </h2>
             <p className="text-sm sm:text-base text-white/65 leading-relaxed">
-              Experience the clarity of waking up to a verified clean vehicle every single morning with transparent photo evidence.
+              Register with us today. Track your daily car washes with Yes / No and analyse your monthly services provided.
             </p>
           </div>
 
@@ -482,7 +545,7 @@ export default function HomePage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 8. FOOTER */}
+      {/* 6. FOOTER */}
       {/* ========================================================================= */}
       <footer className="bg-[#05080E] border-t border-white/[0.08] pt-14 pb-28 md:py-14 px-4 sm:px-6 lg:px-8 text-xs text-white/40">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
@@ -496,7 +559,7 @@ export default function HomePage() {
         </div>
       </footer>
 
-      {/* Floating 'Get Started' CTA for smaller screens (appears when first section is scrolled down) */}
+      {/* Floating 'Track Your Car' CTA for mobile screens */}
       <AnimatePresence>
         {showFloatingCta && (
           <motion.div
@@ -510,7 +573,7 @@ export default function HomePage() {
               href="/auth/signup"
               className="pointer-events-auto w-full max-w-xs py-3.5 px-6 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-[0_10px_35px_rgba(0,0,0,0.8),0_0_25px_rgba(255,255,255,0.25)] active:scale-[0.97] border border-white/20"
             >
-              <span>Get Started</span>
+              <span>Track Your Car</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5]" />
             </Link>
           </motion.div>
