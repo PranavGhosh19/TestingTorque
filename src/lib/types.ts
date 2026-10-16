@@ -88,7 +88,7 @@ export interface Vehicle {
   preferred_wash_time: string;
   society_id: string;
   society_name: string;
-  subscription_status: 'active' | 'paused' | 'expired';
+  subscription_status?: 'active' | 'paused' | 'expired';
   washes_this_month: number;
   selected_plan?: string;
   assigned_washer_id?: string;

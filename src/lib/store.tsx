@@ -1017,10 +1017,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         areaManagerId: resolvedAdminId,
         washerLeaveDay: vLeaveDay,
         washerWeeklyLeaveDay: vLeaveDay,
+        subscription_status: 'active' as const,
         ...(ownerData.selectedPlan
           ? {
               selected_plan: ownerData.selectedPlan,
-              subscription_status: 'active',
               subscriptionStartDate: tomorrowIso,
               price: vPrice,
               subscription_price: vPrice,

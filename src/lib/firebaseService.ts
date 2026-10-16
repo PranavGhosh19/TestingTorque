@@ -65,7 +65,7 @@ export async function syncOwnerToFirestore(
 
     // 1. CAR OWNER: Car_Owners/{ownerId}
     const carOwnerRef = doc(db, 'Car_Owners', ownerId);
-    const carOwnerPayload = {
+    const carOwnerPayload: Record<string, any> = {
       customerId: ownerId,
       ownerId: ownerId,
       name: owner.name,
@@ -156,7 +156,7 @@ export async function syncOwnerToFirestore(
         const vSubEndDate = new Date(new Date(vSubStartDate).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
         const vehicleDocRef = doc(db, 'Car_Owners', ownerId, 'Vehicles', vehicleId);
-        const vehiclePayload = {
+        const vehiclePayload: Record<string, any> = {
           vehicleId: vehicleId,
           ownerId: ownerId,
           ownerName: owner.name,
