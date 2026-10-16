@@ -686,49 +686,30 @@ export default function OwnerProofCalendar({
                 className={`aspect-square w-full rounded-xl sm:rounded-[14px] p-1 flex flex-col items-center justify-center relative transition-all active:scale-95 cursor-pointer overflow-hidden ${cellClasses}`}
                 title={titleText}
               >
-                {day.hasProofUploaded && day.wash?.after_photo ? (
-                  <div className="absolute inset-0 w-full h-full overflow-hidden rounded-xl sm:rounded-[14px] group">
-                    <img
-                      src={day.wash.after_photo}
-                      alt={`Wash Proof ${day.date}`}
-                      className="w-full h-full object-cover opacity-60 group-hover:opacity-85 transition-opacity"
-                    />
-                    <div className="absolute inset-0 bg-black/40 backdrop-blur-[0.5px]" />
-                    <span className="absolute top-1 left-1.5 text-xs sm:text-sm font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                      {day.date}
-                    </span>
-                    <span className="absolute bottom-1 right-1 w-4 h-4 rounded-full bg-[#2DD4A0] text-[#0A0D12] flex items-center justify-center shadow-md">
-                      <CheckCircle2 className="w-3 h-3 text-[#0A0D12]" />
-                    </span>
-                  </div>
-                ) : (
-                  <>
-                    <span
-                      className={`text-xs sm:text-sm font-bold ${
-                        day.isToday
-                          ? day.isPriorToStart
-                            ? 'text-[#2DD4A0] font-black'
-                            : day.hasProofUploaded
-                            ? 'text-[#0A0D12] font-black'
-                            : 'text-[#2DD4A0] font-black'
-                          : day.isSignupDate
-                          ? 'text-[#2DD4A0] font-bold'
-                          : ''
-                      }`}
-                    >
-                      {day.date}
-                    </span>
+                <span
+                  className={`text-xs sm:text-sm font-bold ${
+                    day.isToday
+                      ? day.isPriorToStart
+                        ? 'text-[#2DD4A0] font-black'
+                        : day.hasProofUploaded
+                        ? 'text-[#0A0D12] font-black'
+                        : 'text-[#2DD4A0] font-black'
+                      : day.isSignupDate
+                      ? 'text-[#2DD4A0] font-bold'
+                      : ''
+                  }`}
+                >
+                  {day.date}
+                </span>
 
-                    {/* Indicator dot or tag */}
-                    {day.isSignupDate ? (
-                      <span className="text-[8px] font-mono uppercase font-bold text-[#2DD4A0] tracking-tight leading-none mt-0.5 scale-90 sm:scale-100">
-                        {day.isToday ? 'Start' : 'Joined'}
-                      </span>
-                    ) : dotColor !== 'bg-transparent' ? (
-                      <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotColor}`} />
-                    ) : null}
-                  </>
-                )}
+                {/* Indicator dot or tag */}
+                {day.isSignupDate ? (
+                  <span className="text-[8px] font-mono uppercase font-bold text-[#2DD4A0] tracking-tight leading-none mt-0.5 scale-90 sm:scale-100">
+                    {day.isToday ? 'Start' : 'Joined'}
+                  </span>
+                ) : dotColor !== 'bg-transparent' ? (
+                  <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotColor}`} />
+                ) : null}
               </button>
             );
           })}
