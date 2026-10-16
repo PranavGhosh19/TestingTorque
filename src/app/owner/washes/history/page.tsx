@@ -6,7 +6,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import {
   ArrowLeft,
-  ArrowRight,
   Loader2,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
@@ -131,16 +130,6 @@ export default function WashHistoryPage() {
             </div>
           </div>
 
-          <div className="shrink-0">
-            <button
-              type="button"
-              onClick={() => setShowChangeWasherModal(true)}
-              className="text-xs font-bold text-white/80 hover:text-white inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#161C25] border border-white/[0.08] hover:border-white/20 transition-all cursor-pointer"
-            >
-              <span>Change Specialist</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#2DD4A0]" />
-            </button>
-          </div>
         </div>
 
         {/* INTERACTIVE MODERN UI CALENDAR */}

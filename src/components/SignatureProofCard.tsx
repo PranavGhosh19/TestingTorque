@@ -72,9 +72,6 @@ export default function SignatureProofCard({
     (typeof window !== 'undefined' ? localStorage.getItem('torque_service_start_date') : null) ||
     (signupDate ? getNextDayIso(signupDate) : null);
 
-  const isPriorToServiceStart = Boolean(
-    serviceStartDate && todayIso < serviceStartDate
-  );
 
   const vehicleName =
     (currentVehicle ? `${currentVehicle.make} ${currentVehicle.model}`.trim() : '') ||
@@ -167,12 +164,7 @@ export default function SignatureProofCard({
           </div>
 
           {/* Condition: if present date proof is submitted or owner verified */}
-          {isPriorToServiceStart ? (
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 text-[#2DD4A0] text-xs sm:text-sm font-bold tracking-wide shadow-sm">
-              <Sparkles className="w-4 h-4 text-[#2DD4A0]" />
-              <span>Care Starts Tomorrow</span>
-            </div>
-          ) : isFlaggedNo ? (
+          {isFlaggedNo ? (
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
               <AlertTriangle className="w-4 h-4 text-amber-400" />
               <span>Flagged Not Cleaned (Orange)</span>
