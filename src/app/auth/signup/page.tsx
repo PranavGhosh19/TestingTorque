@@ -469,6 +469,7 @@ export default function SignUpPage() {
     try {
       const ownerUid = googleUser?.uid || `usr_${Date.now()}`;
       const ownerName = googleUser?.displayName || 'Car Owner';
+      const ownerEmail = googleUser?.email || '';
       const formattedPhone = phone.trim() ? phone.trim() : '';
 
       const hasSociety = !skipSociety && societyName.trim().length > 0;
