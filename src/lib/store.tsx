@@ -811,7 +811,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       washes_this_month: 0,
       signupDate: signupDateIso,
       serviceStartDate: serviceStartDateIso,
-      subscriptionStartDate: tomorrowDate.toISOString(),
+      subscriptionStartDate: (newVeh as any).subscriptionStartDate || now.toISOString(),
       created_at: now.toISOString(),
       selected_plan: newVeh.selected_plan || user.selected_plan || 'HOME BASIC',
       price: newVeh.price || defaultPrice,
