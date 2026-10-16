@@ -516,12 +516,12 @@ export default function OwnerProofCalendar({
         </div>
 
         {/* Car Switcher + Month Navigator */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="w-full sm:w-auto flex items-center gap-2.5">
           {vehicles.length > 1 && (
             <select
               value={selectedVehicleId}
               onChange={(e) => setSelectedVehicleId(e.target.value)}
-              className="px-3 py-1.5 rounded-full bg-[#161C25] border border-white/[0.08] text-xs font-semibold text-white focus:outline-hidden focus:border-[#2DD4A0]"
+              className="px-3 py-1.5 rounded-full bg-[#161C25] border border-white/[0.08] text-xs font-semibold text-white focus:outline-hidden focus:border-[#2DD4A0] shrink-0"
             >
               {vehicles.map((v) => (
                 <option key={v.id} value={v.id} className="bg-[#11161D] text-white">
@@ -531,22 +531,22 @@ export default function OwnerProofCalendar({
             </select>
           )}
 
-          <div className="flex items-center gap-1 bg-[#161C25] border border-white/[0.08] rounded-full p-1">
+          <div className="w-full sm:w-auto flex-1 sm:flex-initial flex items-center justify-between gap-1 bg-[#161C25] border border-white/[0.08] rounded-full p-1 shadow-sm">
             <button
               onClick={() => setMonthOffset((prev) => prev - 1)}
-              className="p-1.5 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              className="p-1.5 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0"
               title="Previous Month"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
 
-            <span className="text-xs font-bold text-white px-2.5 font-mono">
+            <span className="text-xs font-bold text-white px-3 font-mono text-center flex-1 sm:flex-initial">
               {monthData.name}
             </span>
 
             <button
               onClick={() => setMonthOffset((prev) => prev + 1)}
-              className="p-1.5 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              className="p-1.5 rounded-full text-white/60 hover:text-white hover:bg-white/10 transition-all cursor-pointer shrink-0"
               title="Next Month"
             >
               <ChevronRight className="w-4 h-4" />
@@ -556,7 +556,7 @@ export default function OwnerProofCalendar({
           {monthOffset !== 0 && (
             <button
               onClick={() => setMonthOffset(0)}
-              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 text-[11px] font-bold text-white border border-white/[0.08] transition-all cursor-pointer"
+              className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/15 text-[11px] font-bold text-white border border-white/[0.08] transition-all cursor-pointer shrink-0"
             >
               Today
             </button>

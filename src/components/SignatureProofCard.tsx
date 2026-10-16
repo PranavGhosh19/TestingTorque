@@ -146,14 +146,72 @@ export default function SignatureProofCard({
   return (
     <>
       <div
-        className={`relative rounded-[20px] bg-[#11161D] text-white p-5 sm:p-6 overflow-hidden border border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.7)] ${className}`}
+        className={`relative rounded-[20px] bg-[#11161D] text-white p-5 sm:p-6 overflow-hidden border transition-all duration-300 ${
+          isFlaggedNo
+            ? 'border-amber-500/40 shadow-[0_20px_50px_rgba(245,158,11,0.15)]'
+            : isVerifiedYes
+            ? 'border-[#2DD4A0]/40 shadow-[0_20px_50px_rgba(45,212,160,0.15)]'
+            : 'border-white/[0.08] shadow-[0_20px_50px_rgba(0,0,0,0.7)]'
+        } ${className}`}
       >
-        {/* Subtle ambient lighting */}
-        <div className="absolute -top-24 -right-24 w-60 h-60 bg-[#2DD4A0]/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-24 -left-24 w-60 h-60 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
+        {/* Subtle ambient lighting reacting to orange/green */}
+        <div
+          className={`absolute -top-24 -right-24 w-60 h-60 rounded-full blur-3xl pointer-events-none transition-colors duration-500 ${
+            isFlaggedNo
+              ? 'bg-amber-500/15'
+              : isVerifiedYes
+              ? 'bg-[#2DD4A0]/15'
+              : 'bg-[#2DD4A0]/10'
+          }`}
+        />
+        <div
+          className={`absolute -bottom-24 -left-24 w-60 h-60 rounded-full blur-3xl pointer-events-none transition-colors duration-500 ${
+            isFlaggedNo
+              ? 'bg-amber-500/10'
+              : isVerifiedYes
+              ? 'bg-blue-500/10'
+              : 'bg-blue-500/5'
+          }`}
+        />
 
-        {/* Top Bar: Vehicle Name on Left, Status Badge on Right */}
-        <div className="relative z-10 flex items-center justify-between mb-4">
+        {/* LINE 1 & LINE 2 SECTION */}
+        <div className="relative z-10 flex flex-col gap-2.5 mb-3.5">
+          {/* LINE FIRST: Status badge */}
+          <div className="flex items-center">
+            {isFlaggedNo ? (
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span>Flagged Not Cleaned (Orange)</span>
+              </div>
+            ) : isVerifiedYes ? (
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 text-[#2DD4A0] text-xs sm:text-sm font-bold tracking-wide shadow-sm">
+                <ShieldCheck className="w-4 h-4 text-[#2DD4A0]" />
+                <span>Washed Today • Verified</span>
+              </div>
+            ) : isToday && hasProof && !isBefore10AM ? (
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
+                <Clock className="w-4 h-4 text-amber-400" />
+                <span>Completed ({time})</span>
+              </div>
+            ) : isToday && wash?.status === 'in_progress' ? (
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
+                <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+                <span>Wash In Progress</span>
+              </div>
+            ) : isSunday ? (
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/70 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
+                <Sparkles className="w-4 h-4 text-white/50" />
+                <span>Sunday Rest Day</span>
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/15 text-white/80 text-xs sm:text-sm font-semibold tracking-wide shadow-sm">
+                <Clock className="w-4 h-4 text-[#2DD4A0]" />
+                <span>Scheduled (By 10 AM)</span>
+              </div>
+            )}
+          </div>
+
+          {/* LINE SECOND: Vehicle Name */}
           <div>
             <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 block mb-0.5">
               Assigned Vehicle
@@ -162,44 +220,11 @@ export default function SignatureProofCard({
               {vehicleName}
             </h2>
           </div>
-
-          {/* Condition: if present date proof is submitted or owner verified */}
-          {isFlaggedNo ? (
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
-              <span>Flagged Not Cleaned (Orange)</span>
-            </div>
-          ) : isVerifiedYes ? (
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 text-[#2DD4A0] text-xs sm:text-sm font-bold tracking-wide shadow-sm">
-              <ShieldCheck className="w-4 h-4 text-[#2DD4A0]" />
-              <span>Washed Today • Verified</span>
-            </div>
-          ) : isToday && hasProof && !isBefore10AM ? (
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-400/30 text-amber-300 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
-              <Clock className="w-4 h-4 text-amber-400" />
-              <span>Completed ({time})</span>
-            </div>
-          ) : isToday && wash?.status === 'in_progress' ? (
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-blue-500/15 border border-blue-400/30 text-blue-300 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-              <span>Wash In Progress</span>
-            </div>
-          ) : isSunday ? (
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/10 border border-white/20 text-white/70 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
-              <Sparkles className="w-4 h-4 text-white/50" />
-              <span>Sunday Rest Day</span>
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-white/[0.06] border border-white/15 text-white/80 text-xs sm:text-sm font-semibold tracking-wide shadow-sm">
-              <Clock className="w-4 h-4 text-[#2DD4A0]" />
-              <span>Scheduled (By 10 AM)</span>
-            </div>
-          )}
         </div>
 
         {/* Clean Inspection Photo Showcase */}
         {hasProof && afterPhoto ? (
-          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-slate-950 border border-white/10 group shadow-2xl">
+          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-slate-950 border border-white/10 group shadow-2xl mb-3.5">
             <Image
               src={afterPhoto}
               alt="Verified Clean Inspection"
@@ -231,36 +256,41 @@ export default function SignatureProofCard({
           </div>
         ) : null}
 
-        {/* Below the Image: Car Number Plate & Washer Details (Same line on smaller & larger screens) */}
-        <div className={`relative z-10 flex flex-row items-center justify-between gap-2 sm:gap-3 ${hasProof && afterPhoto ? 'mt-3.5' : ''}`}>
+        {/* LINE THIRD: Car Number Plate */}
+        <div className="relative z-10 mb-3">
           <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#161C25] border border-white/[0.12] text-white font-mono text-xs sm:text-sm font-bold tracking-wider shadow-sm shrink-0">
             <span className="text-[9px] sm:text-[10px] font-sans font-bold text-[#2DD4A0] border-r border-white/20 pr-1.5">IND</span>
             <span>{regNumber}</span>
           </div>
+        </div>
 
+        {/* LINE FORTH: Washer Details & Change button */}
+        <div className="relative z-10 pt-2.5 border-t border-white/[0.06]">
           {hasAssignedWasher ? (
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0 justify-end">
-              {washerAvatar && (
-                <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-[#2DD4A0]/60 shadow-md shrink-0">
-                  <Image
-                    src={washerAvatar}
-                    alt={washerName || 'Care Partner'}
-                    fill
-                    unoptimized
-                    className="object-cover"
-                  />
+            <div className="flex items-center justify-between gap-2 sm:gap-3 min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                {washerAvatar && (
+                  <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-[#2DD4A0]/60 shadow-md shrink-0">
+                    <Image
+                      src={washerAvatar}
+                      alt={washerName || 'Care Partner'}
+                      fill
+                      unoptimized
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-white tracking-tight truncate">
+                      {washerName}
+                    </span>
+                  </div>
+                  <p className="text-[10px] sm:text-[11px] text-white/60 flex items-center gap-1 mt-0.5 truncate">
+                    <MapPin className="w-3 h-3 text-[#2DD4A0] shrink-0" />
+                    <span className="truncate max-w-[130px] sm:max-w-none">{displayLocationText}</span>
+                  </p>
                 </div>
-              )}
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-white tracking-tight truncate">
-                    {washerName}
-                  </span>
-                </div>
-                <p className="text-[10px] sm:text-[11px] text-white/60 flex items-center gap-1 mt-0.5 truncate">
-                  <MapPin className="w-3 h-3 text-[#2DD4A0] shrink-0" />
-                  <span className="truncate max-w-[130px] sm:max-w-none">{displayLocationText}</span>
-                </p>
               </div>
               <Link
                 href="/owner/settings"
@@ -270,13 +300,16 @@ export default function SignatureProofCard({
               </Link>
             </div>
           ) : (
-            <Link
-              href="/owner/settings"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold font-mono uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Add Washer</span>
-            </Link>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-white/50">No specialist assigned yet</span>
+              <Link
+                href="/owner/settings"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold font-mono uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Add Washer</span>
+              </Link>
+            </div>
           )}
         </div>
       </div>
