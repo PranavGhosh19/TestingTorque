@@ -158,4 +158,13 @@ export default function WashHistoryPage() {
 
       {/* CHANGE WASHER MODAL */}
       <ChangeWasherModal
-        isOpen={showChangeWas
+        isOpen={showChangeWasherModal}
+        onClose={() => setShowChangeWasherModal(false)}
+        currentWasherName={assignedWasher}
+        onWasherChanged={(newWasher) => setAssignedWasher(newWasher)}
+      />
+
+      <OwnerBottomNav />
+    </div>
+  );
+}
