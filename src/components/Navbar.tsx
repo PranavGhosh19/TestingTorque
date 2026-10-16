@@ -74,15 +74,15 @@ export default function Navbar() {
             </Link>
 
             <Link
-              href="/owner/settings"
+              href="/owner/washes/history"
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                pathname.startsWith('/owner/settings')
+                pathname.startsWith('/owner/washes')
                   ? 'bg-[#2DD4A0] text-slate-950 shadow-md shadow-[#2DD4A0]/25 font-black'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
-              <Settings className="w-3.5 h-3.5" />
-              <span>Settings</span>
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Washes</span>
             </Link>
           </nav>
         ) : isWasherPortal ? (
