@@ -88,25 +88,12 @@ export async function syncOwnerToFirestore(
       selectedWasherName: resolvedWasherName,
       role: 'owner',
       status: owner.status || 'active',
-      planId: defaultPlanName,
-      selectedPlan: defaultPlanName,
-      price: subscriptionPrice,
-      subscriptionPrice: subscriptionPrice,
-      subscription: {
-        planId: defaultPlanName,
-        price: subscriptionPrice,
-        billingCycle: 'monthly',
-        status: 'active',
-        startDate: subStartDate,
-        endDate: subEndDate,
-      },
       needWashBefore: ownerNeedBefore,
       need_wash_before: ownerNeedBefore,
       washerLeaveDay: (owner as any).washerLeaveDay || (owner as any).washerWeeklyLeaveDay || null,
       washerWeeklyLeaveDay: (owner as any).washerLeaveDay || (owner as any).washerWeeklyLeaveDay || null,
       signupDate: (owner as any).signupDate || new Date().toISOString().split('T')[0],
       serviceStartDate: (owner as any).serviceStartDate || subStartDate.split('T')[0],
-      subscriptionStartDate: subStartDate,
       assignedWasherId: resolvedWasherId,
       assignedWasherName: resolvedWasherName,
       createdAt: owner.created_at || new Date().toISOString(),
@@ -115,10 +102,28 @@ export async function syncOwnerToFirestore(
       // Legacy helper compatibility
       id: ownerId,
       owner_name: owner.owner_name || owner.name,
-      selected_plan: defaultPlanName,
       assigned_washer_id: resolvedWasherId,
       assigned_washer_name: resolvedWasherName,
     };
+
+    // Only include subscription details if explicitly provided (not a subscription-based product anymore)
+    if (owner.selected_plan || (owner as any).selectedPlan || (owner as any).subscription) {
+      const planName = owner.selected_plan || (owner as any).selectedPlan || defaultPlanName;
+      carOwnerPayload.planId = planName;
+      carOwnerPayload.selectedPlan = planName;
+      carOwnerPayload.selected_plan = planName;
+      carOwnerPayload.price = subscriptionPrice;
+      carOwnerPayload.subscriptionPrice = subscriptionPrice;
+      carOwnerPayload.subscriptionStartDate = subStartDate;
+      carOwnerPayload.subscription = {
+        planId: planName,
+        price: subscriptionPrice,
+        billingCycle: 'monthly',
+        status: 'active',
+        startDate: subStartDate,
+        endDate: subEndDate,
+      };
+    }
     await setDoc(carOwnerRef, carOwnerPayload, { merge: true });
 
     // 1B. SUBCOLLECTION: Societies/{societyId}/Car_Owners/{ownerId}
@@ -170,26 +175,12 @@ export async function syncOwnerToFirestore(
           flatNumber: resolvedFlatNumber,
           adminId: (vehicle as any).adminId || (vehicle as any).admin_id || resolvedAdminId,
           assignedAdminId: (vehicle as any).assignedAdminId || (vehicle as any).assigned_admin_id || resolvedAdminId,
-          price: vehiclePrice,
-          subscriptionPrice: vehiclePrice,
           washerId: vehicle.assigned_washer_id || resolvedWasherId,
           washerName: vehicle.assigned_washer_name || resolvedWasherName,
-          subscriptionStartDate: vSubStartDate,
           signupDate: (vehicle as any).signupDate || (owner as any).signupDate || new Date().toISOString().split('T')[0],
           serviceStartDate: (vehicle as any).serviceStartDate || (owner as any).serviceStartDate || vSubStartDate.split('T')[0],
           washerLeaveDay: (vehicle as any).washerLeaveDay || (vehicle as any).washerWeeklyLeaveDay || (owner as any).washerLeaveDay || null,
           washerWeeklyLeaveDay: (vehicle as any).washerLeaveDay || (vehicle as any).washerWeeklyLeaveDay || (owner as any).washerLeaveDay || null,
-          subscription: {
-            planId: vehiclePlan,
-            price: vehiclePrice,
-            billingCycle: 'monthly',
-            startDate: vSubStartDate,
-            endDate: vSubEndDate,
-            washesIncluded: 26,
-            washesUsed: vehicle.washes_this_month || 0,
-            carryForwardEarned: 0,
-            carryForwardUsed: 0,
-          },
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           // Legacy field names for compatibility
@@ -200,11 +191,29 @@ export async function syncOwnerToFirestore(
           parking_location: vehicle.parking_location || 'Assigned Bay',
           preferred_wash_time: effectiveNeedBefore,
           society_name: vehicle.society_name || resolvedSocietyName || '',
-          selected_plan: vehiclePlan,
           assigned_washer_id: vehicle.assigned_washer_id || resolvedWasherId,
           assigned_washer_name: vehicle.assigned_washer_name || resolvedWasherName,
           washer_leave_day: (vehicle as any).washerLeaveDay || (owner as any).washerLeaveDay || null,
         };
+
+        // Only include subscription details if explicitly provided
+        if (vehicle.selected_plan || (vehicle as any).selectedPlan || (vehicle as any).subscription || (owner as any).subscription) {
+          vehiclePayload.price = vehiclePrice;
+          vehiclePayload.subscriptionPrice = vehiclePrice;
+          vehiclePayload.subscriptionStartDate = vSubStartDate;
+          vehiclePayload.selected_plan = vehiclePlan;
+          vehiclePayload.subscription = {
+            planId: vehiclePlan,
+            price: vehiclePrice,
+            billingCycle: 'monthly',
+            startDate: vSubStartDate,
+            endDate: vSubEndDate,
+            washesIncluded: 26,
+            washesUsed: vehicle.washes_this_month || 0,
+            carryForwardEarned: 0,
+            carryForwardUsed: 0,
+          };
+        }
         await setDoc(vehicleDocRef, vehiclePayload, { merge: true });
 
         // 2B. SUBCOLLECTION VEHICLE: Societies/{societyId}/Car_Owners/{ownerId}/Vehicles/{vehicleId}
@@ -2964,6 +2973,28 @@ export async function updateOwnerWasherInFirestore(
     const cleanName = washerName.trim();
     const cleanPhone = washerPhone.trim();
 
+    // 1. Create / Update record in Washers collection with name and phone number
+    const cleanDigits = cleanPhone.replace(/\D/g, '');
+    const washerDocId = cleanDigits.length >= 10 ? `+91${cleanDigits.slice(-10)}` : `wsh_${Date.now()}`;
+    const washerRecord = {
+      id: washerDocId,
+      name: cleanName,
+      phone: cleanPhone,
+      role: 'washer',
+      status: 'active',
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
+
+    try {
+      await setDoc(doc(db, 'Washers', washerDocId), washerRecord, { merge: true });
+      // Also mirror to Washer collection
+      await setDoc(doc(db, 'Washer', washerDocId), washerRecord, { merge: true });
+    } catch (wErr) {
+      console.warn('Notice saving to Washers collection:', wErr);
+    }
+
+    // 2. Update owner in Car_Owners collection
     const ownerRef = doc(db, 'Car_Owners', ownerId);
     await setDoc(
       ownerRef,
@@ -2974,12 +3005,15 @@ export async function updateOwnerWasherInFirestore(
         assigned_washer_phone: cleanPhone,
         assignedWasherPhone: cleanPhone,
         selectedWasherPhone: cleanPhone,
+        assigned_washer_id: washerDocId,
+        assignedWasherId: washerDocId,
+        selectedWasherId: washerDocId,
         updatedAt: serverTimestamp(),
       },
       { merge: true }
     );
 
-    // Also update all vehicles under this owner
+    // 3. Also update all vehicles under this owner
     try {
       const vehiclesSnap = await getDocs(collection(db, 'Car_Owners', ownerId, 'Vehicles'));
       for (const vDoc of vehiclesSnap.docs) {
@@ -2989,6 +3023,8 @@ export async function updateOwnerWasherInFirestore(
             assigned_washer_name: cleanName,
             washerName: cleanName,
             assigned_washer_phone: cleanPhone,
+            assigned_washer_id: washerDocId,
+            washerId: washerDocId,
             updatedAt: serverTimestamp(),
           },
           { merge: true }

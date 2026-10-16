@@ -492,31 +492,7 @@ export default function OwnerProfilePage() {
           </div>
 
           {/* DEDICATED WASHER SPECIALIST SECTION */}
-          {!hasSociety ? (
-            /* CASE 1: Locked until society details are filled */
-            <div className="p-4 rounded-xl bg-[#161C25]/60 border border-white/[0.08] space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/40 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-white/30" />
-                  Dedicated Society Washer Specialist
-                </span>
-                <span className="text-[10px] font-mono text-amber-400 font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
-                  Society Required First
-                </span>
-              </div>
-              <p className="text-xs text-white/60 leading-relaxed pt-1">
-                Please add your primary society residence details above first. A dedicated washer specialist can only be assigned once your society details are filled.
-              </p>
-              <button
-                type="button"
-                onClick={() => setShowEditLocationModal(true)}
-                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#2DD4A0] hover:text-white text-xs font-semibold border border-white/[0.08] transition-all cursor-pointer"
-              >
-                <Building2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                <span>+ Add Society Details</span>
-              </button>
-            </div>
-          ) : !hasWasher ? (
+          {!hasWasher ? (
             /* CASE 2: Society is filled, but no washer assigned yet */
             <div className="p-4 rounded-xl bg-gradient-to-r from-[#2DD4A0]/10 via-[#161C25] to-[#161C25] border border-[#2DD4A0]/30 space-y-3">
               <div className="flex items-center justify-between">

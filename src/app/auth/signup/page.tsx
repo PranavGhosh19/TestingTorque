@@ -62,19 +62,7 @@ interface VehicleDraft {
   color: string;
   parking_location: string;
   preferred_wash_time: string;
-  washerLeaveDay?: string;
 }
-
-const LEAVE_DAY_OPTIONS = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
-  'Sunday',
-  "Doesn't take any leaves",
-];
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -117,14 +105,13 @@ export default function SignUpPage() {
   const [authError, setAuthError] = useState('');
 
   // -------------------------------------------------------------
-  // STEP 2 STATE: Car Registration & Leave Preferences
+  // STEP 2 STATE: Car Registration
   // -------------------------------------------------------------
   const [vehicles, setRegisteredVehicles] = useState<VehicleDraft[]>([]);
   const [vehicleMake, setVehicleMake] = useState('');
   const [vehicleModel, setVehicleModel] = useState('');
   const [registrationNumber, setRegistrationNumber] = useState('');
   const [preferredTime, setPreferredTime] = useState('07:30 AM');
-  const [washerLeaveDay, setWasherLeaveDay] = useState<string>("Doesn't take any leaves");
   const [parkingLocation, setParkingLocation] = useState('');
   const [isAddingAnotherCar, setIsAddingAnotherCar] = useState(true);
   const [vehicleError, setVehicleError] = useState('');
@@ -389,7 +376,6 @@ export default function SignUpPage() {
       color: 'Pearl White',
       parking_location: parkingLocation.trim() || 'Assigned Parking Bay',
       preferred_wash_time: preferredTime || '07:30 AM',
-      washerLeaveDay: washerLeaveDay,
     };
 
     setRegisteredVehicles((prev) => [...prev, newVehicle]);
@@ -453,7 +439,6 @@ export default function SignUpPage() {
           color: 'Pearl White',
           parking_location: parkingLocation.trim() || 'Assigned Parking Bay',
           preferred_wash_time: preferredTime || '07:30 AM',
-          washerLeaveDay: washerLeaveDay,
         },
       ];
     }
@@ -483,7 +468,7 @@ export default function SignUpPage() {
         ? [resolvedSociety, resolvedDistrict, resolvedCity].filter(Boolean).join(', ')
         : '';
 
-      // Convert vehicles to store domain format
+      // Convert vehicles to store domain format (no subscription details)
       const storeVehicles = finalVehicles.map((v) => ({
         make: v.make,
         model: v.model,
@@ -493,11 +478,9 @@ export default function SignUpPage() {
         parking_location: v.parking_location,
         preferred_wash_time: v.preferred_wash_time,
         needWashBefore: v.preferred_wash_time,
-        washerLeaveDay: washerLeaveDay,
-        washerWeeklyLeaveDay: washerLeaveDay,
       }));
 
-      // Call store registerOwner
+      // Call store registerOwner (not a subscription-based product anymore)
       await registerOwner(
         {
           id: ownerUid,
@@ -512,10 +495,7 @@ export default function SignUpPage() {
           societyName: resolvedSociety,
           flatNumber: resolvedFlat,
           address: resolvedFlat && fullSocietyDisplay ? `${resolvedFlat}, ${fullSocietyDisplay}` : fullSocietyDisplay,
-          selectedPlan: 'DAILY TRACKING',
           needWashBefore: finalVehicles[0]?.preferred_wash_time || '07:30 AM',
-          washerLeaveDay: washerLeaveDay,
-          washerWeeklyLeaveDay: washerLeaveDay,
           selectedWasherId: hasSociety ? (matchedWasherPreview?.id || '') : '',
           selectedWasherName: hasSociety ? (matchedWasherPreview?.name || '') : '',
         },
@@ -724,12 +704,6 @@ export default function SignUpPage() {
                             <span className="text-[#2DD4A0] font-bold">{v.registration_number}</span>
                             <span>•</span>
                             <span>Ready by {v.preferred_wash_time}</span>
-                            {v.washerLeaveDay && (
-                              <>
-                                <span>•</span>
-                                <span className="text-amber-300/90">Leave: {v.washerLeaveDay}</span>
-                              </>
-                            )}
                             {v.parking_location && (
                               <>
                                 <span>•</span>
@@ -882,40 +856,6 @@ export default function SignUpPage() {
                     </span>
                   </div>
 
-                  {/* Washer Weekly Leave Field */}
-                  <div className="sm:col-span-2 space-y-2.5 pt-3 border-t border-white/[0.08]">
-                    <div className="flex items-center justify-between flex-wrap gap-2">
-                      <label className="text-xs font-bold text-white/80 uppercase tracking-wider block flex items-center gap-1.5">
-                        <Calendar className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                        When does your washer take leave in the week?
-                      </label>
-                      <span className="text-[10px] font-mono text-[#2DD4A0] px-2.5 py-0.5 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/30 font-bold">
-                        {washerLeaveDay}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-white/50 leading-relaxed">
-                      Choose the day of the week your washer does not work, or select &quot;Doesn&apos;t take any leaves&quot;.
-                    </p>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                      {LEAVE_DAY_OPTIONS.map((day) => {
-                        const isSelected = washerLeaveDay === day;
-                        return (
-                          <button
-                            key={day}
-                            type="button"
-                            onClick={() => setWasherLeaveDay(day)}
-                            className={`px-3 py-2.5 rounded-xl text-xs font-medium transition-all text-center border cursor-pointer ${
-                              isSelected
-                                ? 'bg-[#2DD4A0] text-black font-black border-[#2DD4A0] shadow-[0_0_14px_rgba(45,212,160,0.3)]'
-                                : 'bg-white/5 text-white/70 hover:bg-white/10 border-white/10 hover:border-white/20'
-                            }`}
-                          >
-                            {day}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
 
                   {/* Optional Tower / Parking location */}
                   <div className="sm:col-span-2 pt-2">

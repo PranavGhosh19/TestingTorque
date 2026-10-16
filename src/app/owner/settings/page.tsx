@@ -279,8 +279,9 @@ export default function OwnerSettingsPage() {
       }
 
       // 4. Add to availableWashers list so they appear in grid immediately
+      const newPartnerId = digits.length >= 10 ? `+91${digits.slice(-10)}` : `wsh_${Date.now()}`;
       const newPartner: WasherPartner = {
-        id: `wsh_${Date.now()}`,
+        id: newPartnerId,
         name: cleanName,
         phone: cleanPhone,
         avatar: '/images/washer_amit.jpg',
@@ -512,36 +513,7 @@ export default function OwnerSettingsPage() {
                 </button>
               </div>
             </div>
-          ) : (
-            <div className="p-5 sm:p-6 rounded-[22px] bg-gradient-to-r from-amber-500/15 via-[#1c1816]/50 to-[#11161D] border border-amber-500/40 shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-start sm:items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-300 shrink-0">
-                  <AlertCircle className="w-6 h-6 animate-pulse" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-300 block mb-0.5">
-                    SPECIALIST REQUIRED
-                  </span>
-                  <h3 className="text-base font-bold text-white">
-                    No Dedicated Washer Specialist Assigned Yet
-                  </h3>
-                  <p className="text-xs text-white/60 mt-0.5">
-                    Add your dedicated washer or choose one below to activate daily tracking.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setWasherError('');
-                  setShowAddWasherModal(true);
-                }}
-                className="px-4 py-2 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold font-mono uppercase tracking-wider transition-all cursor-pointer shrink-0"
-              >
-                Add your Washer
-              </button>
-            </div>
-          )}
+          ) : null}
 
           {/* Available Washer Partners Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
@@ -553,27 +525,11 @@ export default function OwnerSettingsPage() {
                 </p>
               </div>
             ) : availableWashers.length === 0 ? (
-              <div className="col-span-full p-8 rounded-[22px] bg-[#11161D] border border-white/[0.08] text-center space-y-4">
-                <div className="w-12 h-12 rounded-2xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 text-[#2DD4A0] flex items-center justify-center mx-auto">
-                  <UserPlus className="w-6 h-6" />
-                </div>
-                <div className="max-w-md mx-auto">
-                  <p className="text-base font-bold text-white">No active washers in your area yet</p>
-                  <p className="text-xs text-white/50 mt-1">
-                    Add your dedicated morning washer specialist directly with their name and phone number.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setWasherError('');
-                    setShowAddWasherModal(true);
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold font-mono uppercase tracking-wider inline-flex items-center gap-2 transition-all shadow-lg cursor-pointer active:scale-95"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Add your Washer</span>
-                </button>
+              <div className="col-span-full p-8 rounded-[22px] bg-[#11161D] border border-white/[0.08] text-center space-y-2">
+                <p className="text-base font-bold text-white">No active washers in your area yet</p>
+                <p className="text-xs text-white/50">
+                  Click &quot;Add your Washer&quot; above to register your dedicated specialist.
+                </p>
               </div>
             ) : (
               availableWashers.map((washer) => {

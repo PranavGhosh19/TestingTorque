@@ -13,6 +13,8 @@ import {
   AlertCircle,
   User,
   CheckCircle2,
+  Home,
+  Layers,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import {
@@ -345,143 +347,121 @@ export default function EditLocationSocietyModal({
           )}
 
           <form onSubmit={handleSaveLocation} className="space-y-4">
-            {/* STATE */}
+            {/* 1. STATE */}
             <div>
               <SearchableSelect
-                label="State"
-                required
+                label="1. State"
+                icon={<MapPin className="w-3.5 h-3.5 text-[#2DD4A0]" />}
                 options={stateOptions}
                 value={selectedState}
                 onChange={(val) => {
                   setSelectedState(val);
                   setSelectedCity('');
                   setSelectedDistrict('');
+                  setSocietyName('');
+                  setError('');
                 }}
-                placeholder="Select State (e.g. Maharashtra)"
+                placeholder="Select State"
+                searchPlaceholder="Search state (e.g. Maharashtra, Karnataka)..."
               />
             </div>
 
-            {/* CITY */}
+            {/* 2. CITY */}
             <div>
               <SearchableSelect
-                label="City"
-                required
+                label="2. City"
+                icon={<Building2 className="w-3.5 h-3.5 text-[#2DD4A0]" />}
                 options={cityOptions}
                 value={selectedCity}
                 onChange={(val) => {
                   setSelectedCity(val);
                   setSelectedDistrict('');
+                  setSocietyName('');
+                  setError('');
                 }}
-                placeholder={selectedState ? 'Select City (e.g. Mumbai)' : 'First select State'}
+                placeholder={selectedState ? 'Select City' : 'Select a State first'}
+                searchPlaceholder="Search city (e.g. Mumbai, Bengaluru, Pune)..."
                 disabled={!selectedState}
+                disabledHint="Select a State first"
               />
             </div>
 
-            {/* DISTRICT / AREA */}
+            {/* 3. DISTRICT / LOCALITY */}
             <div>
               <SearchableSelect
-                label="District / Area"
-                required
+                label="3. District / Locality"
+                icon={<Layers className="w-3.5 h-3.5 text-[#2DD4A0]" />}
                 options={districtOptions}
                 value={selectedDistrict}
                 onChange={(val) => {
                   setSelectedDistrict(val);
                   setSocietyName('');
+                  setError('');
                 }}
-                placeholder={selectedCity ? 'Select District (e.g. Andheri West)' : 'First select City'}
+                placeholder={selectedCity ? 'Select District / Area' : 'Select a City first'}
+                searchPlaceholder="Search district (e.g. Whitefield, Andheri West, Hinjawadi)..."
                 disabled={!selectedCity}
+                disabledHint="Select a City first"
               />
             </div>
 
-            {/* SOCIETY NAME */}
+            {/* 4. SOCIETY NAME */}
             <div>
-              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-                Society / Apartment <span className="text-emerald-400">*</span>
-              </label>
-              {matchingSocieties.length > 0 ? (
-                <div className="space-y-2">
-                  <SearchableSelect
-                    label=""
-                    options={matchingSocieties}
-                    value={societyName}
-                    onChange={(val) => setSocietyName(val)}
-                    placeholder="Select registered society..."
-                  />
-                  <div className="flex items-center gap-2">
-                    <span className="text-[11px] text-white/40">or enter custom:</span>
-                    <input
-                      type="text"
-                      value={societyName}
-                      onChange={(e) => setSocietyName(e.target.value)}
-                      placeholder="Type your society name"
-                      className="flex-1 px-3 py-1.5 bg-[#161C26] border border-white/10 rounded-xl text-xs text-white placeholder-white/30 focus:outline-hidden focus:border-[#2DD4A0]"
-                    />
-                  </div>
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  value={societyName}
-                  onChange={(e) => setSocietyName(e.target.value)}
-                  placeholder="Enter Society Name (e.g. Oberoi Springs)"
-                  className="w-full px-4 py-2.5 bg-[#161C26] border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-hidden focus:border-[#2DD4A0]"
-                />
-              )}
+              <SearchableSelect
+                label="4. Society / Apartment Complex"
+                icon={<Home className="w-3.5 h-3.5 text-[#2DD4A0]" />}
+                placeholder="Select or type Society Name"
+                searchPlaceholder="Type society name (e.g. Green Valley Residency, Prestige Falcon)..."
+                options={matchingSocieties}
+                value={societyName}
+                allowCustom={true}
+                disabledHint="Select a District first"
+                onChange={(val) => {
+                  setSocietyName(val);
+                  setError('');
+                }}
+              />
             </div>
 
-            {/* FLAT / TOWER */}
+            {/* 5. FLAT / TOWER / BAY */}
             <div>
-              <label className="block text-xs font-mono font-semibold uppercase tracking-wider text-slate-300 mb-1.5">
-                Flat / Tower Number (Optional)
+              <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2">
+                Flat / Tower / Bay <span className="text-white/40 font-normal">(Optional)</span>
               </label>
               <input
                 type="text"
                 value={flatNumber}
                 onChange={(e) => setFlatNumber(e.target.value)}
-                placeholder="e.g. Tower B - Flat 402"
-                className="w-full px-4 py-2.5 bg-[#161C26] border border-white/10 rounded-xl text-sm text-white placeholder-white/30 focus:outline-hidden focus:border-[#2DD4A0]"
+                placeholder="e.g. Tower B, Flat 402, Basement Bay 14"
+                className="w-full px-4 py-3.5 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-semibold text-white placeholder-white/25 focus:outline-hidden focus:border-[#2DD4A0] focus:ring-1 focus:ring-[#2DD4A0]/30 transition-all"
               />
             </div>
 
             {/* ========================================================= */}
             {/* LIVE WASHER MATCHING INDICATOR CARD */}
             {/* ========================================================= */}
-            <div className="mt-4 pt-3 border-t border-white/[0.08]">
+            <div className="pt-2">
               {matchedWasher ? (
-                <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/20 via-[#162325] to-[#121A24] border border-emerald-500/40 shadow-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#2DD4A0] text-black">
-                      ✓ Equal / Common Match Found
-                    </span>
-                    <span className="text-xs font-mono text-emerald-300">Active on Route</span>
-                  </div>
-                  <div className="flex items-center gap-3 pt-1">
-                    <div className="w-11 h-11 rounded-xl bg-neutral-900 border border-emerald-400/30 overflow-hidden flex items-center justify-center font-bold text-white text-base">
-                      {matchedWasher.name.split(' ').map((n) => n[0]).join('')}
+                <div className="p-4 rounded-2xl bg-gradient-to-r from-[#2DD4A0]/15 via-[#162325]/80 to-[#11161D] border border-[#2DD4A0]/40 flex items-center justify-between gap-3 shadow-xl animate-in fade-in">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/20 border border-[#2DD4A0]/40 flex items-center justify-center text-[#2DD4A0] shrink-0">
+                      <Sparkles className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-bold text-white flex items-center gap-1.5">
-                        <span>{matchedWasher.name}</span>
-                        <ShieldCheck className="w-4 h-4 text-[#2DD4A0]" />
-                      </h4>
-                      <p className="text-[11px] text-white/60">
-                        Dedicated specialist covering <strong>{societyName}</strong> ({selectedDistrict})
+                      <div className="text-[10px] font-mono uppercase text-[#2DD4A0] font-bold tracking-wider">
+                        Location & Society Match Found!
+                      </div>
+                      <div className="text-sm font-bold text-white flex items-center gap-2">
+                        <span>Dedicated Specialist: <strong>{matchedWasher.name}</strong></span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/30 font-mono">
+                          Active in {societyName}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-white/60 mt-0.5">
+                        This certified partner will automatically be linked to your doorstep morning car care route.
                       </p>
                     </div>
                   </div>
-                  <p className="text-[11px] text-emerald-200/90 pt-1 leading-relaxed">
-                    ✨ When saved, <strong>{matchedWasher.name}</strong> will be displayed as your assigned washer specialist across your garage dashboard.
-                  </p>
-                </div>
-              ) : societyName.trim() ? (
-                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10 text-white/60 text-xs space-y-1">
-                  <div className="flex items-center gap-2 text-white/80 font-semibold">
-                    <MapPin className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                    <span>No Washer Registered for {societyName} Yet</span>
-                  </div>
-                  <p className="text-[11px] text-white/50 leading-relaxed">
-                    Once a washer partner registers with State: <strong>{selectedState || 'Any'}</strong>, City: <strong>{selectedCity || 'Any'}</strong>, District: <strong>{selectedDistrict || 'Any'}</strong>, and Society: <strong>{societyName}</strong>, their name will automatically appear on your dashboard!
-                  </p>
                 </div>
               ) : null}
             </div>
@@ -508,7 +488,7 @@ export default function EditLocationSocietyModal({
                 ) : (
                   <>
                     <Check className="w-3.5 h-3.5" />
-                    <span>Save Society & Match Washer</span>
+                    <span>Save Society</span>
                   </>
                 )}
               </button>

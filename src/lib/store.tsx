@@ -966,15 +966,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       created_at: now.toISOString(),
       signupDate: signupDateIso,
       serviceStartDate: serviceStartDateIso,
-      selected_plan: ownerData.selectedPlan || 'HOME BASIC',
       assigned_washer_id: ownerData.selectedWasherId || '',
       assigned_washer_name: ownerData.selectedWasherName || '',
-      price: finalPrice,
-      subscription_price: finalPrice,
       needWashBefore: ownerData.needWashBefore || '8:00 AM',
       need_wash_before: ownerData.needWashBefore || '8:00 AM',
       washerLeaveDay: resolvedWasherLeaveDay,
       washerWeeklyLeaveDay: resolvedWasherLeaveDay,
+      ...(ownerData.selectedPlan
+        ? {
+            selected_plan: ownerData.selectedPlan,
+            price: finalPrice,
+            subscription_price: finalPrice,
+          }
+        : {}),
     };
 
     setUser(newUser);
@@ -1000,13 +1004,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         need_wash_before: (v as any).needWashBefore || (v as any).need_wash_before || ownerData.needWashBefore || '8:00 AM',
         signupDate: signupDateIso,
         serviceStartDate: serviceStartDateIso,
-        subscriptionStartDate: tomorrowIso,
         created_at: now.toISOString(),
         society_id: (v as any).society_id || ownerData.societyId || '',
         society_name: v.society_name || ownerData.societyName || ownerData.society || '',
-        subscription_status: 'active',
         washes_this_month: 0,
-        selected_plan: ownerData.selectedPlan || 'HOME BASIC',
         assigned_washer_id: (v as any).assigned_washer_id || ownerData.selectedWasherId || '',
         assigned_washer_name: (v as any).assigned_washer_name || ownerData.selectedWasherName || '',
         flat: v.flat || ownerData.flat || ownerData.flatNumber || ownerData.address,
@@ -1014,10 +1015,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         adminId: v.adminId || ownerData.adminId || resolvedAdminId,
         assignedAdminId: v.assignedAdminId || ownerData.assignedAdminId || resolvedAdminId,
         areaManagerId: resolvedAdminId,
-        price: vPrice,
-        subscription_price: vPrice,
         washerLeaveDay: vLeaveDay,
         washerWeeklyLeaveDay: vLeaveDay,
+        ...(ownerData.selectedPlan
+          ? {
+              selected_plan: ownerData.selectedPlan,
+              subscription_status: 'active',
+              subscriptionStartDate: tomorrowIso,
+              price: vPrice,
+              subscription_price: vPrice,
+            }
+          : {}),
       };
     });
 
