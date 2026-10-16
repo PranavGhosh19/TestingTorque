@@ -9,7 +9,6 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
-import OwnerBottomNav from '@/components/OwnerBottomNav';
 import OwnerProofCalendar from '@/components/OwnerProofCalendar';
 import ChangeWasherModal from '@/components/modals/ChangeWasherModal';
 import { fetchOwnerDashboardFromFirestore } from '@/lib/firebaseService';
@@ -69,6 +68,18 @@ export default function WashHistoryPage() {
     }
   }, [isHydrated, isLoggedIn, router]);
 
+  // Delete/hide page from smaller screens by redirecting to dashboard
+  useEffect(() => {
+    const handleCheckScreen = () => {
+      if (typeof window !== 'undefined' && window.innerWidth < 768) {
+        router.replace('/owner/dashboard');
+      }
+    };
+    handleCheckScreen();
+    window.addEventListener('resize', handleCheckScreen);
+    return () => window.removeEventListener('resize', handleCheckScreen);
+  }, [router]);
+
   if (!isHydrated || !isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0A0D12] flex flex-col items-center justify-center gap-3 text-white">
@@ -79,7 +90,7 @@ export default function WashHistoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0A0D12] text-white pb-28 md:pb-16 selection:bg-[#2DD4A0] selection:text-black">
+    <div className="hidden md:block min-h-screen bg-[#0A0D12] text-white pb-16 selection:bg-[#2DD4A0] selection:text-black">
       {/* TOP HEADER */}
       <header className="bg-[#0A0D12]/90 backdrop-blur-xl border-b border-white/[0.08] sticky top-0 z-30 pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -148,8 +159,6 @@ export default function WashHistoryPage() {
         currentWasherName={assignedWasher}
         onWasherChanged={(newWasher: string) => setAssignedWasher(newWasher)}
       />
-
-      <OwnerBottomNav />
     </div>
   );
 }

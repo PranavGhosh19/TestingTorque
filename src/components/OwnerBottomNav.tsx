@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Car, CheckCircle2, User } from 'lucide-react';
+import { Home, Car, User } from 'lucide-react';
 
 export default function OwnerBottomNav() {
   const pathname = usePathname();
@@ -11,13 +11,12 @@ export default function OwnerBottomNav() {
   const links = [
     { href: '/owner/dashboard', label: 'Home', icon: Home },
     { href: '/owner/vehicles', label: 'Vehicles', icon: Car },
-    { href: '/owner/washes/history', label: 'Washes', icon: CheckCircle2 },
     { href: '/owner/profile', label: 'Profile', icon: User },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 bg-[#0A0D12]/95 backdrop-blur-xl border-t border-white/[0.08] px-2 py-2 md:hidden">
-      <div className="grid grid-cols-4 max-w-md mx-auto">
+      <div className="grid grid-cols-3 max-w-md mx-auto">
         {links.map((link) => {
           const Icon = link.icon;
           const isActive = pathname === link.href || pathname.startsWith(link.href + '/');

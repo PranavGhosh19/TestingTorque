@@ -12,7 +12,6 @@ import {
   Clock,
   X,
   ChevronRight,
-  Maximize2,
   Award,
   Layers,
   Check,
@@ -221,40 +220,6 @@ export default function SignatureProofCard({
             </h2>
           </div>
         </div>
-
-        {/* Clean Inspection Photo Showcase */}
-        {hasProof && afterPhoto ? (
-          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-slate-950 border border-white/10 group shadow-2xl mb-3.5">
-            <Image
-              src={afterPhoto}
-              alt="Verified Clean Inspection"
-              fill
-              className="object-cover transition-transform duration-700 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, 600px"
-              priority
-            />
-
-            {/* Minimal top gradient for contrast */}
-            <div className="absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
-
-            {/* Top Left: Single Clean Information Pill */}
-            <div className="absolute top-3 left-3 flex items-center gap-2 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/15 text-xs text-white shadow-lg">
-              <span className={`w-2 h-2 rounded-full ${isVerifiedYes ? 'bg-[#2DD4A0]' : 'bg-amber-400'}`} />
-              <span className="font-semibold text-white/90">{parkingLocation}</span>
-              <span className="text-white/40">•</span>
-              <span className="text-white/70 font-mono text-[11px]">{time} IST</span>
-            </div>
-
-            {/* Top Right: Tap to zoom */}
-            <button
-              onClick={() => setShowModal(true)}
-              aria-label="Enlarge inspection photo"
-              className="absolute top-3 right-3 p-2 rounded-full bg-black/60 backdrop-blur-md hover:bg-black/80 text-white/90 border border-white/15 transition-all shadow-md active:scale-95 cursor-pointer"
-            >
-              <Maximize2 className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        ) : null}
 
         {/* LINE THIRD: Car Number Plate */}
         <div className="relative z-10 mb-3">

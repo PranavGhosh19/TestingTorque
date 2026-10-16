@@ -403,24 +403,36 @@ export default function OwnerProfilePage() {
           </div>
         </div>
 
-        {/* Society & Location Residence Card */}
-        <div className="p-6 bg-[#11161D] rounded-[20px] border border-white/[0.08] space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white/50">
-              Primary Society Residence & Location
-            </h3>
+        {/* Society & Specialist Residence Card */}
+        <div className="p-5 sm:p-6 bg-[#11161D] rounded-[22px] border border-white/[0.08] shadow-xl space-y-5">
+          {/* Header */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 flex items-center justify-center text-[#2DD4A0] shrink-0">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#2DD4A0] block">
+                  Residence & Society
+                </span>
+                <h3 className="text-base sm:text-lg font-bold text-white tracking-tight truncate">
+                  {hasSociety ? currentSociety : 'Primary Residence'}
+                </h3>
+              </div>
+            </div>
+
             {hasSociety ? (
               <button
                 onClick={() => setShowEditLocationModal(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#161C25] hover:bg-white/10 text-[#2DD4A0] text-xs font-bold transition-all border border-white/[0.08] active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/80 hover:text-white border border-white/10 text-xs font-semibold transition-all active:scale-95 cursor-pointer shrink-0"
               >
-                <Edit2 className="w-3.5 h-3.5" />
-                <span>Change Society</span>
+                <Edit2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                <span>Edit</span>
               </button>
             ) : (
               <button
                 onClick={() => setShowEditLocationModal(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
               >
                 <Building2 className="w-3.5 h-3.5" />
                 <span>Add Society</span>
@@ -428,89 +440,70 @@ export default function OwnerProfilePage() {
             )}
           </div>
 
-          <div className="p-4 bg-[#161C25] rounded-xl border border-white/[0.06] space-y-2.5 text-xs">
-            <div className="flex justify-between items-center">
-              <span className="text-white/60 flex items-center gap-1.5">
-                <Building2 className="w-4 h-4 text-[#2DD4A0]" /> Society:
+          {/* Residence Details Grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <div className="p-3 rounded-xl bg-[#161C25]/70 border border-white/[0.06]">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 block mb-1">
+                Tower & Flat
               </span>
-              {hasSociety ? (
-                <span className="font-bold text-white text-sm">{currentSociety}</span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowEditLocationModal(true)}
-                  className="text-[#2DD4A0] font-bold text-xs hover:underline cursor-pointer inline-flex items-center gap-1"
-                >
-                  <span>+ Add Society</span>
-                </button>
-              )}
-            </div>
-
-            <div className="flex justify-between items-center">
-              <span className="text-white/60 flex items-center gap-1.5">
-                <MapPin className="w-4 h-4 text-[#2DD4A0]" /> District & City:
-              </span>
-              <span className="text-white/90 font-medium">
-                {[
-                  firestoreOwner?.district || user.district,
-                  firestoreOwner?.city || user.city,
-                ].filter(Boolean).join(', ') || (
-                  <span className="text-white/40 italic">Not set</span>
-                )}
-              </span>
-            </div>
-
-            {(firestoreOwner?.state || user.state) && (
-              <div className="flex justify-between items-center">
-                <span className="text-white/60">State:</span>
-                <span className="text-white/90 font-medium">
-                  {firestoreOwner?.state || user.state}
-                </span>
-              </div>
-            )}
-
-            <div className="flex justify-between items-center">
-              <span className="text-white/60">Tower & Flat:</span>
-              <span className="font-mono text-white/90">
+              <span className="text-xs font-semibold text-white/90 truncate block">
                 {firestoreOwner?.flat ||
                   firestoreOwner?.flatNumber ||
                   firestoreOwner?.address ||
                   user.flat ||
                   user.flatNumber ||
                   user.address || (
-                    <span className="text-white/40 italic">Not set</span>
+                    <span className="text-white/40 italic font-normal">Not set</span>
                   )}
               </span>
             </div>
 
-            <div className="flex justify-between items-center pt-1 border-t border-white/[0.06]">
-              <span className="text-white/60">Registered Vehicles:</span>
-              <span className="font-mono font-bold text-[#2DD4A0]">
-                {firestoreVehicles.length > 0 ? firestoreVehicles.length : vehicles.length} Active in Garage
+            <div className="p-3 rounded-xl bg-[#161C25]/70 border border-white/[0.06]">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 block mb-1">
+                District & City
+              </span>
+              <span className="text-xs font-semibold text-white/90 truncate block">
+                {[
+                  firestoreOwner?.district || user.district,
+                  firestoreOwner?.city || user.city,
+                ].filter(Boolean).join(', ') || (
+                  <span className="text-white/40 italic font-normal">Not set</span>
+                )}
+              </span>
+            </div>
+
+            <div className="col-span-2 sm:col-span-1 p-3 rounded-xl bg-[#161C25]/70 border border-white/[0.06]">
+              <span className="text-[10px] font-mono uppercase tracking-wider text-white/40 block mb-1">
+                Active Vehicles
+              </span>
+              <span className="text-xs font-bold text-[#2DD4A0] font-mono block">
+                {firestoreVehicles.length > 0 ? firestoreVehicles.length : vehicles.length} in Garage
               </span>
             </div>
           </div>
 
-          {/* DEDICATED WASHER SPECIALIST SECTION */}
-          {!hasWasher ? (
-            /* CASE 2: Society is filled, but no washer assigned yet */
-            <div className="p-4 rounded-xl bg-gradient-to-r from-[#2DD4A0]/10 via-[#161C25] to-[#161C25] border border-[#2DD4A0]/30 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0] flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Dedicated Society Washer Specialist
+          {/* Dedicated Washer Specialist Section */}
+          <div className="pt-4 border-t border-white/[0.08]">
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/50 flex items-center gap-1.5">
+                <ShieldCheck className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                Dedicated Care Specialist
+              </span>
+              {hasWasher && (
+                <span className="text-[10px] font-mono text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  ✓ Assigned Partner
                 </span>
-                <span className="text-[10px] font-mono text-white/50 px-2 py-0.5 rounded-full bg-[#161C25] border border-white/[0.08]">
-                  Ready to Assign
-                </span>
-              </div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+              )}
+            </div>
+
+            {!hasWasher ? (
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-dashed border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs text-white/80">
-                    No dedicated washer partner added for <strong>{currentSociety}</strong> yet.
+                  <p className="text-xs font-semibold text-white/90">
+                    No specialist assigned{hasSociety ? ` for ${currentSociety}` : ''}
                   </p>
                   <p className="text-[11px] text-white/50 mt-0.5">
-                    Add your washer partner's name & phone number to start morning care coordination.
+                    Add your washer's contact to coordinate daily doorstep care.
                   </p>
                 </div>
                 <button
@@ -521,59 +514,55 @@ export default function OwnerProfilePage() {
                     setWasherError('');
                     setShowAddWasherModal(true);
                   }}
-                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
+                  className="inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
                 >
                   <User className="w-3.5 h-3.5" />
-                  <span>+ Add Washer</span>
+                  <span>+ Add Specialist</span>
                 </button>
               </div>
-            </div>
-          ) : (
-            /* CASE 3: Society is filled and real washer details exist */
-            <div className="p-4 rounded-xl bg-gradient-to-r from-[#2DD4A0]/10 via-[#161C25] to-[#161C25] border border-[#2DD4A0]/30 space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0] flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  Dedicated Society Washer Specialist
-                </span>
-                <span className="text-[10px] font-mono text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  ✓ Assigned Partner
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
-                <div>
-                  <h4 className="text-base font-bold text-white flex items-center gap-2">
-                    <span>{effectiveWasherName}</span>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-[#2DD4A0]/20 text-[#2DD4A0] font-mono font-semibold">
-                      Assigned Partner
-                    </span>
-                  </h4>
-                  {effectiveWasherPhone && (
-                    <p className="text-xs text-[#2DD4A0] font-mono mt-0.5 flex items-center gap-1.5">
-                      <Phone className="w-3 h-3" />
-                      <span>{effectiveWasherPhone}</span>
-                    </p>
-                  )}
-                  <p className="text-[11px] text-white/60 mt-0.5">
-                    Covers morning bay wash for <strong>{currentSociety}</strong>.
-                  </p>
+            ) : (
+              <div className="p-3.5 rounded-xl bg-[#161C25] border border-white/[0.06] flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] font-bold text-sm shrink-0 font-mono">
+                    {effectiveWasherName.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-bold text-white tracking-tight truncate">
+                      {effectiveWasherName}
+                    </h4>
+                    {effectiveWasherPhone ? (
+                      <a
+                        href={`tel:${effectiveWasherPhone}`}
+                        className="text-xs text-[#2DD4A0] font-mono hover:underline inline-flex items-center gap-1.5 mt-0.5"
+                      >
+                        <Phone className="w-3 h-3" />
+                        <span>{effectiveWasherPhone}</span>
+                      </a>
+                    ) : (
+                      <p className="text-[11px] text-white/50 mt-0.5 truncate">
+                        {hasSociety ? `Morning bay care for ${currentSociety}` : 'Morning doorstep specialist'}
+                      </p>
+                    )}
+                  </div>
                 </div>
+
                 <button
                   type="button"
                   onClick={() => {
                     setWasherNameInput(effectiveWasherName || '');
-                    setWasherPhoneInput(effectiveWasherPhone ? effectiveWasherPhone.replace('+91', '').trim() : '');
+                    setWasherPhoneInput(
+                      effectiveWasherPhone ? effectiveWasherPhone.replace('+91', '').trim() : ''
+                    );
                     setWasherError('');
                     setShowAddWasherModal(true);
                   }}
-                  className="text-xs font-mono font-bold text-[#2DD4A0] hover:underline shrink-0 cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#2DD4A0] border border-white/10 text-xs font-mono font-bold tracking-wider transition-all shrink-0 cursor-pointer"
                 >
-                  Change Washer →
+                  Change →
                 </button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Quick Actions */}
