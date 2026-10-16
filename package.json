@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "NODE_OPTIONS='--require ./scripts/suppress-econnreset.cjs' next dev --webpack",
-    "dev:turbo": "NODE_OPTIONS='--require ./scripts/suppress-econnreset.cjs' next dev --turbopack",
+    "dev": "NODE_OPTIONS='--require ./scripts/suppress-econnreset.cjs --max-old-space-size=768' next dev --webpack -p 3001",
+    "dev:webpack": "NODE_OPTIONS='--require ./scripts/suppress-econnreset.cjs --max-old-space-size=768' next dev --webpack -p 3001",
+    "dev:turbo": "NODE_OPTIONS='--require ./scripts/suppress-econnreset.cjs' next dev --turbopack -p 3001",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"

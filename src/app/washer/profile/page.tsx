@@ -279,6 +279,7 @@ export default function WasherProfilePage() {
                 src={firebaseWasher?.avatar || user?.avatar_url || "/images/washer_amit.jpg"}
                 alt={mounted ? washerDisplayName : "Washer Partner"}
                 fill
+                unoptimized
                 className="object-cover"
               />
             </div>
@@ -531,6 +532,7 @@ export default function WasherProfilePage() {
                         src={peer.avatar || '/images/washer_amit.jpg'}
                         alt={peer.name}
                         fill
+                        unoptimized
                         className="object-cover"
                       />
                     </div>

@@ -243,19 +243,30 @@ export default function OwnerDashboardPage() {
       (targetWasherName && w.name?.toLowerCase().trim() === targetWasherName.toLowerCase().trim())
   );
 
-  const assignedWasher: WasherPartner =
+  const isDummyName = (name?: string | null) =>
+    !name ||
+    name === 'Amit Kumar' ||
+    name === 'Assigned Route Partner' ||
+    name === 'Assigned Partner';
+
+  const validTargetName = !isDummyName(targetWasherName) ? targetWasherName : null;
+
+  const defaultOwnerSociety =
+    primaryVehicle?.society_name || user.society || (user as any).societyName || 'Assigned Society';
+
+  const assignedWasher: WasherPartner | null =
     (primaryVehicle?.isBackupActive ? null : locationMatchedWasher) ||
     firebaseWasher ||
     matchedStoreWasher ||
-    (targetWasherName
+    (validTargetName
       ? {
           id: targetWasherId || 'wsh_custom',
-          name: targetWasherName,
-          phone: '+91 98101 22334',
-          avatar: '/images/washer_amit.jpg',
+          name: validTargetName,
+          phone: '',
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(validTargetName)}&background=161C25&color=2DD4A0&bold=true`,
           rating: '4.98',
           reviewsCount: 142,
-          society: 'Green Valley Residency',
+          society: defaultOwnerSociety,
           assignedCarsPerDay: 30,
           routeWindow: '06:30 AM - 09:30 AM',
           avgTimePerCar: '5.5 mins',
@@ -268,55 +279,30 @@ export default function OwnerDashboardPage() {
           absentThisMonth: 0,
           absentDates: [],
           leaveReason: '',
-          backupWasherName: 'Rajesh Sharma',
-          monthlyPayoutsGone: 48200,
-          pendingPayoutDue: 2840,
-          sundayBonusEarned: 1200,
+          backupWasherName: '',
+          monthlyPayoutsGone: 0,
+          pendingPayoutDue: 0,
+          sundayBonusEarned: 0,
           disbursements: [],
         }
-      : washers[0] || {
-          id: 'wsh_assigned',
-          name: 'Assigned Partner',
-          phone: '',
-          avatar: 'https://ui-avatars.com/api/?name=Partner&background=0B132B&color=10B981&bold=true',
-          rating: '4.98',
-          reviewsCount: 142,
-          society: 'Green Valley Residency',
-          assignedCarsPerDay: 30,
-          routeWindow: '06:30 AM - 09:30 AM',
-          avgTimePerCar: '5.5 mins',
-          completionRate: '100%',
-          totalLifetimeWashes: 1840,
-          status: 'Active on Route',
-          kyc: 'Verified (Aadhaar & Police Clear)',
-          aadhaarVerified: true,
-          phoneVerified: true,
-          absentThisMonth: 0,
-          absentDates: [],
-          leaveReason: '',
-          backupWasherName: 'Backup Partner',
-          monthlyPayoutsGone: 48200,
-          pendingPayoutDue: 2840,
-          sundayBonusEarned: 1200,
-          disbursements: [],
-        });
+      : null);
 
   // Resolve societies covered by the assigned washer
   const washerSocietiesCovered = useMemo(() => {
-    const rawList =
+    const rawList: string[] =
       assignedWasher?.societies && assignedWasher.societies.length > 0
         ? assignedWasher.societies
         : assignedWasher?.society
-        ? assignedWasher.society.split(',').map((s) => s.trim()).filter(Boolean)
+        ? assignedWasher.society.split(',').map((s: string) => s.trim()).filter(Boolean)
         : [];
 
-    const resolvedNames = rawList.map((idOrName) => societyMap[idOrName] || idOrName);
+    const resolvedNames: string[] = rawList.map((idOrName: string) => societyMap[idOrName] || idOrName);
 
     if (resolvedNames.length > 0) {
       return resolvedNames.join(', ');
     }
-    return primaryVehicle?.society_name || user.society || (user as any).societyName || 'Assigned Society';
-  }, [assignedWasher, societyMap, primaryVehicle, user]);
+    return defaultOwnerSociety;
+  }, [assignedWasher, societyMap, defaultOwnerSociety]);
 
   const parkingBayOnly = useMemo(() => {
     const bay = primaryVehicle?.parking_location || (activeTodayWash || todayWash)?.parking_location || 'Bay Assigned';
@@ -349,11 +335,42 @@ export default function OwnerDashboardPage() {
         } catch (e) {}
       }
 
-      // 1. Sunday check: Sundays are scheduled rest days (no morning wash to verify)
-      const isSunday = new Date().getDay() === 0;
-      if (isSunday) return;
+      // 1. Service start date check: Do NOT prompt for wash feedback on registration day or prior to service start!
+      // Registration is registered today, wash service recording starts from the NEXT date.
+      const serviceStartDate =
+        primaryVehicle?.serviceStartDate ||
+        user?.serviceStartDate ||
+        (typeof window !== 'undefined' ? localStorage.getItem('torque_service_start_date') : null);
+      if (serviceStartDate && todayIso < serviceStartDate) {
+        return;
+      }
 
-      // 2. Resolve owner ID
+      const signupDate =
+        primaryVehicle?.signupDate ||
+        user?.signupDate ||
+        (typeof window !== 'undefined' ? localStorage.getItem('torque_signup_date') : null);
+      if (signupDate && todayIso <= signupDate) {
+        return;
+      }
+
+      // 2. Washer weekly leave day check
+      const washerLeave = (
+        primaryVehicle?.washerLeaveDay ||
+        (primaryVehicle as any)?.washerWeeklyLeaveDay ||
+        user?.washerLeaveDay ||
+        ''
+      ).toLowerCase();
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const todayDayName = dayNames[new Date().getDay()];
+      if (washerLeave.includes("doesn't") || washerLeave.includes('none')) {
+        // No weekly leave: 7-day care
+      } else if (washerLeave && washerLeave.includes(todayDayName)) {
+        return; // Today is washer's scheduled leave day
+      } else if (!washerLeave && todayDayName === 'sunday') {
+        return; // Default Sunday rest
+      }
+
+      // 3. Resolve owner ID
       const targetOwnerId =
         user.id && user.id !== 'usr_guest'
           ? user.id
@@ -566,8 +583,8 @@ export default function OwnerDashboardPage() {
             <SignatureProofCard
               wash={activeTodayWash || todayWash}
               vehicle={primaryVehicle || undefined}
-              washerName={assignedWasher.name}
-              washerAvatar={assignedWasher.avatar}
+              washerName={assignedWasher?.name}
+              washerAvatar={assignedWasher?.avatar}
               societiesCovered={washerSocietiesCovered}
               location={dashboardLocationDisplay}
               todayFeedbackStatus={todayFeedbackStatus}
@@ -585,7 +602,7 @@ export default function OwnerDashboardPage() {
                       Flagged Orange in Calendar: Car Not Cleaned Today
                     </span>
                     <span className="text-[11px] text-white/70">
-                      You indicated your car was not cleaned today by {assignedWasher.name}. Today is flagged Orange in your Care Calendar.
+                      You indicated your car was not cleaned today by {assignedWasher?.name || 'your assigned specialist'}. Today is flagged Orange in your Care Calendar.
                     </span>
                   </div>
                 </div>
@@ -650,7 +667,7 @@ export default function OwnerDashboardPage() {
               <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shrink-0" />
               <div>
                 <span className="font-bold text-white">Temporary Backup Coverage Active:</span>{' '}
-                Certified Specialist <strong>{assignedWasher.name}</strong> is handling your vehicle while{' '}
+                Certified Specialist <strong>{assignedWasher?.name || 'Assigned Specialist'}</strong> is handling your vehicle while{' '}
                 <strong>{primaryVehicle.primaryWasherName || 'your primary specialist'}</strong> is unavailable. Service schedule remains 100% active.
               </div>
             </div>
@@ -670,9 +687,6 @@ export default function OwnerDashboardPage() {
               <div className="text-xs font-semibold text-white/70 mt-1">
                 Washes
               </div>
-              <span className="text-[10px] text-[#2DD4A0] font-mono font-bold block mt-0.5">
-                ✓ 100% Verified
-              </span>
             </div>
 
             <div className="p-5 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center shadow-xl">
@@ -704,13 +718,15 @@ export default function OwnerDashboardPage() {
             </Link>
           </div>
           <OwnerProofCalendar
-            assignedWasherName={assignedWasher.name}
-            assignedWasherAvatar={assignedWasher.avatar}
+            assignedWasherName={assignedWasher?.name}
+            assignedWasherAvatar={assignedWasher?.avatar}
             parkingLocation={dashboardLocationDisplay}
             selectedVehicleId={primaryVehicle?.id}
             todayWash={activeTodayWash || todayWash}
             todayFeedbackStatus={todayFeedbackStatus}
             feedbacks={allDailyFeedbacks}
+            signupDate={primaryVehicle?.signupDate || user?.signupDate}
+            serviceStartDate={primaryVehicle?.serviceStartDate || user?.serviceStartDate}
           />
         </div>
 
@@ -739,7 +755,7 @@ export default function OwnerDashboardPage() {
             : primaryVehicle?.model || 'Your Vehicle'
         }
         parkingLocation={dashboardLocationDisplay || 'Assigned Bay'}
-        washerName={assignedWasher.name}
+        washerName={assignedWasher?.name || 'Assigned Partner'}
         dateDisplay={todayIst.dateDisplay}
       />
 

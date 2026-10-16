@@ -76,6 +76,7 @@ export default function DismissWasherModal({
                 src={washer.avatar}
                 alt={washer.name}
                 fill
+                unoptimized
                 className="object-cover"
               />
             </div>

@@ -19,7 +19,7 @@ import {
 import { useStore } from '@/lib/store';
 import { WashRecord } from '@/lib/types';
 import { fetchDailyWashFeedbackFromFirestore } from '@/lib/firebaseService';
-import { getTodayISTDate } from '@/lib/washUtils';
+import { getTodayISTDate, getNextDayIso } from '@/lib/washUtils';
 
 interface DayStatus {
   date: number; // Day of month: 1-31
@@ -32,7 +32,10 @@ interface DayStatus {
   isToday: boolean;
   isPast: boolean;
   isFuture: boolean;
-  isSunday: boolean; // Rest day for Mon-Sat care
+  isSunday: boolean; // Sunday
+  isRestDay: boolean; // Rest day for washer schedule
+  isPriorToStart: boolean; // Strictly before serviceStartDate
+  isSignupDate: boolean; // Day user registered
   wash?: WashRecord;
 }
 
@@ -45,6 +48,8 @@ interface OwnerProofCalendarProps {
   selectedVehicleId?: string;
   todayFeedbackStatus?: 'yes' | 'no' | null;
   feedbacks?: Record<string, 'yes' | 'no'>;
+  signupDate?: string;
+  serviceStartDate?: string;
 }
 
 export default function OwnerProofCalendar({
@@ -56,6 +61,8 @@ export default function OwnerProofCalendar({
   selectedVehicleId: propSelectedVehicleId,
   todayFeedbackStatus,
   feedbacks: propFeedbacks,
+  signupDate: propSignupDate,
+  serviceStartDate: propServiceStartDate,
 }: OwnerProofCalendarProps = {}) {
   const { washes: storeWashes, todayWash: storeTodayWash, vehicles, user } = useStore();
 
@@ -159,6 +166,73 @@ export default function OwnerProofCalendar({
     currentVehicle?.parking_location ||
     'Assigned Bay';
 
+  // Real date & IST tracking
+  const todayIst = useMemo(() => getTodayISTDate(), []);
+  const todayIso = todayIst.dateIso;
+
+  // Compute effective signup date (date of registration)
+  const effectiveSignupDate = useMemo(() => {
+    if (propSignupDate) return propSignupDate;
+    if (currentVehicle?.signupDate) return currentVehicle.signupDate;
+    if (user?.signupDate) return user.signupDate;
+    if (typeof window !== 'undefined') {
+      const local = localStorage.getItem('torque_signup_date');
+      if (local) return local;
+    }
+    if (user?.created_at && user.created_at.includes('T')) {
+      return user.created_at.split('T')[0];
+    }
+    return todayIso;
+  }, [propSignupDate, currentVehicle?.signupDate, user?.signupDate, user?.created_at, todayIso]);
+
+  // Recording strictly starts from the NEXT date after signup
+  const effectiveServiceStartDate = useMemo(() => {
+    if (propServiceStartDate) return propServiceStartDate;
+    if (currentVehicle?.serviceStartDate) return currentVehicle.serviceStartDate;
+    if (user?.serviceStartDate) return user.serviceStartDate;
+    if (typeof window !== 'undefined') {
+      const local = localStorage.getItem('torque_service_start_date');
+      if (local) return local;
+    }
+    if (effectiveSignupDate) {
+      return getNextDayIso(effectiveSignupDate);
+    }
+    return getNextDayIso(todayIso);
+  }, [propServiceStartDate, currentVehicle?.serviceStartDate, user?.serviceStartDate, effectiveSignupDate, todayIso]);
+
+  // Washer weekly leave day resolution
+  const washerLeaveDay = useMemo(() => {
+    const day =
+      currentVehicle?.washerLeaveDay ||
+      (currentVehicle as any)?.washerWeeklyLeaveDay ||
+      user?.washerLeaveDay ||
+      '';
+    return day.trim();
+  }, [currentVehicle?.washerLeaveDay, (currentVehicle as any)?.washerWeeklyLeaveDay, user?.washerLeaveDay]);
+
+  const hasNoWeeklyLeave = useMemo(() => {
+    const lower = washerLeaveDay.toLowerCase();
+    return lower.includes("doesn't") || lower.includes('no leave') || lower.includes('none');
+  }, [washerLeaveDay]);
+
+  const targetRestAbbr = useMemo(() => {
+    if (hasNoWeeklyLeave) return null;
+    const weekdayAbbrMap: Record<string, string> = {
+      monday: 'Mon',
+      tuesday: 'Tue',
+      wednesday: 'Wed',
+      thursday: 'Thu',
+      friday: 'Fri',
+      saturday: 'Sat',
+      sunday: 'Sun',
+    };
+    const lower = washerLeaveDay.toLowerCase();
+    for (const [name, abbr] of Object.entries(weekdayAbbrMap)) {
+      if (lower.includes(name)) return abbr;
+    }
+    return 'Sun'; // default is Sunday
+  }, [hasNoWeeklyLeave, washerLeaveDay]);
+
   // Compute month view metadata dynamically from real date + offset
   const monthData = useMemo(() => {
     // Start from current month of realNow
@@ -199,12 +273,20 @@ export default function OwnerProofCalendar({
       const dayOfWeekIndex = (monthData.startDayOffset + d - 1) % 7;
       const dayOfWeek = weekdays[dayOfWeekIndex];
       const isSunday = dayOfWeek === 'Sun';
+      const isRestDay = targetRestAbbr ? dayOfWeek === targetRestAbbr : false;
       const monthShort = fullDate.toLocaleDateString('en-US', { month: 'short' });
       const dateString = `${d < 10 ? '0' : ''}${d} ${monthShort}`;
 
       const isToday = isSameDay(fullDate, todayMidnight);
       const isPast = fullDate < todayMidnight;
       const isFuture = fullDate > todayMidnight;
+
+      const dPadded = d < 10 ? `0${d}` : `${d}`;
+      const isoDate = `${monthData.year}-${String(monthData.month + 1).padStart(2, '0')}-${dPadded}`;
+
+      // Date enrollment status
+      const isPriorToStart = effectiveServiceStartDate ? isoDate < effectiveServiceStartDate : false;
+      const isSignupDate = isoDate === effectiveSignupDate;
 
       // Match REAL wash record from store/Firestore for this vehicle
       let matchingWash: WashRecord | undefined;
@@ -216,11 +298,8 @@ export default function OwnerProofCalendar({
         }
       }
 
-      // 2. Search in allWashes
-      if (!matchingWash && allWashes && allWashes.length > 0) {
-        const dPadded = d < 10 ? `0${d}` : `${d}`;
-        const isoDate = `${monthData.year}-${String(monthData.month + 1).padStart(2, '0')}-${dPadded}`;
-
+      // 2. Search in allWashes (only if on/after service start date!)
+      if (!isPriorToStart && !matchingWash && allWashes && allWashes.length > 0) {
         matchingWash = allWashes.find((w) => {
           // Check vehicle match if vehicle_id exists
           if (currentVehicle?.id && w.vehicle_id && w.vehicle_id !== currentVehicle.id) {
@@ -272,20 +351,30 @@ export default function OwnerProofCalendar({
         });
       }
 
-      const dPadded = d < 10 ? `0${d}` : `${d}`;
-      const isoDate = `${monthData.year}-${String(monthData.month + 1).padStart(2, '0')}-${dPadded}`;
       const dayFeedback = dailyFeedbacks[isoDate] || (matchingWash?.status === 'missed' ? 'no' : undefined);
 
       let hasProofUploaded = false;
       let isMissingProof = false;
       let isVehicleUnavailable = false;
 
-      // RULE:
-      // If Sunday -> Rest day (no wash)
-      // If owner answered 'no' -> Flag it Orange in the Calendar!
-      // If owner answered 'yes' -> Consider it cleaned!
-      // If owner didn't open the app in 24hr route -> Consider it cleaned!
-      if (!isSunday) {
+      // STRICT RULES:
+      // 1. If prior to serviceStartDate -> Pre-enrollment day (NO washes, NO alerts, NO proofs)
+      // 2. If washer rest day (e.g. Sunday or weekly leave) -> Rest day (no wash)
+      // 3. On active service days:
+      //    - If owner answered 'no' -> Flag it Orange
+      //    - If owner answered 'yes' -> Verified Cleaned
+      //    - If real matching wash completed -> Verified Cleaned
+      //    - If past day with no issue -> Considered Cleaned in 24h route
+      //    - Today without completed wash remains scheduled!
+      if (isPriorToStart) {
+        hasProofUploaded = false;
+        isMissingProof = false;
+        isVehicleUnavailable = false;
+      } else if (isRestDay) {
+        hasProofUploaded = false;
+        isMissingProof = false;
+        isVehicleUnavailable = false;
+      } else {
         if (dayFeedback === 'no') {
           isMissingProof = true;
         } else if (dayFeedback === 'yes') {
@@ -297,11 +386,11 @@ export default function OwnerProofCalendar({
             isVehicleUnavailable = true;
           } else if (matchingWash.status === 'missed' || matchingWash.status === 'attempted') {
             isMissingProof = true;
-          } else {
+          } else if (matchingWash.status === 'completed') {
             hasProofUploaded = true;
           }
-        } else if (isPast || isToday) {
-          // In 24 hour route, if the owner didn't open the app, consider it cleaned
+        } else if (isPast) {
+          // Past active service days where owner raised no issue
           hasProofUploaded = true;
         }
       }
@@ -318,6 +407,9 @@ export default function OwnerProofCalendar({
         isPast,
         isFuture,
         isSunday,
+        isRestDay,
+        isPriorToStart,
+        isSignupDate,
         wash: matchingWash,
       });
     }
@@ -330,15 +422,18 @@ export default function OwnerProofCalendar({
     allWashes,
     currentVehicle,
     dailyFeedbacks,
+    effectiveSignupDate,
+    effectiveServiceStartDate,
+    targetRestAbbr,
   ]);
 
-  // Summary counts for current month view
-  const verifiedCount = days.filter((d) => d.hasProofUploaded).length;
+  // Summary counts for current month view (strictly excluding pre-start days)
+  const verifiedCount = days.filter((d) => !d.isPriorToStart && d.hasProofUploaded).length;
   const missingOrAlertCount = days.filter(
-    (d) => d.isMissingProof || d.isVehicleUnavailable
+    (d) => !d.isPriorToStart && (d.isMissingProof || d.isVehicleUnavailable)
   ).length;
   const scheduledCount = days.filter(
-    (d) => (d.isFuture || d.isToday) && !d.isSunday && !d.hasProofUploaded && !d.isMissingProof
+    (d) => !d.isPriorToStart && (d.isFuture || d.isToday) && !d.isRestDay && !d.hasProofUploaded && !d.isMissingProof
   ).length;
 
   return (
@@ -356,7 +451,11 @@ export default function OwnerProofCalendar({
               DAILY WASH AUDIT LOG
             </span>
             <span className="text-[10px] font-mono text-white/50 bg-[#161C25] px-2.5 py-0.5 rounded-full border border-white/[0.08]">
-              Mon–Sat Morning Care • Sundays Rest
+              {hasNoWeeklyLeave
+                ? '7-Day Daily Morning Care • No Leaves'
+                : washerLeaveDay && washerLeaveDay !== 'Sunday'
+                ? `Daily Morning Care • ${washerLeaveDay}s Rest`
+                : 'Mon–Sat Morning Care • Sundays Rest'}
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
@@ -434,7 +533,13 @@ export default function OwnerProofCalendar({
         </div>
 
         <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/[0.08] text-xs">
-          <span className="text-[11px] text-white/50 font-mono">Plan: Mon–Sat Care (Sundays Off)</span>
+          <span className="text-[11px] text-white/50 font-mono">
+            {hasNoWeeklyLeave
+              ? 'Plan: 7-Day Care (No Weekly Off)'
+              : washerLeaveDay && washerLeaveDay !== 'Sunday'
+              ? `Plan: Daily Care (${washerLeaveDay}s Off)`
+              : 'Plan: Mon–Sat Care (Sundays Off)'}
+          </span>
         </div>
       </div>
 
@@ -471,7 +576,27 @@ export default function OwnerProofCalendar({
             let dotColor = 'bg-[#2DD4A0]/40';
             let titleText = `Day ${day.date}: Scheduled care`;
 
-            if (day.hasProofUploaded) {
+            if (day.isPriorToStart) {
+              if (day.isSignupDate) {
+                if (day.isToday) {
+                  cellClasses =
+                    'bg-[#2DD4A0]/15 text-white border-2 border-[#2DD4A0] shadow-[0_0_15px_rgba(45,212,160,0.3)] scale-[1.02]';
+                  dotColor = 'bg-[#2DD4A0] shadow-[0_0_8px_rgba(45,212,160,0.8)]';
+                  titleText = `Day ${day.date}: Today • Signed up today! Daily wash recording starts tomorrow (${effectiveServiceStartDate})`;
+                } else {
+                  cellClasses =
+                    'bg-[#2DD4A0]/10 text-white/90 border border-[#2DD4A0]/40';
+                  dotColor = 'bg-[#2DD4A0]/60';
+                  titleText = `Day ${day.date}: Account Registration Day • Care recording started next day`;
+                }
+              } else {
+                // Past day before signup
+                cellClasses =
+                  'bg-white/[0.01] text-white/20 border border-white/[0.03] opacity-35 hover:opacity-60 cursor-pointer';
+                dotColor = 'bg-transparent';
+                titleText = `Day ${day.date}: Prior to enrollment (Care recording starts ${effectiveServiceStartDate})`;
+              }
+            } else if (day.hasProofUploaded) {
               cellClasses =
                 'bg-[#2DD4A0]/10 text-white border border-[#2DD4A0]/30 hover:bg-[#2DD4A0]/20';
               dotColor = 'bg-[#2DD4A0] shadow-[0_0_8px_rgba(45,212,160,0.8)]';
@@ -483,11 +608,11 @@ export default function OwnerProofCalendar({
               titleText = `Day ${day.date}: ${
                 day.isVehicleUnavailable ? 'Vehicle unavailable' : 'Proof flagged'
               }`;
-            } else if (day.isSunday) {
+            } else if (day.isRestDay) {
               cellClasses =
                 'bg-white/[0.01] text-white/30 border border-white/[0.04]';
               dotColor = 'bg-white/20';
-              titleText = `Day ${day.date}: Sunday rest day (Mon–Sat wash schedule)`;
+              titleText = `Day ${day.date}: Rest day (${washerLeaveDay || 'Sunday'})`;
             } else if (day.isFuture) {
               cellClasses =
                 'bg-[#161C25]/40 text-white/80 border border-white/[0.06] hover:border-[#2DD4A0]/30';
@@ -495,20 +620,23 @@ export default function OwnerProofCalendar({
               titleText = `Day ${day.date}: Scheduled care (07:30 AM window)`;
             }
 
-            // Highlighting TODAY
-            if (day.isToday) {
+            // Highlighting TODAY when today is ON or AFTER service start date
+            if (day.isToday && !day.isPriorToStart) {
               if (day.isMissingProof) {
                 cellClasses =
                   'bg-amber-500/20 text-amber-200 font-black border-2 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.5)] scale-[1.02]';
                 dotColor = 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]';
                 titleText = `Day ${day.date}: Today • Flagged: Car not cleaned by washer (Orange)`;
-              } else {
+              } else if (day.hasProofUploaded) {
                 cellClasses =
                   'bg-[#2DD4A0] text-[#0A0D12] font-black shadow-[0_0_15px_rgba(45,212,160,0.4)] border-[#2DD4A0] scale-[1.02]';
                 dotColor = 'bg-[#0A0D12]';
-                titleText = `Day ${day.date}: Today • ${
-                  day.hasProofUploaded ? 'Wash completed ✓' : 'Scheduled morning route'
-                }`;
+                titleText = `Day ${day.date}: Today • Wash completed ✓`;
+              } else {
+                cellClasses =
+                  'bg-[#2DD4A0]/20 text-[#2DD4A0] font-bold border-2 border-[#2DD4A0] shadow-[0_0_15px_rgba(45,212,160,0.3)] scale-[1.02]';
+                dotColor = 'bg-[#2DD4A0] shadow-[0_0_8px_rgba(45,212,160,0.8)]';
+                titleText = `Day ${day.date}: Today • Scheduled morning route`;
               }
             }
 
@@ -542,16 +670,28 @@ export default function OwnerProofCalendar({
                   <>
                     <span
                       className={`text-xs sm:text-sm font-bold ${
-                        day.isToday ? (day.isMissingProof ? 'text-amber-300 font-black' : 'text-[#0A0D12] font-black') : ''
+                        day.isToday
+                          ? day.isPriorToStart
+                            ? 'text-[#2DD4A0] font-black'
+                            : day.hasProofUploaded
+                            ? 'text-[#0A0D12] font-black'
+                            : 'text-[#2DD4A0] font-black'
+                          : day.isSignupDate
+                          ? 'text-[#2DD4A0] font-bold'
+                          : ''
                       }`}
                     >
                       {day.date}
                     </span>
 
-                    {/* Minimal indicator dot */}
-                    {dotColor !== 'bg-transparent' && (
+                    {/* Indicator dot or tag */}
+                    {day.isSignupDate ? (
+                      <span className="text-[8px] font-mono uppercase font-bold text-[#2DD4A0] tracking-tight leading-none mt-0.5 scale-90 sm:scale-100">
+                        {day.isToday ? 'Start' : 'Joined'}
+                      </span>
+                    ) : dotColor !== 'bg-transparent' ? (
                       <span className={`w-1.5 h-1.5 rounded-full mt-0.5 ${dotColor}`} />
-                    )}
+                    ) : null}
                   </>
                 )}
               </button>
@@ -565,7 +705,7 @@ export default function OwnerProofCalendar({
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-[#2DD4A0] shadow-[0_0_6px_rgba(45,212,160,0.8)]" />
           <span className="text-[11px] font-medium text-white/70">
-            Cleaned / Verified ({verifiedCount})
+            Cleaned ({verifiedCount})
           </span>
         </div>
         <div className="flex items-center gap-1.5">
@@ -583,7 +723,7 @@ export default function OwnerProofCalendar({
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-white/20" />
           <span className="text-[11px] font-medium text-white/40">
-            Sunday Rest (Mon–Sat)
+            {hasNoWeeklyLeave ? 'All Days Covered' : `${washerLeaveDay || 'Sunday'} Rest`}
           </span>
         </div>
       </div>
@@ -599,13 +739,17 @@ export default function OwnerProofCalendar({
               <div className="flex items-center gap-3">
                 <div
                   className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-md ${
-                    selectedDay.isToday
+                    selectedDay.isPriorToStart
+                      ? selectedDay.isSignupDate
+                        ? 'bg-[#2DD4A0] text-[#0A0D12] font-black'
+                        : 'border border-white/10 bg-[#161C25] text-white/40'
+                      : selectedDay.isToday
                       ? 'bg-[#2DD4A0] text-[#0A0D12] font-black'
                       : selectedDay.hasProofUploaded
                       ? 'bg-[#2DD4A0] text-[#0A0D12]'
                       : selectedDay.isMissingProof || selectedDay.isVehicleUnavailable
                       ? 'bg-amber-400 text-[#0A0D12]'
-                      : selectedDay.isSunday
+                      : selectedDay.isRestDay
                       ? 'border border-white/10 bg-[#161C25] text-white/40'
                       : 'border border-[#2DD4A0]/40 bg-[#2DD4A0]/10 text-[#2DD4A0]'
                   }`}
@@ -617,7 +761,11 @@ export default function OwnerProofCalendar({
                     <h3 className="text-base sm:text-lg font-bold text-white">
                       {selectedDay.dateString} {selectedDay.fullDate.getFullYear()}
                     </h3>
-                    {selectedDay.isToday && (
+                    {selectedDay.isPriorToStart ? (
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 font-bold">
+                        {selectedDay.isSignupDate ? (selectedDay.isToday ? 'Signed Up Today' : 'Registration Day') : 'Prior to Enrollment'}
+                      </span>
+                    ) : selectedDay.isToday && (
                       <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0] text-[#0A0D12] font-bold">
                         Today
                       </span>
@@ -634,9 +782,9 @@ export default function OwnerProofCalendar({
                           : 'Flagged Orange • Not Cleaned'}
                       </span>
                     )}
-                    {!selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
+                    {!selectedDay.isPriorToStart && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
                       <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30 font-bold">
-                        {selectedDay.isSunday ? 'Sunday Rest' : 'Scheduled Care'}
+                        {selectedDay.isRestDay ? `${washerLeaveDay || 'Sunday'} Rest` : 'Scheduled Care'}
                       </span>
                     )}
                   </div>
@@ -657,8 +805,55 @@ export default function OwnerProofCalendar({
 
             {/* Modal Body with Scroll */}
             <div className="p-6 overflow-y-auto space-y-6">
+              {/* CASE 0: PRIOR TO SERVICE START */}
+              {selectedDay.isPriorToStart && (
+                <div className="space-y-6">
+                  <div className="p-5 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 text-white space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-sm text-[#2DD4A0]">
+                      <Sparkles className="w-4 h-4 text-[#2DD4A0] shrink-0" />
+                      <span>
+                        {selectedDay.isSignupDate
+                          ? selectedDay.isToday
+                            ? "Signed Up Today • Care Starts Tomorrow"
+                            : "Account Registration Date"
+                          : "Prior to Torque Care Registration"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-white/80 leading-relaxed">
+                      {selectedDay.isSignupDate
+                        ? `You enrolled your vehicle on ${selectedDay.dateString}. Torque Care daily morning wash recording and route dispatch officially begins from tomorrow (${effectiveServiceStartDate}).`
+                        : `This date was before your Torque Care registration. Morning wash recording began on ${effectiveServiceStartDate}.`}
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] space-y-3 text-xs">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/50">
+                      Registration & Route Details
+                    </span>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <span className="text-white/50 block text-[11px]">Enrolled On:</span>
+                        <span className="text-white font-bold">{effectiveSignupDate}</span>
+                      </div>
+                      <div>
+                        <span className="text-white/50 block text-[11px]">Service Starts:</span>
+                        <span className="text-[#2DD4A0] font-bold">{effectiveServiceStartDate}</span>
+                      </div>
+                      <div>
+                        <span className="text-white/50 block text-[11px]">Assigned Specialist:</span>
+                        <span className="text-white font-bold">{assignedWasherName}</span>
+                      </div>
+                      <div>
+                        <span className="text-white/50 block text-[11px]">Assigned Bay:</span>
+                        <span className="text-white font-bold">{parkingLocation}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* CASE 1: PROOF UPLOADED */}
-              {selectedDay.hasProofUploaded && selectedDay.wash && (
+              {!selectedDay.isPriorToStart && selectedDay.hasProofUploaded && selectedDay.wash && (
                 <div className="space-y-6">
                   {/* Photo Switcher / Preview */}
                   <div className="space-y-3">
@@ -779,8 +974,8 @@ export default function OwnerProofCalendar({
                 </div>
               )}
 
-              {/* CASE 2: SCHEDULED / TODAY / SUNDAY / FUTURE CARE */}
-              {!selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
+              {/* CASE 2: SCHEDULED / TODAY / REST / FUTURE CARE */}
+              {!selectedDay.isPriorToStart && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
                 <div className="space-y-6">
                   <div className="p-5 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 text-white space-y-2">
                     <div className="flex items-center gap-2 font-bold text-sm text-[#2DD4A0]">
@@ -788,16 +983,16 @@ export default function OwnerProofCalendar({
                       <span>
                         {selectedDay.isToday
                           ? "Today's Scheduled Care Window"
-                          : selectedDay.isSunday
-                          ? 'Sunday Rest Day (Mon–Sat Care Schedule)'
+                          : selectedDay.isRestDay
+                          ? `${washerLeaveDay || 'Sunday'} Rest Day`
                           : 'Upcoming Scheduled Care'}
                       </span>
                     </div>
                     <p className="text-xs text-white/80 leading-relaxed">
                       {selectedDay.isToday
                         ? `Specialist ${assignedWasherName} is assigned to wash your vehicle at ${parkingLocation} during the 06:30 AM – 09:30 AM route window. Photo proof will appear here once completed.`
-                        : selectedDay.isSunday
-                        ? 'Sunday is a rest day for washers. Morning wash tracking resumes on Monday.'
+                        : selectedDay.isRestDay
+                        ? `${washerLeaveDay || 'Sunday'} is a scheduled rest day for your assigned specialist. Morning wash tracking resumes on the next scheduled workday.`
                         : `This date is scheduled for morning care. Service partner ${assignedWasherName} will attend to ${currentVehicle?.registration_number || 'your vehicle'} during the morning route.`}
                     </p>
                   </div>

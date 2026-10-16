@@ -102,6 +102,10 @@ export async function syncOwnerToFirestore(
       },
       needWashBefore: ownerNeedBefore,
       need_wash_before: ownerNeedBefore,
+      washerLeaveDay: (owner as any).washerLeaveDay || (owner as any).washerWeeklyLeaveDay || null,
+      washerWeeklyLeaveDay: (owner as any).washerLeaveDay || (owner as any).washerWeeklyLeaveDay || null,
+      signupDate: (owner as any).signupDate || new Date().toISOString().split('T')[0],
+      serviceStartDate: (owner as any).serviceStartDate || subStartDate.split('T')[0],
       subscriptionStartDate: subStartDate,
       assignedWasherId: resolvedWasherId,
       assignedWasherName: resolvedWasherName,
@@ -171,6 +175,10 @@ export async function syncOwnerToFirestore(
           washerId: vehicle.assigned_washer_id || resolvedWasherId,
           washerName: vehicle.assigned_washer_name || resolvedWasherName,
           subscriptionStartDate: vSubStartDate,
+          signupDate: (vehicle as any).signupDate || (owner as any).signupDate || new Date().toISOString().split('T')[0],
+          serviceStartDate: (vehicle as any).serviceStartDate || (owner as any).serviceStartDate || vSubStartDate.split('T')[0],
+          washerLeaveDay: (vehicle as any).washerLeaveDay || (vehicle as any).washerWeeklyLeaveDay || (owner as any).washerLeaveDay || null,
+          washerWeeklyLeaveDay: (vehicle as any).washerLeaveDay || (vehicle as any).washerWeeklyLeaveDay || (owner as any).washerLeaveDay || null,
           subscription: {
             planId: vehiclePlan,
             price: vehiclePrice,
@@ -191,10 +199,11 @@ export async function syncOwnerToFirestore(
           registration_number: vehicle.registration_number,
           parking_location: vehicle.parking_location || 'Assigned Bay',
           preferred_wash_time: effectiveNeedBefore,
-          society_name: vehicle.society_name || 'Green Valley Residency',
+          society_name: vehicle.society_name || resolvedSocietyName || '',
           selected_plan: vehiclePlan,
           assigned_washer_id: vehicle.assigned_washer_id || resolvedWasherId,
           assigned_washer_name: vehicle.assigned_washer_name || resolvedWasherName,
+          washer_leave_day: (vehicle as any).washerLeaveDay || (owner as any).washerLeaveDay || null,
         };
         await setDoc(vehicleDocRef, vehiclePayload, { merge: true });
 
@@ -1908,8 +1917,8 @@ export async function fetchOwnerDashboardFromFirestore(
         status: carOwnerDocData.status || 'active',
         created_at: carOwnerDocData.createdAt || carOwnerDocData.created_at || new Date().toISOString(),
         selected_plan: carOwnerDocData.selectedPlan || carOwnerDocData.planId || carOwnerDocData.selected_plan || 'HOME BASIC',
-        assigned_washer_id: carOwnerDocData.assignedWasherId || carOwnerDocData.assigned_washer_id,
-        assigned_washer_name: carOwnerDocData.assignedWasherName || carOwnerDocData.assigned_washer_name || 'Shubham G',
+        assigned_washer_id: carOwnerDocData.assignedWasherId || carOwnerDocData.assigned_washer_id || '',
+        assigned_washer_name: carOwnerDocData.assignedWasherName || carOwnerDocData.assigned_washer_name || '',
         address: carOwnerDocData.address,
         alt_phone: carOwnerDocData.altPhone || carOwnerDocData.alt_phone,
         price: ownerPrice,
@@ -1958,17 +1967,17 @@ export async function fetchOwnerDashboardFromFirestore(
             needWashBefore: effectiveNeedBefore,
             need_wash_before: effectiveNeedBefore,
             subscriptionStartDate: vData.subscription?.startDate || vData.subscriptionStartDate,
-            society_id: 'soc_green_valley',
-            society_name: vData.societyName || vData.society_name || 'Green Valley Residency',
+            society_id: vData.societyId || vData.society_id || result.user.societyId || '',
+            society_name: vData.societyName || vData.society_name || result.user.societyName || result.user.society || '',
             subscription_status: 'active',
             washes_this_month: sub.washesUsed ?? vData.washes_this_month ?? 0,
             selected_plan: sub.planId || vData.selected_plan || result.user.selected_plan || 'HOME BASIC',
             assigned_washer_id: vData.isBackupActive
-              ? (vData.backupWasherId || vData.activeWasherId || vData.assigned_washer_id)
-              : (vData.activeWasherId || vData.washerId || vData.assigned_washer_id || result.user.assigned_washer_id || 'wsh_1790795559023'),
+              ? (vData.backupWasherId || vData.activeWasherId || vData.assigned_washer_id || '')
+              : (vData.activeWasherId || vData.washerId || vData.assigned_washer_id || result.user.assigned_washer_id || ''),
             assigned_washer_name: vData.isBackupActive
-              ? (vData.backupWasherName || vData.activeWasherName || vData.assigned_washer_name)
-              : (vData.activeWasherName || vData.washerName || vData.assigned_washer_name || result.user.assigned_washer_name || 'Shubham G'),
+              ? (vData.backupWasherName || vData.activeWasherName || vData.assigned_washer_name || '')
+              : (vData.activeWasherName || vData.washerName || vData.assigned_washer_name || result.user.assigned_washer_name || ''),
             price: vPrice,
             subscription_price: vPrice,
             primaryWasherId: vData.primaryWasherId,
@@ -2038,7 +2047,7 @@ export async function fetchOwnerDashboardFromFirestore(
                   : null) ||
                 vehicleObj.assigned_washer_name ||
                 result.user?.assigned_washer_name ||
-                'Shubham G';
+                '';
 
               const washPhotoUrl = proof.photoUrl || wData.photoUrl || (wData.status === 'completed' ? '/images/honda_city_after.jpg' : null);
               const schedDate = wData.scheduledDate || wData.date || (wData.day ? `${wData.year}-${String(wData.monthNum || currentIst.monthNum).padStart(2, '0')}-${String(wData.day).padStart(2, '0')}` : 'Today');
@@ -2914,6 +2923,85 @@ export async function updateOwnerLocationInFirestore(
   } catch (error: any) {
     console.error('updateOwnerLocationInFirestore error:', error);
     return { success: false, matchedWasher: null, error: error?.message || 'Update failed' };
+  }
+}
+
+/**
+ * Updates an owner's phone number in Firestore.
+ */
+export async function updateOwnerPhoneInFirestore(
+  ownerId: string,
+  phone: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanPhone = phone.trim();
+    const ownerRef = doc(db, 'Car_Owners', ownerId);
+    await setDoc(
+      ownerRef,
+      {
+        phone: cleanPhone,
+        phoneNumber: cleanPhone,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return { success: true };
+  } catch (error: any) {
+    console.error('updateOwnerPhoneInFirestore error:', error);
+    return { success: false, error: error?.message || 'Failed to update phone' };
+  }
+}
+
+/**
+ * Updates an owner's dedicated washer specialist (name and phone) in Firestore.
+ */
+export async function updateOwnerWasherInFirestore(
+  ownerId: string,
+  washerName: string,
+  washerPhone: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const cleanName = washerName.trim();
+    const cleanPhone = washerPhone.trim();
+
+    const ownerRef = doc(db, 'Car_Owners', ownerId);
+    await setDoc(
+      ownerRef,
+      {
+        assigned_washer_name: cleanName,
+        assignedWasherName: cleanName,
+        selectedWasherName: cleanName,
+        assigned_washer_phone: cleanPhone,
+        assignedWasherPhone: cleanPhone,
+        selectedWasherPhone: cleanPhone,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+
+    // Also update all vehicles under this owner
+    try {
+      const vehiclesSnap = await getDocs(collection(db, 'Car_Owners', ownerId, 'Vehicles'));
+      for (const vDoc of vehiclesSnap.docs) {
+        await setDoc(
+          doc(db, 'Car_Owners', ownerId, 'Vehicles', vDoc.id),
+          {
+            assigned_washer_name: cleanName,
+            washerName: cleanName,
+            assigned_washer_phone: cleanPhone,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    } catch (vErr) {
+      console.warn('Notice updating vehicle washer info:', vErr);
+    }
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('updateOwnerWasherInFirestore error:', error);
+    return { success: false, error: error?.message || 'Failed to update washer' };
   }
 }
 

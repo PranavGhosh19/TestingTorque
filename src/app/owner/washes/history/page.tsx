@@ -112,6 +112,7 @@ export default function WashHistoryPage() {
                 src={washerAvatar || '/images/washer_amit.jpg'}
                 alt={assignedWasher}
                 fill
+                unoptimized
                 className="object-cover"
               />
             </div>
@@ -148,6 +149,9 @@ export default function WashHistoryPage() {
             assignedWasherName={assignedWasher}
             assignedWasherAvatar={washerAvatar}
             parkingLocation={vehicles[0]?.parking_location}
+            selectedVehicleId={vehicles[0]?.id}
+            signupDate={vehicles[0]?.signupDate || user?.signupDate}
+            serviceStartDate={vehicles[0]?.serviceStartDate || user?.serviceStartDate}
           />
         </div>
       </div>

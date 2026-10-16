@@ -1303,6 +1303,7 @@ export default function AdminCustomersPage() {
                           }
                           alt="Service Photo Proof"
                           fill
+                          unoptimized
                           className="object-cover"
                         />
                         <div className="absolute bottom-3 left-3 right-3 p-3 rounded-xl bg-black/80 backdrop-blur-md border border-white/15 text-xs text-slate-200 flex items-center justify-between">

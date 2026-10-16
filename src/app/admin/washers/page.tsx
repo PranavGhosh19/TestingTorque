@@ -429,6 +429,7 @@ export default function AdminWashersPage() {
                               src={w.avatar}
                               alt={w.name}
                               fill
+                              unoptimized
                               className="object-cover"
                             />
                           ) : (

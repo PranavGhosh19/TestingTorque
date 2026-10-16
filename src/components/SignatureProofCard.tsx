@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import { Vehicle, WashRecord } from '@/lib/types';
 import { useStore } from '@/lib/store';
-import { isPresentDateProofBefore10AM } from '@/lib/washUtils';
+import { isPresentDateProofBefore10AM, getTodayISTDate, getNextDayIso } from '@/lib/washUtils';
 
 interface Props {
   wash?: WashRecord;
@@ -54,6 +54,25 @@ export default function SignatureProofCard({
   }, []);
 
   const currentVehicle = vehicle || (mounted && vehicles && vehicles.length > 0 ? vehicles[0] : null);
+
+  const todayIst = getTodayISTDate();
+  const todayIso = todayIst.dateIso;
+
+  const signupDate =
+    currentVehicle?.signupDate ||
+    user?.signupDate ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_signup_date') : null) ||
+    (user?.created_at && user.created_at.includes('T') ? user.created_at.split('T')[0] : null);
+
+  const serviceStartDate =
+    currentVehicle?.serviceStartDate ||
+    user?.serviceStartDate ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_service_start_date') : null) ||
+    (signupDate ? getNextDayIso(signupDate) : null);
+
+  const isPriorToServiceStart = Boolean(
+    serviceStartDate && todayIso < serviceStartDate
+  );
 
   const vehicleName =
     (currentVehicle ? `${currentVehicle.make} ${currentVehicle.model}`.trim() : '') ||
@@ -91,26 +110,36 @@ export default function SignatureProofCard({
   const time = submissionTimeStr || wash?.completed_at || '07:30 AM';
   const isSunday = new Date().getDay() === 0;
 
-  // On server/first render, produce deterministic fallback ('Amit Kumar')
-  // After client hydration (mounted=true), reflect user's assigned partner if set
+  // Check if a real washer partner is assigned (not dummy placeholder data)
+  const isDummyName = (name?: string | null) =>
+    !name ||
+    name === 'Amit Kumar' ||
+    name === 'Assigned Route Partner' ||
+    name === 'Assigned Partner';
+
   const washerName =
-    propWasherName ||
-    (wash?.washer_name && wash.washer_name !== 'Amit Kumar' ? wash.washer_name : null) ||
-    (mounted ? (currentVehicle?.assigned_washer_name || user?.assigned_washer_name) : null) ||
-    wash?.washer_name ||
-    'Amit Kumar';
+    (!isDummyName(propWasherName) ? propWasherName : null) ||
+    (!isDummyName(wash?.washer_name) ? wash?.washer_name : null) ||
+    (mounted && !isDummyName(currentVehicle?.assigned_washer_name) ? currentVehicle?.assigned_washer_name : null) ||
+    (mounted && !isDummyName(user?.assigned_washer_name) ? user?.assigned_washer_name : null) ||
+    null;
+
+  const hasAssignedWasher = Boolean(washerName);
+
   const washerAvatar =
-    propWasherAvatar ||
-    wash?.washer_avatar ||
-    '/images/washer_amit.jpg';
+    (propWasherAvatar && !propWasherAvatar.includes('washer_amit') ? propWasherAvatar : null) ||
+    (wash?.washer_avatar && !wash.washer_avatar.includes('washer_amit') ? wash.washer_avatar : null) ||
+    (washerName ? `https://ui-avatars.com/api/?name=${encodeURIComponent(washerName)}&background=161C25&color=2DD4A0&bold=true` : '');
 
   const isFlaggedNo =
-    todayFeedbackStatus === 'no' ||
-    wash?.flaggedNotCleaned ||
-    wash?.status === 'missed' ||
-    wash?.ownerFeedback === 'no';
+    !isPriorToServiceStart &&
+    (todayFeedbackStatus === 'no' ||
+      wash?.flaggedNotCleaned ||
+      wash?.status === 'missed' ||
+      wash?.ownerFeedback === 'no');
 
   const isVerifiedYes =
+    !isPriorToServiceStart &&
     !isFlaggedNo &&
     (todayFeedbackStatus === 'yes' ||
       wash?.ownerFeedback === 'yes' ||
@@ -138,7 +167,12 @@ export default function SignatureProofCard({
           </div>
 
           {/* Condition: if present date proof is submitted or owner verified */}
-          {isFlaggedNo ? (
+          {isPriorToServiceStart ? (
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 text-[#2DD4A0] text-xs sm:text-sm font-bold tracking-wide shadow-sm">
+              <Sparkles className="w-4 h-4 text-[#2DD4A0]" />
+              <span>Care Starts Tomorrow</span>
+            </div>
+          ) : isFlaggedNo ? (
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs sm:text-sm font-bold tracking-wide shadow-sm">
               <AlertTriangle className="w-4 h-4 text-amber-400" />
               <span>Flagged Not Cleaned (Orange)</span>
@@ -172,7 +206,25 @@ export default function SignatureProofCard({
         </div>
 
         {/* Clean Inspection Photo Showcase / Flagged State / Awaiting Care State */}
-        {isFlaggedNo ? (
+        {isPriorToServiceStart ? (
+          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-[#161C25] border border-white/[0.08] p-6 flex flex-col items-center justify-center text-center shadow-2xl">
+            <div className="w-14 h-14 rounded-2xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 flex items-center justify-center text-[#2DD4A0] mb-3.5 shadow-lg">
+              <Sparkles className="w-7 h-7 text-[#2DD4A0]" />
+            </div>
+            <div className="text-base font-bold text-white uppercase tracking-wide">
+              Account Registered • Care Starts Tomorrow
+            </div>
+            <p suppressHydrationWarning className="text-xs text-white/65 max-w-sm mt-1 leading-relaxed">
+              Welcome to Torque Care! Your registration date is saved. Daily morning doorstep wash recording strictly begins tomorrow ({serviceStartDate}).
+            </p>
+            <div className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] font-mono text-white/70">
+              <MapPin className="w-3 h-3 text-[#2DD4A0]" />
+              <span>{parkingLocation}</span>
+              <span className="text-white/30">•</span>
+              <span className="text-[#2DD4A0]">Recording Starts: {serviceStartDate}</span>
+            </div>
+          </div>
+        ) : isFlaggedNo ? (
           <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-[#161C25] border border-amber-500/30 p-6 flex flex-col items-center justify-center text-center shadow-2xl">
             <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3.5 shadow-lg">
               <AlertTriangle className="w-7 h-7" />
@@ -232,7 +284,9 @@ export default function SignatureProofCard({
             <p suppressHydrationWarning className="text-xs text-white/65 max-w-sm mt-1 leading-relaxed">
               {isSunday
                 ? 'Under your 6-day Mon–Sat plan, Sunday is a scheduled rest day.'
-                : `Assigned partner ${washerName} will wash your car in the morning bay window before ${currentVehicle?.needWashBefore || '10:00 AM'}. Verified photo proof will be posted here before 10:30 AM.`}
+                : washerName
+                ? `Assigned partner ${washerName} will wash your car in the morning bay window before ${currentVehicle?.needWashBefore || '10:00 AM'}. Verified photo proof will be posted here before 10:30 AM.`
+                : `Your route specialist will wash your car in the morning bay window before ${currentVehicle?.needWashBefore || '10:00 AM'}. Verified photo proof will be posted here before 10:30 AM.`}
             </p>
             <div className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] font-mono text-white/70">
               <MapPin className="w-3 h-3 text-[#2DD4A0]" />
@@ -250,27 +304,30 @@ export default function SignatureProofCard({
             <span>{regNumber}</span>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0 justify-end">
-            <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-[#2DD4A0]/60 shadow-md shrink-0">
-              <Image
-                src={washerAvatar}
-                alt={washerName}
-                fill
-                className="object-cover"
-              />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-white tracking-tight truncate">
-                  {washerName}
-                </span>
+          {hasAssignedWasher && washerAvatar ? (
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 justify-end">
+              <div className="relative w-8 h-8 sm:w-10 sm:h-10 rounded-full overflow-hidden border-2 border-[#2DD4A0]/60 shadow-md shrink-0">
+                <Image
+                  src={washerAvatar}
+                  alt={washerName || 'Care Partner'}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
               </div>
-              <p className="text-[10px] sm:text-[11px] text-white/60 flex items-center gap-1 mt-0.5 truncate">
-                <MapPin className="w-3 h-3 text-[#2DD4A0] shrink-0" />
-                <span className="truncate max-w-[130px] sm:max-w-none">{displayLocationText}</span>
-              </p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-white tracking-tight truncate">
+                    {washerName}
+                  </span>
+                </div>
+                <p className="text-[10px] sm:text-[11px] text-white/60 flex items-center gap-1 mt-0.5 truncate">
+                  <MapPin className="w-3 h-3 text-[#2DD4A0] shrink-0" />
+                  <span className="truncate max-w-[130px] sm:max-w-none">{displayLocationText}</span>
+                </p>
+              </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
 
@@ -348,7 +405,7 @@ export default function SignatureProofCard({
                     <span className="flex items-center gap-1.5 text-slate-300">
                       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" /> Certified Partner
                     </span>
-                    <span className="font-bold text-white">{washerName} (ID: #TC-048)</span>
+                    <span className="font-bold text-white">{washerName ? `${washerName} (ID: #TC-048)` : 'Route Specialist Pending'}</span>
                   </div>
                 </div>
 

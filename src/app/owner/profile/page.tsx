@@ -14,6 +14,13 @@ import {
   Settings,
   Edit2,
   ShieldCheck,
+  Phone,
+  User,
+  Check,
+  X,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
@@ -22,13 +29,35 @@ import {
   fetchAllWashersFromFirestore,
   isWasherMatchForOwner,
   fetchCarOwnerProfileData,
+  updateOwnerPhoneInFirestore,
+  updateOwnerWasherInFirestore,
 } from '@/lib/firebaseService';
 import { WasherPartner } from '@/lib/types';
 
 export default function OwnerProfilePage() {
   const router = useRouter();
   const { user, setUser, vehicles, setVehicles, isLoggedIn, isHydrated, logout } = useStore();
+
+  // Modals
   const [showEditLocationModal, setShowEditLocationModal] = useState(false);
+  const [showAddPhoneModal, setShowAddPhoneModal] = useState(false);
+  const [showAddWasherModal, setShowAddWasherModal] = useState(false);
+
+  // Phone Form State
+  const [phoneInput, setPhoneInput] = useState('');
+  const [phoneError, setPhoneError] = useState('');
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
+
+  // Washer Form State
+  const [washerNameInput, setWasherNameInput] = useState('');
+  const [washerPhoneInput, setWasherPhoneInput] = useState('');
+  const [washerError, setWasherError] = useState('');
+  const [isSavingWasher, setIsSavingWasher] = useState(false);
+
+  // Status Toast Notice
+  const [statusNotice, setStatusNotice] = useState<string | null>(null);
+
+  // Live Washers Catalog
   const [liveWashers, setLiveWashers] = useState<WasherPartner[]>([]);
   const [isLoadingWashers, setIsLoadingWashers] = useState(false);
 
@@ -116,18 +145,192 @@ export default function OwnerProfilePage() {
     return liveWashers.find((w) => isWasherMatchForOwner(w, ownerLocation)) || null;
   }, [ownerState, ownerCity, ownerDistrict, ownerSociety, liveWashers]);
 
-  const effectiveWasherName =
-    matchedWasher?.name ||
+  // Phone evaluation: check if phone is missing or dummy '+91 98000 00000'
+  const rawPhone =
+    firestoreOwner?.phone ||
+    firestoreOwner?.phoneNumber ||
+    user?.phone ||
+    user?.phoneNumber ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_owner_phone') : null) ||
+    '';
+
+  const isDummyPhone =
+    !rawPhone ||
+    rawPhone.trim() === '' ||
+    rawPhone.includes('98000 00000') ||
+    rawPhone.includes('9800000000') ||
+    rawPhone === 'usr_guest';
+
+  const effectivePhone = isDummyPhone ? '' : rawPhone.trim();
+
+  // Society evaluation
+  const currentSociety = (
+    firestoreOwner?.societyName ||
+    firestoreOwner?.society ||
+    user.societyName ||
+    user.society ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_society_name') : null) ||
+    ''
+  ).trim();
+
+  const hasSociety = Boolean(currentSociety && currentSociety !== '—' && currentSociety !== '-');
+
+  // Dedicated Washer Specialist evaluation: exclude dummy names like 'Shubham G', 'Amit Kumar', etc.
+  const rawWasherName =
+    firestoreOwner?.assignedWasherName ||
+    firestoreOwner?.assigned_washer_name ||
     user.assigned_washer_name ||
     user.selectedWasherName ||
+    matchedWasher?.name ||
     (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null);
+
+  const rawWasherPhone =
+    firestoreOwner?.assignedWasherPhone ||
+    firestoreOwner?.assigned_washer_phone ||
+    (user as any)?.assigned_washer_phone ||
+    matchedWasher?.phone ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_phone') : null);
+
+  const isDummyWasher =
+    !rawWasherName ||
+    rawWasherName === 'Shubham G' ||
+    rawWasherName === 'Amit Kumar' ||
+    rawWasherName === 'Assigned Partner' ||
+    rawWasherName === 'Assigned Route Partner' ||
+    rawWasherName === 'Washer Partner' ||
+    rawWasherName === 'Unregistered Owner';
+
+  const effectiveWasherName = isDummyWasher ? null : rawWasherName.trim();
+  const effectiveWasherPhone = isDummyWasher ? null : (rawWasherPhone || '').trim();
+  const hasWasher = Boolean(effectiveWasherName);
+
+  // Save phone number handler
+  const handleSavePhone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPhoneError('');
+    const digits = phoneInput.replace(/\D/g, '');
+    if (digits.length < 10) {
+      setPhoneError('Please enter a valid 10-digit mobile number.');
+      return;
+    }
+    const cleanPhone = `+91 ${digits.slice(-10)}`;
+    setIsSavingPhone(true);
+
+    try {
+      const storedId =
+        typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') : null;
+      const targetOwnerId =
+        user?.id && user.id !== 'usr_guest' ? user.id : storedId || `usr_${Date.now()}`;
+
+      await updateOwnerPhoneInFirestore(targetOwnerId, cleanPhone);
+
+      const updatedUser = {
+        ...user,
+        phone: cleanPhone,
+        phoneNumber: cleanPhone,
+      };
+      setUser(updatedUser);
+      setFirestoreOwner((prev: any) => ({
+        ...prev,
+        phone: cleanPhone,
+        phoneNumber: cleanPhone,
+      }));
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('torque_owner_phone', cleanPhone);
+        localStorage.setItem('torque_user', JSON.stringify(updatedUser));
+      }
+
+      setShowAddPhoneModal(false);
+      setStatusNotice('Phone number saved successfully in Firestore!');
+      setTimeout(() => setStatusNotice(null), 3500);
+    } catch (err: any) {
+      setPhoneError(err?.message || 'Failed to save phone number.');
+    } finally {
+      setIsSavingPhone(false);
+    }
+  };
+
+  // Save dedicated washer handler
+  const handleSaveWasher = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setWasherError('');
+
+    const cleanName = washerNameInput.trim();
+    if (!cleanName) {
+      setWasherError("Please enter your washer specialist's name.");
+      return;
+    }
+
+    const digits = washerPhoneInput.replace(/\D/g, '');
+    if (digits.length < 10) {
+      setWasherError("Please enter a valid 10-digit phone number for the washer.");
+      return;
+    }
+    const cleanPhone = `+91 ${digits.slice(-10)}`;
+
+    setIsSavingWasher(true);
+
+    try {
+      const storedId =
+        typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') : null;
+      const targetOwnerId =
+        user?.id && user.id !== 'usr_guest' ? user.id : storedId || `usr_${Date.now()}`;
+
+      await updateOwnerWasherInFirestore(targetOwnerId, cleanName, cleanPhone);
+
+      const updatedUser = {
+        ...user,
+        assigned_washer_name: cleanName,
+        assignedWasherName: cleanName,
+        selectedWasherName: cleanName,
+        assigned_washer_phone: cleanPhone,
+      };
+      setUser(updatedUser);
+
+      // Also update vehicles in store
+      if (vehicles.length > 0) {
+        setVehicles(
+          vehicles.map((v) => ({
+            ...v,
+            assigned_washer_name: cleanName,
+          }))
+        );
+      }
+
+      setFirestoreOwner((prev: any) => ({
+        ...prev,
+        assigned_washer_name: cleanName,
+        assignedWasherName: cleanName,
+        selectedWasherName: cleanName,
+        assigned_washer_phone: cleanPhone,
+        assignedWasherPhone: cleanPhone,
+      }));
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('torque_assigned_washer_name', cleanName);
+        localStorage.setItem('torque_assigned_washer_phone', cleanPhone);
+        localStorage.setItem('torque_user', JSON.stringify(updatedUser));
+      }
+
+      setShowAddWasherModal(false);
+      setStatusNotice('Dedicated washer saved successfully in Firestore!');
+      setTimeout(() => setStatusNotice(null), 3500);
+    } catch (err: any) {
+      setWasherError(err?.message || 'Failed to save washer details.');
+    } finally {
+      setIsSavingWasher(false);
+    }
+  };
 
   if (!isHydrated || !isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#0A0D12] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
           <RefreshCw className="w-6 h-6 text-[#2DD4A0] animate-spin" />
-          <p className="text-xs font-mono uppercase tracking-widest text-white/50">Verifying profile session...</p>
+          <p className="text-xs font-mono uppercase tracking-widest text-white/50">
+            Verifying profile session...
+          </p>
         </div>
       </div>
     );
@@ -147,6 +350,14 @@ export default function OwnerProfilePage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+        {/* Status Notification */}
+        {statusNotice && (
+          <div className="p-4 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-xs flex items-center gap-2.5 shadow-lg animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-[#2DD4A0] shrink-0" />
+            <span className="font-semibold">{statusNotice}</span>
+          </div>
+        )}
+
         {/* User Card */}
         <div className="p-6 bg-[#11161D] rounded-[20px] border border-white/[0.08] flex items-center gap-4">
           <div className="w-14 h-14 rounded-xl bg-[#161C25] border border-white/[0.08] text-[#2DD4A0] flex items-center justify-center text-xl font-bold font-mono">
@@ -154,10 +365,40 @@ export default function OwnerProfilePage() {
           </div>
           <div className="flex-1">
             <h2 className="text-lg font-bold text-white">{user.name}</h2>
-            <div className="text-xs text-white/60 flex items-center gap-2 mt-0.5 font-mono">
-              <span>{user.phone}</span>
+            <div className="text-xs text-white/60 flex items-center gap-2 mt-1 flex-wrap">
+              {effectivePhone ? (
+                <div className="inline-flex items-center gap-1.5 font-mono text-white/90">
+                  <Phone className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                  <span>{effectivePhone}</span>
+                  <button
+                    onClick={() => {
+                      setPhoneInput(effectivePhone.replace('+91', '').trim());
+                      setPhoneError('');
+                      setShowAddPhoneModal(true);
+                    }}
+                    className="p-1 hover:text-[#2DD4A0] text-white/40 transition-colors cursor-pointer"
+                    title="Edit Phone Number"
+                  >
+                    <Edit2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhoneInput('');
+                    setPhoneError('');
+                    setShowAddPhoneModal(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#2DD4A0]/15 hover:bg-[#2DD4A0]/25 text-[#2DD4A0] border border-[#2DD4A0]/30 text-xs font-bold transition-all cursor-pointer shadow-xs active:scale-95"
+                >
+                  <Phone className="w-3 h-3" />
+                  <span>+ Add Phone Number</span>
+                </button>
+              )}
+
               <span>•</span>
-              <span className="text-[#2DD4A0] font-bold">Active Member</span>
+              <span className="text-[#2DD4A0] font-bold font-mono">Active Member</span>
             </div>
           </div>
         </div>
@@ -168,13 +409,23 @@ export default function OwnerProfilePage() {
             <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white/50">
               Primary Society Residence & Location
             </h3>
-            <button
-              onClick={() => setShowEditLocationModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#161C25] hover:bg-white/10 text-[#2DD4A0] text-xs font-bold transition-all border border-white/[0.08] active:scale-95 cursor-pointer"
-            >
-              <Edit2 className="w-3.5 h-3.5" />
-              <span>Change Society</span>
-            </button>
+            {hasSociety ? (
+              <button
+                onClick={() => setShowEditLocationModal(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#161C25] hover:bg-white/10 text-[#2DD4A0] text-xs font-bold transition-all border border-white/[0.08] active:scale-95 cursor-pointer"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+                <span>Change Society</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowEditLocationModal(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Add Society</span>
+              </button>
+            )}
           </div>
 
           <div className="p-4 bg-[#161C25] rounded-xl border border-white/[0.06] space-y-2.5 text-xs">
@@ -182,9 +433,17 @@ export default function OwnerProfilePage() {
               <span className="text-white/60 flex items-center gap-1.5">
                 <Building2 className="w-4 h-4 text-[#2DD4A0]" /> Society:
               </span>
-              <span className="font-bold text-white text-sm">
-                {firestoreOwner?.societyName || firestoreOwner?.society || user.societyName || user.society || '—'}
-              </span>
+              {hasSociety ? (
+                <span className="font-bold text-white text-sm">{currentSociety}</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowEditLocationModal(true)}
+                  className="text-[#2DD4A0] font-bold text-xs hover:underline cursor-pointer inline-flex items-center gap-1"
+                >
+                  <span>+ Add Society</span>
+                </button>
+              )}
             </div>
 
             <div className="flex justify-between items-center">
@@ -195,14 +454,18 @@ export default function OwnerProfilePage() {
                 {[
                   firestoreOwner?.district || user.district,
                   firestoreOwner?.city || user.city,
-                ].filter(Boolean).join(', ') || '—'}
+                ].filter(Boolean).join(', ') || (
+                  <span className="text-white/40 italic">Not set</span>
+                )}
               </span>
             </div>
 
             {(firestoreOwner?.state || user.state) && (
               <div className="flex justify-between items-center">
                 <span className="text-white/60">State:</span>
-                <span className="text-white/90 font-medium">{firestoreOwner?.state || user.state}</span>
+                <span className="text-white/90 font-medium">
+                  {firestoreOwner?.state || user.state}
+                </span>
               </div>
             )}
 
@@ -214,8 +477,9 @@ export default function OwnerProfilePage() {
                   firestoreOwner?.address ||
                   user.flat ||
                   user.flatNumber ||
-                  user.address ||
-                  '—'}
+                  user.address || (
+                    <span className="text-white/40 italic">Not set</span>
+                  )}
               </span>
             </div>
 
@@ -227,22 +491,81 @@ export default function OwnerProfilePage() {
             </div>
           </div>
 
-          {/* DEDICATED WASHER SPECIALIST SECTION (Shows Washer Name when Common) */}
-          <div className="p-4 rounded-xl bg-gradient-to-r from-[#2DD4A0]/10 via-[#161C25] to-[#161C25] border border-[#2DD4A0]/30 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0] flex items-center gap-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Dedicated Society Washer Specialist
-              </span>
-              {matchedWasher && (
-                <span className="text-[10px] font-mono text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  ✓ Matched Route
+          {/* DEDICATED WASHER SPECIALIST SECTION */}
+          {!hasSociety ? (
+            /* CASE 1: Locked until society details are filled */
+            <div className="p-4 rounded-xl bg-[#161C25]/60 border border-white/[0.08] space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/40 flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-white/30" />
+                  Dedicated Society Washer Specialist
                 </span>
-              )}
+                <span className="text-[10px] font-mono text-amber-400 font-bold px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                  Society Required First
+                </span>
+              </div>
+              <p className="text-xs text-white/60 leading-relaxed pt-1">
+                Please add your primary society residence details above first. A dedicated washer specialist can only be assigned once your society details are filled.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowEditLocationModal(true)}
+                className="mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#2DD4A0] hover:text-white text-xs font-semibold border border-white/[0.08] transition-all cursor-pointer"
+              >
+                <Building2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                <span>+ Add Society Details</span>
+              </button>
             </div>
+          ) : !hasWasher ? (
+            /* CASE 2: Society is filled, but no washer assigned yet */
+            <div className="p-4 rounded-xl bg-gradient-to-r from-[#2DD4A0]/10 via-[#161C25] to-[#161C25] border border-[#2DD4A0]/30 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0] flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Dedicated Society Washer Specialist
+                </span>
+                <span className="text-[10px] font-mono text-white/50 px-2 py-0.5 rounded-full bg-[#161C25] border border-white/[0.08]">
+                  Ready to Assign
+                </span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                <div>
+                  <p className="text-xs text-white/80">
+                    No dedicated washer partner added for <strong>{currentSociety}</strong> yet.
+                  </p>
+                  <p className="text-[11px] text-white/50 mt-0.5">
+                    Add your washer partner's name & phone number to start morning care coordination.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWasherNameInput('');
+                    setWasherPhoneInput('');
+                    setWasherError('');
+                    setShowAddWasherModal(true);
+                  }}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  <span>+ Add Washer</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* CASE 3: Society is filled and real washer details exist */
+            <div className="p-4 rounded-xl bg-gradient-to-r from-[#2DD4A0]/10 via-[#161C25] to-[#161C25] border border-[#2DD4A0]/30 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0] flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Dedicated Society Washer Specialist
+                </span>
+                <span className="text-[10px] font-mono text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                  ✓ Assigned Partner
+                </span>
+              </div>
 
-            {effectiveWasherName ? (
-              <div className="flex items-center justify-between pt-1">
+              <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
                 <div>
                   <h4 className="text-base font-bold text-white flex items-center gap-2">
                     <span>{effectiveWasherName}</span>
@@ -250,27 +573,31 @@ export default function OwnerProfilePage() {
                       Assigned Partner
                     </span>
                   </h4>
+                  {effectiveWasherPhone && (
+                    <p className="text-xs text-[#2DD4A0] font-mono mt-0.5 flex items-center gap-1.5">
+                      <Phone className="w-3 h-3" />
+                      <span>{effectiveWasherPhone}</span>
+                    </p>
+                  )}
                   <p className="text-[11px] text-white/60 mt-0.5">
-                    Covers morning bay wash for <strong>{user.societyName || user.society || 'your society'}</strong>
-                    {user.district ? ` in ${user.district}` : ''}.
+                    Covers morning bay wash for <strong>{currentSociety}</strong>.
                   </p>
                 </div>
-                <Link
-                  href="/owner/settings"
-                  className="text-xs font-mono font-bold text-[#2DD4A0] hover:underline shrink-0 pl-2"
+                <button
+                  type="button"
+                  onClick={() => {
+                    setWasherNameInput(effectiveWasherName || '');
+                    setWasherPhoneInput(effectiveWasherPhone ? effectiveWasherPhone.replace('+91', '').trim() : '');
+                    setWasherError('');
+                    setShowAddWasherModal(true);
+                  }}
+                  className="text-xs font-mono font-bold text-[#2DD4A0] hover:underline shrink-0 cursor-pointer"
                 >
-                  Manage →
-                </Link>
+                  Change Washer →
+                </button>
               </div>
-            ) : (
-              <div className="pt-1 text-xs text-white/60">
-                <p>No washer specialist currently matched for this society cluster.</p>
-                <p className="text-[11px] text-white/40 mt-0.5">
-                  When a washer registers with State: <strong>{user.state || 'Selected'}</strong>, City: <strong>{user.city || 'Selected'}</strong>, District: <strong>{user.district || 'Selected'}</strong>, and Society: <strong>{user.societyName || user.society || 'Selected'}</strong>, their name will appear here automatically.
-                </p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Quick Actions */}
@@ -321,12 +648,210 @@ export default function OwnerProfilePage() {
         </div>
       </main>
 
+      {/* MODAL 1: ADD / EDIT PHONE NUMBER */}
+      {showAddPhoneModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-[#11161D] border border-white/[0.1] rounded-[24px] p-6 shadow-2xl text-white space-y-5">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 text-[#2DD4A0] flex items-center justify-center">
+                  <Phone className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    {effectivePhone ? 'Edit Phone Number' : 'Add Phone Number'}
+                  </h3>
+                  <p className="text-[11px] text-white/50 font-mono">
+                    Direct sync with Firestore Car_Owners
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddPhoneModal(false)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {phoneError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{phoneError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSavePhone} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">
+                  Mobile Number (10 Digits)
+                </label>
+                <div className="flex items-center bg-[#161C25] border border-white/[0.08] rounded-xl overflow-hidden focus-within:border-[#2DD4A0] transition-colors">
+                  <span className="px-3.5 py-3 text-xs font-mono font-bold text-[#2DD4A0] bg-white/[0.02] border-r border-white/[0.08]">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    value={phoneInput}
+                    onChange={(e) => setPhoneInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="9876543210"
+                    className="flex-1 bg-transparent px-3.5 py-3 text-sm text-white placeholder-white/30 focus:outline-hidden font-mono"
+                    autoFocus
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddPhoneModal(false)}
+                  className="px-4 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingPhone}
+                  className="px-6 py-2.5 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingPhone ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save to Firestore</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: ADD / EDIT DEDICATED WASHER */}
+      {showAddWasherModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in">
+          <div className="w-full max-w-md bg-[#11161D] border border-white/[0.1] rounded-[24px] p-6 shadow-2xl text-white space-y-5">
+            <div className="flex items-center justify-between border-b border-white/[0.08] pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 text-[#2DD4A0] flex items-center justify-center">
+                  <User className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">
+                    {hasWasher ? 'Change Dedicated Washer' : 'Add Dedicated Washer'}
+                  </h3>
+                  <p className="text-[11px] text-white/50 font-mono">
+                    Assigned to {currentSociety}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAddWasherModal(false)}
+                className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white flex items-center justify-center transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {washerError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{washerError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveWasher} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">
+                  Washer's Full Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={washerNameInput}
+                  onChange={(e) => setWasherNameInput(e.target.value)}
+                  placeholder="e.g. Ramesh Sharma"
+                  className="w-full bg-[#161C25] border border-white/[0.08] rounded-xl px-3.5 py-3 text-sm text-white placeholder-white/30 focus:outline-hidden focus:border-[#2DD4A0] transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono uppercase tracking-wider text-white/60 mb-1.5">
+                  Washer's Phone Number (10 Digits)
+                </label>
+                <div className="flex items-center bg-[#161C25] border border-white/[0.08] rounded-xl overflow-hidden focus-within:border-[#2DD4A0] transition-colors">
+                  <span className="px-3.5 py-3 text-xs font-mono font-bold text-[#2DD4A0] bg-white/[0.02] border-r border-white/[0.08]">
+                    +91
+                  </span>
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    value={washerPhoneInput}
+                    onChange={(e) => setWasherPhoneInput(e.target.value.replace(/\D/g, ''))}
+                    placeholder="9876543210"
+                    className="flex-1 bg-transparent px-3.5 py-3 text-sm text-white placeholder-white/30 focus:outline-hidden font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowAddWasherModal(false)}
+                  className="px-4 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-xs font-bold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingWasher}
+                  className="px-6 py-2.5 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isSavingWasher ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save Washer</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: EDIT / ADD SOCIETY & LOCATION */}
       <EditLocationSocietyModal
         isOpen={showEditLocationModal}
         onClose={() => setShowEditLocationModal(false)}
-        onSaved={(updatedUser) => {
+        onSaved={(updatedUser, matchedWsh) => {
           setUser(updatedUser);
-          setFirestoreOwner((prev: any) => ({ ...prev, ...updatedUser }));
+          setFirestoreOwner((prev: any) => ({
+            ...prev,
+            ...updatedUser,
+            assignedWasherName: matchedWsh?.name || updatedUser.assigned_washer_name,
+            assigned_washer_name: matchedWsh?.name || updatedUser.assigned_washer_name,
+            assignedWasherPhone: matchedWsh?.phone || (updatedUser as any).assigned_washer_phone,
+            assigned_washer_phone: matchedWsh?.phone || (updatedUser as any).assigned_washer_phone,
+          }));
+          setStatusNotice('Society details saved successfully in Firestore!');
+          setTimeout(() => setStatusNotice(null), 3500);
         }}
       />
 

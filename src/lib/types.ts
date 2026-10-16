@@ -36,6 +36,10 @@ export interface User {
   subscription_price?: number;
   needWashBefore?: string;
   need_wash_before?: string;
+  washerLeaveDay?: string;
+  washerWeeklyLeaveDay?: string;
+  signupDate?: string;
+  serviceStartDate?: string;
 }
 
 export interface Society {
@@ -114,6 +118,11 @@ export interface Vehicle {
   needWashBefore?: string;
   need_wash_before?: string;
   subscriptionStartDate?: string;
+  washerLeaveDay?: string;
+  washerWeeklyLeaveDay?: string;
+  signupDate?: string;
+  serviceStartDate?: string;
+  created_at?: string;
 }
 
 export interface WashRecord {

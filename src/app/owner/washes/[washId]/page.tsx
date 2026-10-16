@@ -124,6 +124,7 @@ export default function WashDetailsPage() {
                   src={wash.bay_empty_photo || '/images/empty_parking_bay.jpg'}
                   alt="Empty assigned parking bay verified by live camera"
                   fill
+                  unoptimized
                   className="object-cover"
                   priority
                 />

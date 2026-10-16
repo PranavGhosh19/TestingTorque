@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
@@ -19,15 +19,14 @@ import {
   Check,
   AlertCircle,
   Building2,
-  Edit2,
   Loader2,
-  Mail,
-  Shield,
   Layers,
+  Calendar,
+  Smartphone,
 } from 'lucide-react';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 import { useStore } from '@/lib/store';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import {
   fetchAllSocieties,
@@ -45,9 +44,6 @@ import {
   getStates,
   getCities,
   getDistricts,
-  isValidState,
-  isValidCity,
-  isValidDistrict,
   mergeFirestoreSocieties,
 } from '@/lib/locationData';
 import {
@@ -66,7 +62,19 @@ interface VehicleDraft {
   color: string;
   parking_location: string;
   preferred_wash_time: string;
+  washerLeaveDay?: string;
 }
+
+const LEAVE_DAY_OPTIONS = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+  "Doesn't take any leaves",
+];
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -92,7 +100,7 @@ export default function SignUpPage() {
     }
   }, [isHydrated, isLoggedIn, role, router]);
 
-  // Stepper state: 1 = Google Auth, 2 = Society Details, 3 = Register Car
+  // Stepper state: 1 = Google Auth, 2 = Cars, 3 = Society (Optional)
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
   // -------------------------------------------------------------
@@ -109,7 +117,25 @@ export default function SignUpPage() {
   const [authError, setAuthError] = useState('');
 
   // -------------------------------------------------------------
-  // STEP 2 STATE: Society & Location Details (State -> City -> District -> Society)
+  // STEP 2 STATE: Car Registration & Leave Preferences
+  // -------------------------------------------------------------
+  const [vehicles, setRegisteredVehicles] = useState<VehicleDraft[]>([]);
+  const [vehicleMake, setVehicleMake] = useState('');
+  const [vehicleModel, setVehicleModel] = useState('');
+  const [registrationNumber, setRegistrationNumber] = useState('');
+  const [preferredTime, setPreferredTime] = useState('07:30 AM');
+  const [washerLeaveDay, setWasherLeaveDay] = useState<string>("Doesn't take any leaves");
+  const [parkingLocation, setParkingLocation] = useState('');
+  const [isAddingAnotherCar, setIsAddingAnotherCar] = useState(true);
+  const [vehicleError, setVehicleError] = useState('');
+  const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
+
+  // Available car makes & models
+  const carMakeOptions = useMemo(() => getCarMakes(), []);
+  const carModelOptions = useMemo(() => getCarModels(vehicleMake), [vehicleMake]);
+
+  // -------------------------------------------------------------
+  // STEP 3 STATE: Society & Location Details (Optional)
   // -------------------------------------------------------------
   const [selectedState, setSelectedState] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
@@ -124,6 +150,38 @@ export default function SignUpPage() {
   // Common societies serviced by washers in the selected district
   const [districtWasherSocieties, setDistrictWasherSocieties] = useState<WasherDistrictSociety[]>([]);
   const [isLoadingDistrictSocieties, setIsLoadingDistrictSocieties] = useState(false);
+
+  // Helper converters for time input
+  const get24HourTimeString = (time12: string) => {
+    if (!time12) return '07:30';
+    const match = time12.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+    if (!match) return '07:30';
+    let hours = parseInt(match[1], 10);
+    const minutes = match[2];
+    const period = match[3]?.toUpperCase();
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    return `${String(hours).padStart(2, '0')}:${minutes}`;
+  };
+
+  const format24to12Hour = (time24: string) => {
+    if (!time24) return '07:30 AM';
+    const [hStr, mStr] = time24.split(':');
+    let h = parseInt(hStr, 10);
+    const suffix = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return `${String(h).padStart(2, '0')}:${mStr || '00'} ${suffix}`;
+  };
+
+  const handleUseDeviceTime = () => {
+    const now = new Date();
+    let hours = now.getHours();
+    const minutes = now.getMinutes();
+    const suffix = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${suffix}`;
+    setPreferredTime(formatted);
+  };
 
   // Load Firestore societies and live washers
   useEffect(() => {
@@ -199,7 +257,7 @@ export default function SignUpPage() {
     return availableWashers.find((w) => isWasherMatchForOwner(w, ownerLoc)) || null;
   }, [availableWashers, selectedState, selectedCity, selectedDistrict, societyName]);
 
-  // Filter Firestore societies matching the selected state/city/district (prioritizes washer-covered common societies)
+  // Filter Firestore societies matching the selected state/city/district
   const matchingSocieties = useMemo(() => {
     if (!selectedState && !selectedCity && !selectedDistrict) return [];
     const washerSocList = districtWasherSocieties.map((d) => d.societyName);
@@ -223,23 +281,6 @@ export default function SignUpPage() {
     () => getDistricts(selectedState, selectedCity),
     [selectedState, selectedCity]
   );
-
-  // -------------------------------------------------------------
-  // STEP 3 STATE: Car Registration (Multiple Vehicles supported)
-  // -------------------------------------------------------------
-  const [vehicles, setRegisteredVehicles] = useState<VehicleDraft[]>([]);
-  const [vehicleMake, setVehicleMake] = useState('');
-  const [vehicleModel, setVehicleModel] = useState('');
-  const [registrationNumber, setRegistrationNumber] = useState('');
-  const [preferredTime, setPreferredTime] = useState('07:30 AM');
-  const [parkingLocation, setParkingLocation] = useState('');
-  const [isAddingAnotherCar, setIsAddingAnotherCar] = useState(true);
-  const [vehicleError, setVehicleError] = useState('');
-  const [isSubmittingFinal, setIsSubmittingFinal] = useState(false);
-
-  // Available car makes & models
-  const carMakeOptions = useMemo(() => getCarMakes(), []);
-  const carModelOptions = useMemo(() => getCarModels(vehicleMake), [vehicleMake]);
 
   // -------------------------------------------------------------
   // STEP 1 HANDLER: Google Sign In
@@ -274,11 +315,9 @@ export default function SignUpPage() {
       // Check if this owner has already fully registered in Firestore
       try {
         const existingOwner = await findCarOwnerByIdInFirestore(uid);
-        if (existingOwner && (existingOwner.society || existingOwner.societyId)) {
-          // Fetch their vehicles
+        if (existingOwner) {
           const existingVehicles = await fetchCarOwnerVehiclesFromFirestore(uid);
           if (existingVehicles && existingVehicles.length > 0) {
-            // Restore full session and redirect to dashboard
             setUser({
               ...existingOwner,
               role: 'owner',
@@ -304,7 +343,7 @@ export default function SignUpPage() {
         console.warn('Notice checking existing owner record:', checkErr);
       }
 
-      // New or incomplete owner -> advance to Step 2
+      // Move directly to Step 2: Cars
       setStep(2);
     } catch (err: any) {
       console.error('Google Sign-in Error:', err);
@@ -321,36 +360,9 @@ export default function SignUpPage() {
   };
 
   // -------------------------------------------------------------
-  // STEP 2 HANDLER: Validate Society Details
+  // STEP 2 HANDLER: Add Vehicle to Draft List
   // -------------------------------------------------------------
-  const handleProceedToCarRegistration = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSocietyError('');
-
-    if (!selectedState) {
-      setSocietyError('Please select your State.');
-      return;
-    }
-    if (!selectedCity) {
-      setSocietyError('Please select your City.');
-      return;
-    }
-    if (!selectedDistrict) {
-      setSocietyError('Please select your District / Area.');
-      return;
-    }
-    if (!societyName.trim() || societyName.trim().length < 3) {
-      setSocietyError('Please select or enter your Society Name (minimum 3 characters).');
-      return;
-    }
-
-    setStep(3);
-  };
-
-  // -------------------------------------------------------------
-  // STEP 3 HANDLER: Add Vehicle to Draft List
-  // -------------------------------------------------------------
-  const handleSaveCurrentVehicle = () => {
+  const handleSaveCurrentVehicle = (): boolean => {
     setVehicleError('');
 
     if (!vehicleMake.trim()) {
@@ -377,6 +389,7 @@ export default function SignUpPage() {
       color: 'Pearl White',
       parking_location: parkingLocation.trim() || 'Assigned Parking Bay',
       preferred_wash_time: preferredTime || '07:30 AM',
+      washerLeaveDay: washerLeaveDay,
     };
 
     setRegisteredVehicles((prev) => [...prev, newVehicle]);
@@ -397,11 +410,29 @@ export default function SignUpPage() {
     }
   };
 
-  // -------------------------------------------------------------
-  // STEP 3 HANDLER: Final Signup Submission
-  // -------------------------------------------------------------
-  const handleCompleteSignup = async () => {
+  // Proceed to Step 3 (Society - Optional)
+  const handleProceedToSociety = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setVehicleError('');
+
+    // If currently drafting a car, save it
+    if (isAddingAnotherCar && (vehicleMake.trim() || vehicleModel.trim() || registrationNumber.trim())) {
+      const added = handleSaveCurrentVehicle();
+      if (!added) return;
+    } else if (vehicles.length === 0) {
+      setVehicleError('Please add at least 1 car to continue.');
+      return;
+    }
+
+    setStep(3);
+  };
+
+  // -------------------------------------------------------------
+  // FINAL SIGNUP HANDLER (Can be called from Cars OR Society)
+  // -------------------------------------------------------------
+  const handleCompleteSignup = async (skipSociety = false) => {
+    setVehicleError('');
+    setSocietyError('');
 
     let finalVehicles = [...vehicles];
 
@@ -422,12 +453,14 @@ export default function SignUpPage() {
           color: 'Pearl White',
           parking_location: parkingLocation.trim() || 'Assigned Parking Bay',
           preferred_wash_time: preferredTime || '07:30 AM',
+          washerLeaveDay: washerLeaveDay,
         },
       ];
     }
 
     if (finalVehicles.length === 0) {
       setVehicleError('Please add at least 1 car to activate your daily morning tracking.');
+      if (step !== 2) setStep(2);
       return;
     }
 
@@ -436,10 +469,18 @@ export default function SignUpPage() {
     try {
       const ownerUid = googleUser?.uid || `usr_${Date.now()}`;
       const ownerName = googleUser?.displayName || 'Car Owner';
-      const ownerEmail = googleUser?.email || '';
-      const formattedPhone = phone.trim() ? phone.trim() : '+91 98000 00000';
+      const formattedPhone = phone.trim() ? phone.trim() : '';
 
-      const fullSocietyDisplay = `${societyName.trim()}, ${selectedDistrict.trim()}, ${selectedCity.trim()}`;
+      const hasSociety = !skipSociety && societyName.trim().length > 0;
+      const resolvedState = hasSociety ? selectedState.trim() : '';
+      const resolvedCity = hasSociety ? selectedCity.trim() : '';
+      const resolvedDistrict = hasSociety ? selectedDistrict.trim() : '';
+      const resolvedSociety = hasSociety ? societyName.trim() : '';
+      const resolvedFlat = hasSociety ? flatNumber.trim() : '';
+
+      const fullSocietyDisplay = resolvedSociety
+        ? [resolvedSociety, resolvedDistrict, resolvedCity].filter(Boolean).join(', ')
+        : '';
 
       // Convert vehicles to store domain format
       const storeVehicles = finalVehicles.map((v) => ({
@@ -451,9 +492,11 @@ export default function SignUpPage() {
         parking_location: v.parking_location,
         preferred_wash_time: v.preferred_wash_time,
         needWashBefore: v.preferred_wash_time,
+        washerLeaveDay: washerLeaveDay,
+        washerWeeklyLeaveDay: washerLeaveDay,
       }));
 
-      // Call store registerOwner which saves to local storage and syncs to Firestore
+      // Call store registerOwner
       await registerOwner(
         {
           id: ownerUid,
@@ -461,22 +504,24 @@ export default function SignUpPage() {
           name: ownerName,
           email: ownerEmail,
           phone: formattedPhone,
-          state: selectedState,
-          city: selectedCity,
-          district: selectedDistrict,
+          state: resolvedState,
+          city: resolvedCity,
+          district: resolvedDistrict,
           society: fullSocietyDisplay,
-          societyName: societyName.trim(),
-          flatNumber: flatNumber.trim(),
-          address: flatNumber ? `${flatNumber}, ${fullSocietyDisplay}` : fullSocietyDisplay,
+          societyName: resolvedSociety,
+          flatNumber: resolvedFlat,
+          address: resolvedFlat && fullSocietyDisplay ? `${resolvedFlat}, ${fullSocietyDisplay}` : fullSocietyDisplay,
           selectedPlan: 'DAILY TRACKING',
           needWashBefore: finalVehicles[0]?.preferred_wash_time || '07:30 AM',
-          selectedWasherId: matchedWasherPreview?.id,
-          selectedWasherName: matchedWasherPreview?.name,
+          washerLeaveDay: washerLeaveDay,
+          washerWeeklyLeaveDay: washerLeaveDay,
+          selectedWasherId: hasSociety ? (matchedWasherPreview?.id || '') : '',
+          selectedWasherName: hasSociety ? (matchedWasherPreview?.name || '') : '',
         },
         storeVehicles as any
       );
 
-      // Successfully registered -> advance to Step 4: Owner Dashboard
+      // Successfully registered -> navigate to Owner Dashboard
       setTimeout(() => {
         router.push('/owner/dashboard');
       }, 300);
@@ -509,8 +554,8 @@ export default function SignUpPage() {
           <div className="flex items-center justify-between max-w-xs mx-auto mb-3">
             {[
               { num: 1, label: 'Google Auth' },
-              { num: 2, label: 'Society' },
-              { num: 3, label: 'Cars' },
+              { num: 2, label: 'Cars' },
+              { num: 3, label: 'Society' },
             ].map((s, idx) => (
               <React.Fragment key={s.num}>
                 <div className="flex flex-col items-center">
@@ -581,7 +626,6 @@ export default function SignUpPage() {
                   </>
                 ) : (
                   <>
-                    {/* Official Google G Logo */}
                     <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
                       <path
                         fill="#4285F4"
@@ -609,22 +653,18 @@ export default function SignUpPage() {
         )}
 
         {/* ========================================================= */}
-        {/* STEP 2: Society & Location Details */}
+        {/* STEP 2: Cars (Option 2) */}
         {/* ========================================================= */}
         {step === 2 && (
-          <form
-            onSubmit={handleProceedToCarRegistration}
-            className="p-7 sm:p-10 rounded-3xl bg-[#11161D] border border-white/[0.08] shadow-2xl space-y-7 animate-in fade-in duration-200"
-          >
-            {/* Header info with Authenticated User badge */}
-            <div className="space-y-4">
+          <div className="p-7 sm:p-10 rounded-3xl bg-[#11161D] border border-white/[0.08] shadow-2xl space-y-7 animate-in fade-in duration-200">
+            <div className="space-y-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">
-                    Step 2 of 3 • Building Location
+                    Step 2 of 3 • Vehicle Registration
                   </span>
                   <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                    Select Your Society Route
+                    Register Your Vehicle(s)
                   </h2>
                 </div>
 
@@ -648,7 +688,342 @@ export default function SignUpPage() {
               </div>
 
               <p className="text-xs text-white/60 leading-relaxed">
-                Choose your State, City, District, and Society to connect with morning washers already deployed in your area.
+                Add your car details, set your preferred morning wash completion time, and specify your washer&apos;s rest day.
+              </p>
+            </div>
+
+            {vehicleError && (
+              <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-2.5 text-rose-300 text-xs font-semibold">
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                <span>{vehicleError}</span>
+              </div>
+            )}
+
+            {/* List of Already Added Vehicles */}
+            {vehicles.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white/40">
+                  Registered Garage Vehicles ({vehicles.length})
+                </h3>
+                <div className="grid grid-cols-1 gap-3">
+                  {vehicles.map((v) => (
+                    <div
+                      key={v.id}
+                      className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 text-[#2DD4A0] flex items-center justify-center font-bold">
+                          <Car className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <div className="font-bold text-white text-sm">
+                            {v.make} {v.model}
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-white/60 font-mono mt-0.5 flex-wrap">
+                            <span className="text-[#2DD4A0] font-bold">{v.registration_number}</span>
+                            <span>•</span>
+                            <span>Ready by {v.preferred_wash_time}</span>
+                            {v.washerLeaveDay && (
+                              <>
+                                <span>•</span>
+                                <span className="text-amber-300/90">Leave: {v.washerLeaveDay}</span>
+                              </>
+                            )}
+                            {v.parking_location && (
+                              <>
+                                <span>•</span>
+                                <span className="truncate max-w-[120px]">{v.parking_location}</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveVehicle(v.id)}
+                        className="p-2 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                        title="Remove vehicle"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Form to Add Current / Another Vehicle */}
+            {isAddingAnotherCar ? (
+              <div className="p-5 sm:p-6 rounded-2xl bg-white/[0.03] border border-white/10 space-y-5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#2DD4A0] flex items-center gap-2">
+                    <Car className="w-4 h-4" />
+                    <span>{vehicles.length === 0 ? 'Vehicle #1 Details' : `Vehicle #${vehicles.length + 1} Details`}</span>
+                  </h4>
+                  {vehicles.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingAnotherCar(false)}
+                      className="text-xs text-white/40 hover:text-white"
+                    >
+                      Cancel
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Car Make */}
+                  <SearchableSelect
+                    label="Car Make"
+                    required
+                    placeholder="Select Make (e.g. Maruti, Hyundai, Tata)"
+                    searchPlaceholder="Search make..."
+                    options={carMakeOptions}
+                    value={vehicleMake}
+                    allowCustom={true}
+                    onChange={(val) => {
+                      setVehicleMake(val);
+                      setVehicleModel('');
+                      setVehicleError('');
+                    }}
+                  />
+
+                  {/* Car Model */}
+                  <SearchableSelect
+                    label="Car Model"
+                    required
+                    placeholder={vehicleMake ? 'Select or enter Model' : 'Select Make first'}
+                    searchPlaceholder="Search model (e.g. Swift, Creta, Nexon)..."
+                    options={carModelOptions}
+                    value={vehicleModel}
+                    allowCustom={true}
+                    disabled={!vehicleMake}
+                    disabledHint="Select Car Make first"
+                    onChange={(val) => {
+                      setVehicleModel(val);
+                      setVehicleError('');
+                    }}
+                  />
+
+                  {/* License Plate Number */}
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2">
+                      License / Registration Plate <span className="text-rose-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={registrationNumber}
+                      onChange={(e) => {
+                        setRegistrationNumber(e.target.value.toUpperCase());
+                        setVehicleError('');
+                      }}
+                      placeholder="e.g. MH 02 AB 1234 or DL 10 CA 9999"
+                      className="w-full px-4 py-3.5 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-semibold text-white placeholder-white/25 focus:outline-hidden focus:border-[#2DD4A0] focus:ring-1 focus:ring-[#2DD4A0]/30 transition-all font-mono tracking-wider uppercase"
+                    />
+                  </div>
+
+                  {/* Preferred Completion Time Picker with Custom Input & Local Device Time */}
+                  <div className="sm:col-span-2 space-y-3 pt-1">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <label className="text-xs font-bold text-white/80 uppercase tracking-wider block flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                        Preferred Wash Completion Time
+                      </label>
+
+                      {/* Use Local Device Time Button */}
+                      <button
+                        type="button"
+                        onClick={handleUseDeviceTime}
+                        className="px-3 py-1.5 rounded-xl bg-[#2DD4A0]/15 hover:bg-[#2DD4A0]/25 border border-[#2DD4A0]/40 text-[#2DD4A0] text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
+                        title="Set time to current device clock"
+                      >
+                        <Smartphone className="w-3.5 h-3.5" />
+                        <span>Use Local Device Time</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                      {/* Native 24-hr Time Input allowing full custom time entry */}
+                      <div className="sm:col-span-1">
+                        <input
+                          type="time"
+                          value={get24HourTimeString(preferredTime)}
+                          onChange={(e) => {
+                            if (e.target.value) {
+                              setPreferredTime(format24to12Hour(e.target.value));
+                            }
+                          }}
+                          className="w-full px-4 py-3 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-mono font-bold text-white focus:outline-hidden focus:border-[#2DD4A0] focus:ring-1 focus:ring-[#2DD4A0]/30 transition-all"
+                        />
+                      </div>
+
+                      {/* Quick preset chips */}
+                      <div className="sm:col-span-2 flex flex-wrap gap-1.5 items-center">
+                        {PREFERRED_COMPLETION_TIMES.slice(0, 5).map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setPreferredTime(t)}
+                            className={`px-3 py-2 rounded-xl text-xs font-mono transition-all cursor-pointer ${
+                              preferredTime === t
+                                ? 'bg-[#2DD4A0] text-black font-black shadow-[0_0_12px_rgba(45,212,160,0.3)]'
+                                : 'bg-white/5 text-white/70 hover:bg-white/10'
+                            }`}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <span className="text-[11px] text-white/40 block">
+                      Currently set to: <strong className="text-[#2DD4A0] font-mono">{preferredTime}</strong>. Wash will be completed before this time every morning.
+                    </span>
+                  </div>
+
+                  {/* Washer Weekly Leave Field */}
+                  <div className="sm:col-span-2 space-y-2.5 pt-3 border-t border-white/[0.08]">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+                      <label className="text-xs font-bold text-white/80 uppercase tracking-wider block flex items-center gap-1.5">
+                        <Calendar className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                        When does your washer take leave in the week?
+                      </label>
+                      <span className="text-[10px] font-mono text-[#2DD4A0] px-2.5 py-0.5 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/30 font-bold">
+                        {washerLeaveDay}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-white/50 leading-relaxed">
+                      Choose the day of the week your washer does not work, or select &quot;Doesn&apos;t take any leaves&quot;.
+                    </p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
+                      {LEAVE_DAY_OPTIONS.map((day) => {
+                        const isSelected = washerLeaveDay === day;
+                        return (
+                          <button
+                            key={day}
+                            type="button"
+                            onClick={() => setWasherLeaveDay(day)}
+                            className={`px-3 py-2.5 rounded-xl text-xs font-medium transition-all text-center border cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#2DD4A0] text-black font-black border-[#2DD4A0] shadow-[0_0_14px_rgba(45,212,160,0.3)]'
+                                : 'bg-white/5 text-white/70 hover:bg-white/10 border-white/10 hover:border-white/20'
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Optional Tower / Parking location */}
+                  <div className="sm:col-span-2 pt-2">
+                    <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2">
+                      Tower / Block / Parking Spot <span className="text-white/40 font-normal">(Optional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={parkingLocation}
+                      onChange={(e) => setParkingLocation(e.target.value)}
+                      placeholder="e.g. Tower 3, Basement 1, Bay 14"
+                      className="w-full px-4 py-3.5 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-semibold text-white placeholder-white/25 focus:outline-hidden focus:border-[#2DD4A0] focus:ring-1 focus:ring-[#2DD4A0]/30 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Add current vehicle button if already has at least 1 car */}
+                {vehicles.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleSaveCurrentVehicle}
+                    className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors cursor-pointer"
+                  >
+                    Save this Vehicle to Garage
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsAddingAnotherCar(true)}
+                className="w-full py-3.5 px-4 rounded-2xl border border-dashed border-white/20 hover:border-[#2DD4A0] text-[#2DD4A0] text-xs font-bold flex items-center justify-center gap-2 hover:bg-[#2DD4A0]/5 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>+ Register Another Vehicle to Garage</span>
+              </button>
+            )}
+
+            {/* Stepper Buttons */}
+            <div className="pt-4 flex items-center justify-between gap-3 border-t border-white/[0.08] flex-wrap">
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="px-4 py-3 text-xs font-bold text-white/60 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>Back</span>
+              </button>
+
+              <div className="flex items-center gap-2.5 sm:gap-3 ml-auto flex-wrap">
+                {/* Skip Society & Finish Direct */}
+                <button
+                  type="button"
+                  onClick={() => handleCompleteSignup(true)}
+                  disabled={isSubmittingFinal}
+                  className="px-4 sm:px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white/80 hover:text-white font-bold text-xs uppercase tracking-wider transition-all border border-white/10 cursor-pointer disabled:opacity-50"
+                >
+                  Skip Society & Finish
+                </button>
+
+                {/* Continue to Society (Optional) */}
+                <button
+                  type="button"
+                  onClick={handleProceedToSociety}
+                  className="px-5 sm:px-7 py-3.5 rounded-2xl bg-[#2DD4A0] hover:bg-[#25ba8c] text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(45,212,160,0.3)] hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 cursor-pointer"
+                >
+                  <span>Society (Optional)</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* STEP 3: Society & Location Details (Option 3 - Optional) */}
+        {/* ========================================================= */}
+        {step === 3 && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleCompleteSignup(false);
+            }}
+            className="p-7 sm:p-10 rounded-3xl bg-[#11161D] border border-white/[0.08] shadow-2xl space-y-7 animate-in fade-in duration-200"
+          >
+            {/* Header info */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">
+                      Step 3 of 3 • Building Location
+                    </span>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/70">
+                      Optional
+                    </span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
+                    Select Your Society Route
+                  </h2>
+                </div>
+
+                <div className="px-3 py-1 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/30 text-xs font-mono font-bold text-[#2DD4A0]">
+                  {vehicles.length + (isAddingAnotherCar && registrationNumber ? 1 : 0)} Car(s) Configured
+                </div>
+              </div>
+
+              <p className="text-xs text-white/60 leading-relaxed">
+                Registering your society is completely optional. Adding it connects you with certified washers active in your apartment complex. You can skip this step and start using your dashboard right away.
               </p>
             </div>
 
@@ -663,8 +1038,7 @@ export default function SignUpPage() {
             <div className="space-y-5">
               {/* 1. STATE */}
               <SearchableSelect
-                label="1. State"
-                required
+                label="1. State (Optional)"
                 icon={<MapPin className="w-3.5 h-3.5 text-[#2DD4A0]" />}
                 placeholder="Select State"
                 searchPlaceholder="Search state (e.g. Maharashtra, Karnataka)..."
@@ -679,12 +1053,11 @@ export default function SignUpPage() {
                 }}
               />
 
-              {/* 2. CITY (Dependent on State) */}
+              {/* 2. CITY */}
               <SearchableSelect
-                label="2. City"
-                required
+                label="2. City (Optional)"
                 icon={<Building2 className="w-3.5 h-3.5 text-[#2DD4A0]" />}
-                placeholder={selectedState ? 'Select City' : 'Select a State first'}
+                placeholder={selectedState ? 'Select City' : 'Select a State first (Optional)'}
                 searchPlaceholder="Search city (e.g. Mumbai, Bengaluru, Pune)..."
                 options={cityOptions}
                 value={selectedCity}
@@ -698,12 +1071,11 @@ export default function SignUpPage() {
                 }}
               />
 
-              {/* 3. DISTRICT / LOCALITY (Dependent on City) */}
+              {/* 3. DISTRICT / LOCALITY */}
               <SearchableSelect
-                label="3. District / Locality"
-                required
+                label="3. District / Locality (Optional)"
                 icon={<Layers className="w-3.5 h-3.5 text-[#2DD4A0]" />}
-                placeholder={selectedCity ? 'Select District / Area' : 'Select a City first'}
+                placeholder={selectedCity ? 'Select District / Area' : 'Select a City first (Optional)'}
                 searchPlaceholder="Search district (e.g. Whitefield, Andheri West, Hinjawadi)..."
                 options={districtOptions}
                 value={selectedDistrict}
@@ -783,7 +1155,7 @@ export default function SignUpPage() {
                     </div>
                   ) : !isLoadingDistrictSocieties ? (
                     <p className="text-xs text-white/50 leading-relaxed">
-                      No washer currently servicing {selectedDistrict}. You can enter your society name below and we will assign one.
+                      No washer currently registered specifically for {selectedDistrict}. You can enter your society name below.
                     </p>
                   ) : null}
                 </div>
@@ -791,15 +1163,13 @@ export default function SignUpPage() {
 
               {/* 4. SOCIETY NAME */}
               <SearchableSelect
-                label="4. Society / Apartment Complex"
-                required
+                label="4. Society / Apartment Complex (Optional)"
                 icon={<Home className="w-3.5 h-3.5 text-[#2DD4A0]" />}
-                placeholder={selectedDistrict ? 'Select or type Society Name' : 'Select a District first'}
+                placeholder={selectedDistrict ? 'Select or type Society Name' : 'Select or type Society Name'}
                 searchPlaceholder="Type society name (e.g. Green Valley Residency, Prestige Falcon)..."
                 options={matchingSocieties}
                 value={societyName}
                 allowCustom={true}
-                disabled={!selectedDistrict}
                 disabledHint="Select a District first"
                 onChange={(val) => {
                   setSocietyName(val);
@@ -807,7 +1177,7 @@ export default function SignUpPage() {
                 }}
               />
 
-              {/* 5. Flat / Tower / Parking Location (Optional) */}
+              {/* 5. Flat / Tower / Bay */}
               <div>
                 <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2">
                   Flat / Tower / Bay <span className="text-white/40 font-normal">(Optional)</span>
@@ -821,11 +1191,11 @@ export default function SignUpPage() {
                 />
               </div>
 
-              {/* Contact Phone (Optional but recommended for WhatsApp daily wash alerts) */}
+              {/* Contact Phone */}
               <div>
                 <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2 flex items-center gap-1.5">
                   <Phone className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                  Mobile Number <span className="text-white/40 font-normal">(For morning wash SMS / WhatsApp alerts)</span>
+                  Mobile Number <span className="text-white/40 font-normal">(For morning wash SMS / WhatsApp alerts - Optional)</span>
                 </label>
                 <input
                   type="tel"
@@ -846,7 +1216,7 @@ export default function SignUpPage() {
                   </div>
                   <div>
                     <div className="text-[10px] font-mono uppercase text-[#2DD4A0] font-bold tracking-wider">
-                      Equal Location & Society Match Found!
+                      Location & Society Match Found!
                     </div>
                     <div className="text-sm font-bold text-white flex items-center gap-2">
                       <span>Dedicated Specialist: <strong>{matchedWasherPreview.name}</strong></span>
@@ -860,316 +1230,51 @@ export default function SignUpPage() {
                   </div>
                 </div>
               </div>
-            ) : societyName && selectedDistrict ? (
-              <div className="p-3.5 rounded-xl bg-black/40 border border-white/[0.06] text-xs text-white/50 flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-amber-400/80 shrink-0" />
-                <span>
-                  No washer onboarded for this society yet. When a washer selects your State, City, District & Society, their name will appear here and on your dashboard.
-                </span>
-              </div>
             ) : null}
 
             {/* Stepper Buttons */}
-            <div className="pt-4 flex items-center justify-between gap-4 border-t border-white/[0.08]">
-              <button
-                type="button"
-                onClick={() => setStep(1)}
-                className="px-4 py-3 text-xs font-bold text-white/60 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back</span>
-              </button>
-
-              <button
-                type="submit"
-                className="px-6 py-3.5 rounded-2xl bg-[#2DD4A0] hover:bg-[#25ba8c] text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(45,212,160,0.3)] hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 cursor-pointer"
-              >
-                <span>Continue to Register Car</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </div>
-          </form>
-        )}
-
-        {/* ========================================================= */}
-        {/* STEP 3: Register Car (Multiple Vehicles Supported) */}
-        {/* ========================================================= */}
-        {step === 3 && (
-          <div className="p-7 sm:p-10 rounded-3xl bg-[#11161D] border border-white/[0.08] shadow-2xl space-y-7 animate-in fade-in duration-200">
-            <div className="space-y-2">
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div>
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">
-                    Step 3 of 3 • Vehicle Details
-                  </span>
-                  <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                    Register Your Vehicle(s)
-                  </h2>
-                </div>
-                <div className="px-3 py-1 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/30 text-xs font-mono font-bold text-[#2DD4A0]">
-                  {vehicles.length} {vehicles.length === 1 ? 'Car' : 'Cars'} Added
-                </div>
-              </div>
-              <p className="text-xs text-white/60 leading-relaxed">
-                Add your car details, preferred morning completion time, and parking spot. You can register multiple cars in your garage.
-              </p>
-            </div>
-
-            {vehicleError && (
-              <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center gap-2.5 text-rose-300 text-xs font-semibold">
-                <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
-                <span>{vehicleError}</span>
-              </div>
-            )}
-
-            {/* List of Already Added Vehicles */}
-            {vehicles.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-white/40">
-                  Registered Garage Vehicles
-                </h3>
-                <div className="grid grid-cols-1 gap-3">
-                  {vehicles.map((v, index) => (
-                    <div
-                      key={v.id}
-                      className="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-between gap-3 text-xs"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 text-[#2DD4A0] flex items-center justify-center font-bold">
-                          <Car className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <div className="font-bold text-white text-sm">
-                            {v.make} {v.model}
-                          </div>
-                          <div className="flex items-center gap-2 text-[11px] text-white/60 font-mono mt-0.5">
-                            <span className="text-[#2DD4A0] font-bold">{v.registration_number}</span>
-                            <span>•</span>
-                            <span>Ready by {v.preferred_wash_time}</span>
-                            {v.parking_location && (
-                              <>
-                                <span>•</span>
-                                <span className="truncate max-w-[120px]">{v.parking_location}</span>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveVehicle(v.id)}
-                        className="p-2 rounded-xl text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
-                        title="Remove vehicle"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Form to Add Current / Another Vehicle */}
-            {isAddingAnotherCar ? (
-              <div className="p-5 sm:p-6 rounded-2xl bg-white/[0.03] border border-white/10 space-y-5">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[#2DD4A0] flex items-center gap-2">
-                    <Car className="w-4 h-4" />
-                    <span>{vehicles.length === 0 ? 'Vehicle #1 Details' : `Vehicle #${vehicles.length + 1} Details`}</span>
-                  </h4>
-                  {vehicles.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setIsAddingAnotherCar(false)}
-                      className="text-xs text-white/40 hover:text-white"
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Car Make */}
-                  <SearchableSelect
-                    label="Car Make"
-                    required
-                    placeholder="Select Make (e.g. Maruti, Hyundai)"
-                    searchPlaceholder="Search make..."
-                    options={carMakeOptions}
-                    value={vehicleMake}
-                    allowCustom={true}
-                    onChange={(val) => {
-                      setVehicleMake(val);
-                      setVehicleModel('');
-                      setVehicleError('');
-                    }}
-                  />
-
-                  {/* Car Model */}
-                  <SearchableSelect
-                    label="Car Model"
-                    required
-                    placeholder={vehicleMake ? 'Select or enter Model' : 'Select Make first'}
-                    searchPlaceholder="Search model (e.g. Swift, Creta)..."
-                    options={carModelOptions}
-                    value={vehicleModel}
-                    allowCustom={true}
-                    disabled={!vehicleMake}
-                    disabledHint="Select Car Make first"
-                    onChange={(val) => {
-                      setVehicleModel(val);
-                      setVehicleError('');
-                    }}
-                  />
-
-                  {/* License Plate Number */}
-                  <div className="sm:col-span-2">
-                    <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2">
-                      License / Registration Plate <span className="text-rose-400">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={registrationNumber}
-                      onChange={(e) => {
-                        setRegistrationNumber(e.target.value.toUpperCase());
-                        setVehicleError('');
-                      }}
-                      placeholder="e.g. MH 02 AB 1234 or DL 10 CA 9999"
-                      className="w-full px-4 py-3.5 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-semibold text-white placeholder-white/25 focus:outline-hidden focus:border-[#2DD4A0] focus:ring-1 focus:ring-[#2DD4A0]/30 transition-all font-mono tracking-wider uppercase"
-                    />
-                  </div>
-
-                  {/* Preferred Completion Time Picker */}
-                  <div className="sm:col-span-2 space-y-2">
-                    <label className="text-xs font-bold text-white/80 uppercase tracking-wider block flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                      Preferred Completion Time
-                    </label>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <div className="sm:col-span-1">
-                        <input
-                          type="time"
-                          value={
-                            preferredTime.includes(':') && preferredTime.includes('M')
-                              ? preferredTime.includes('06:')
-                                ? '06:30'
-                                : preferredTime.includes('07:00')
-                                ? '07:00'
-                                : preferredTime.includes('07:30')
-                                ? '07:30'
-                                : preferredTime.includes('08:00')
-                                ? '08:00'
-                                : preferredTime.includes('08:30')
-                                ? '08:30'
-                                : '09:00'
-                              : '07:30'
-                          }
-                          onChange={(e) => {
-                            const timeVal = e.target.value;
-                            if (timeVal) {
-                              const [h, m] = timeVal.split(':').map(Number);
-                              const suffix = h >= 12 ? 'PM' : 'AM';
-                              const displayHour = h % 12 || 12;
-                              const formatted = `${String(displayHour).padStart(2, '0')}:${String(m).padStart(2, '0')} ${suffix}`;
-                              setPreferredTime(formatted);
-                            }
-                          }}
-                          className="w-full px-4 py-3 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-mono font-bold text-white focus:outline-hidden focus:border-[#2DD4A0]"
-                        />
-                      </div>
-
-                      {/* Quick preset chips */}
-                      <div className="sm:col-span-2 flex flex-wrap gap-1.5 items-center">
-                        {PREFERRED_COMPLETION_TIMES.slice(0, 5).map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => setPreferredTime(t)}
-                            className={`px-3 py-2 rounded-xl text-xs font-mono transition-all cursor-pointer ${
-                              preferredTime === t
-                                ? 'bg-[#2DD4A0] text-black font-black shadow-[0_0_12px_rgba(45,212,160,0.3)]'
-                                : 'bg-white/5 text-white/70 hover:bg-white/10'
-                            }`}
-                          >
-                            {t}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <span className="text-[11px] text-white/40 block">
-                      Our specialist team completes washing before this time every morning.
-                    </span>
-                  </div>
-
-                  {/* Optional Tower / Parking location */}
-                  <div className="sm:col-span-2">
-                    <label className="text-xs font-bold text-white/80 uppercase tracking-wider block mb-2">
-                      Tower / Block / Parking Spot <span className="text-white/40 font-normal">(Optional)</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={parkingLocation}
-                      onChange={(e) => setParkingLocation(e.target.value)}
-                      placeholder="e.g. Tower 3, Basement 1, Bay 14"
-                      className="w-full px-4 py-3.5 bg-[#11161D] border border-white/[0.1] rounded-2xl text-sm font-semibold text-white placeholder-white/25 focus:outline-hidden focus:border-[#2DD4A0] focus:ring-1 focus:ring-[#2DD4A0]/30 transition-all"
-                    />
-                  </div>
-                </div>
-
-                {/* Add current vehicle button if adding more cars */}
-                {vehicles.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={handleSaveCurrentVehicle}
-                    className="w-full py-3 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-white transition-colors cursor-pointer"
-                  >
-                    Save this Vehicle to Garage
-                  </button>
-                )}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setIsAddingAnotherCar(true)}
-                className="w-full py-3.5 px-4 rounded-2xl border border-dashed border-white/20 hover:border-[#2DD4A0] text-[#2DD4A0] text-xs font-bold flex items-center justify-center gap-2 hover:bg-[#2DD4A0]/5 transition-all cursor-pointer"
-              >
-                <Plus className="w-4 h-4" />
-                <span>+ Register Another Vehicle to Garage</span>
-              </button>
-            )}
-
-            {/* Stepper Buttons */}
-            <div className="pt-4 flex items-center justify-between gap-4 border-t border-white/[0.08]">
+            <div className="pt-4 flex items-center justify-between gap-3 border-t border-white/[0.08] flex-wrap">
               <button
                 type="button"
                 onClick={() => setStep(2)}
                 className="px-4 py-3 text-xs font-bold text-white/60 hover:text-white transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to Society</span>
+                <span>Back to Cars</span>
               </button>
 
-              <button
-                type="button"
-                onClick={handleCompleteSignup}
-                disabled={isSubmittingFinal}
-                className="px-8 py-3.5 rounded-2xl bg-[#2DD4A0] hover:bg-[#25ba8c] text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_25px_rgba(45,212,160,0.35)] hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 cursor-pointer disabled:opacity-50"
-              >
-                {isSubmittingFinal ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
-                    <span>Activating Garage...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Complete Setup & Open Dashboard</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2.5 sm:gap-3 ml-auto flex-wrap">
+                {/* Skip Society Button */}
+                <button
+                  type="button"
+                  onClick={() => handleCompleteSignup(true)}
+                  disabled={isSubmittingFinal}
+                  className="px-4 sm:px-5 py-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white/80 hover:text-white font-bold text-xs uppercase tracking-wider transition-all border border-white/10 cursor-pointer disabled:opacity-50"
+                >
+                  Skip Society & Finish
+                </button>
+
+                {/* Submit Final Button */}
+                <button
+                  type="submit"
+                  disabled={isSubmittingFinal}
+                  className="px-6 sm:px-8 py-3.5 rounded-2xl bg-[#2DD4A0] hover:bg-[#25ba8c] text-slate-950 font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_25px_rgba(45,212,160,0.35)] hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                >
+                  {isSubmittingFinal ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-slate-950" />
+                      <span>Activating Garage...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Complete Setup & Open Dashboard</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
+          </form>
         )}
       </main>
 

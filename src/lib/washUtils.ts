@@ -46,6 +46,22 @@ export function getTodayISTDate(date = new Date()): ISTDateInfo {
 }
 
 /**
+ * Given a date ISO string ('YYYY-MM-DD'), returns the next calendar day in ISO format ('YYYY-MM-DD').
+ */
+export function getNextDayIso(dateIso: string): string {
+  if (!dateIso || !dateIso.includes('-')) {
+    const today = getTodayISTDate();
+    dateIso = today.dateIso;
+  }
+  const [y, m, d] = dateIso.split('-').map(Number);
+  const nextDate = new Date(y, m - 1, d + 1);
+  const nextY = nextDate.getFullYear();
+  const nextM = String(nextDate.getMonth() + 1).padStart(2, '0');
+  const nextD = String(nextDate.getDate()).padStart(2, '0');
+  return `${nextY}-${nextM}-${nextD}`;
+}
+
+/**
  * Checks whether a wash record was ACTUALLY executed/captured TODAY in Indian Standard Time.
  * Prevents yesterday's or past wash proofs from showing as today's wash.
  */

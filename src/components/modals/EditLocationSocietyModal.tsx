@@ -309,7 +309,7 @@ export default function EditLocationSocietyModal({
                 Cluster & Society Selection
               </span>
               <h3 className="text-base sm:text-lg font-bold text-white tracking-tight">
-                Update Society & Location
+                {user.society || user.societyName ? 'Update Society & Location' : 'Add Society & Location'}
               </h3>
             </div>
           </div>

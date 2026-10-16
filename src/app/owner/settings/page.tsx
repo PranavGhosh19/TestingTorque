@@ -373,6 +373,7 @@ export default function OwnerSettingsPage() {
                     src={activeWasherObj.avatar || '/images/washer_amit.jpg'}
                     alt={activeWasherObj.name}
                     fill
+                    unoptimized
                     className="object-cover"
                   />
                   <div className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-[#2DD4A0] border-2 border-[#11161D]" />
@@ -489,6 +490,7 @@ export default function OwnerSettingsPage() {
                             src={washer.avatar || '/images/washer_amit.jpg'}
                             alt={washer.name}
                             fill
+                            unoptimized
                             className="object-cover"
                           />
                         </div>

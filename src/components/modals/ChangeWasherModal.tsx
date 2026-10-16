@@ -133,6 +133,7 @@ export default function ChangeWasherModal({
                             src={w.avatar}
                             alt={w.name}
                             fill
+                            unoptimized
                             className="object-cover"
                           />
                         </div>

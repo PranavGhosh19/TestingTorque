@@ -75,6 +75,8 @@ interface StoreContextType {
       subscriptionPrice?: number;
       needWashBefore?: string;
       need_wash_before?: string;
+      washerLeaveDay?: string;
+      washerWeeklyLeaveDay?: string;
     },
     vehiclesList: Array<{
       make: string;
@@ -96,6 +98,8 @@ interface StoreContextType {
       subscription_price?: number;
       needWashBefore?: string;
       need_wash_before?: string;
+      washerLeaveDay?: string;
+      washerWeeklyLeaveDay?: string;
     }>
   ) => Promise<void> | void;
   washes: WashRecord[];
@@ -601,8 +605,14 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                   subscription_status: 'active',
                   washes_this_month: vd.washes_this_month || 0,
                   selected_plan: 'HOME BASIC',
-                  assigned_washer_id: vd.assigned_washer_id,
-                  assigned_washer_name: vd.assigned_washer_name,
+                  assigned_washer_id: vd.assigned_washer_id || vd.washerId,
+                  assigned_washer_name: vd.assigned_washer_name || vd.washerName,
+                  signupDate: vd.signupDate || (vd.createdAt?.toDate ? vd.createdAt.toDate().toISOString().split('T')[0] : (typeof vd.createdAt === 'string' ? vd.createdAt.split('T')[0] : undefined)),
+                  serviceStartDate: vd.serviceStartDate || (vd.subscriptionStartDate ? vd.subscriptionStartDate.split('T')[0] : undefined),
+                  subscriptionStartDate: vd.subscriptionStartDate,
+                  created_at: vd.createdAt?.toDate ? vd.createdAt.toDate().toISOString() : (typeof vd.createdAt === 'string' ? vd.createdAt : undefined),
+                  washerLeaveDay: vd.washerLeaveDay || vd.washerWeeklyLeaveDay || vd.washer_leave_day,
+                  washerWeeklyLeaveDay: vd.washerLeaveDay || vd.washerWeeklyLeaveDay || vd.washer_leave_day,
                   price: 0,
                   subscription_price: 0,
                 });
@@ -784,6 +794,19 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   ) => {
     const defaultPrice =
       newVeh.type === 'luxury' ? 799 : newVeh.type === 'suv' ? 649 : newVeh.type === 'bike' ? 399 : 499;
+    const now = new Date();
+    const signupYear = now.getFullYear();
+    const signupMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const signupDay = String(now.getDate()).padStart(2, '0');
+    const signupDateIso = `${signupYear}-${signupMonth}-${signupDay}`;
+
+    const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const tomorrowYear = tomorrowDate.getFullYear();
+    const tomorrowMonth = String(tomorrowDate.getMonth() + 1).padStart(2, '0');
+    const tomorrowDay = String(tomorrowDate.getDate()).padStart(2, '0');
+    const serviceStartDateIso = `${tomorrowYear}-${tomorrowMonth}-${tomorrowDay}`;
+    tomorrowDate.setHours(6, 0, 0, 0);
+
     const created: Vehicle = {
       ...newVeh,
       id: `veh_${Date.now()}`,
@@ -791,6 +814,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       owner_name: user.name,
       subscription_status: 'active',
       washes_this_month: 0,
+      signupDate: signupDateIso,
+      serviceStartDate: serviceStartDateIso,
+      subscriptionStartDate: tomorrowDate.toISOString(),
+      created_at: now.toISOString(),
       selected_plan: newVeh.selected_plan || user.selected_plan || 'HOME BASIC',
       price: newVeh.price || defaultPrice,
       subscription_price: newVeh.subscription_price || defaultPrice,
@@ -842,6 +869,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       subscriptionPrice?: number;
       needWashBefore?: string;
       need_wash_before?: string;
+      washerLeaveDay?: string;
+      washerWeeklyLeaveDay?: string;
     },
     vehiclesList: Array<{
       make: string;
@@ -863,6 +892,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       subscription_price?: number;
       needWashBefore?: string;
       need_wash_before?: string;
+      washerLeaveDay?: string;
+      washerWeeklyLeaveDay?: string;
     }>
   ) => {
     // Primary Identity: Firebase Auth UID is canonical, fallback to phone primary UID
@@ -889,6 +920,24 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
     const resolvedAdminId = ownerData.adminId || ownerData.assignedAdminId || '';
 
+    const resolvedWasherLeaveDay =
+      ownerData.washerLeaveDay || ownerData.washerWeeklyLeaveDay || '';
+
+    const now = new Date();
+    const signupYear = now.getFullYear();
+    const signupMonth = String(now.getMonth() + 1).padStart(2, '0');
+    const signupDay = String(now.getDate()).padStart(2, '0');
+    const signupDateIso = `${signupYear}-${signupMonth}-${signupDay}`;
+
+    // Service & recording starts from the NEXT date
+    const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    const tomorrowYear = tomorrowDate.getFullYear();
+    const tomorrowMonth = String(tomorrowDate.getMonth() + 1).padStart(2, '0');
+    const tomorrowDay = String(tomorrowDate.getDate()).padStart(2, '0');
+    const serviceStartDateIso = `${tomorrowYear}-${tomorrowMonth}-${tomorrowDay}`;
+    tomorrowDate.setHours(6, 0, 0, 0);
+    const tomorrowIso = tomorrowDate.toISOString();
+
     const newUser: User = {
       id: newUserId,
       uid: newUserId,
@@ -914,27 +963,27 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       alt_phone: ownerData.alt_phone,
       role: 'owner',
       status: 'active',
-      created_at: new Date().toISOString(),
+      created_at: now.toISOString(),
+      signupDate: signupDateIso,
+      serviceStartDate: serviceStartDateIso,
       selected_plan: ownerData.selectedPlan || 'HOME BASIC',
       assigned_washer_id: ownerData.selectedWasherId || '',
-      assigned_washer_name: ownerData.selectedWasherName || 'Assigned Route Partner',
+      assigned_washer_name: ownerData.selectedWasherName || '',
       price: finalPrice,
       subscription_price: finalPrice,
       needWashBefore: ownerData.needWashBefore || '8:00 AM',
       need_wash_before: ownerData.needWashBefore || '8:00 AM',
+      washerLeaveDay: resolvedWasherLeaveDay,
+      washerWeeklyLeaveDay: resolvedWasherLeaveDay,
     };
 
     setUser(newUser);
     setRole('owner');
 
-    // Tomorrow ISO for next-day subscription start
-    const tomorrowDate = new Date();
-    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
-    tomorrowDate.setHours(6, 0, 0, 0);
-    const tomorrowIso = tomorrowDate.toISOString();
-
     const createdVehicles: Vehicle[] = vehiclesList.map((v, index) => {
       const vPrice = v.price || v.subscription_price || getBodyTypePrice(v.type);
+      const vLeaveDay =
+        (v as any).washerLeaveDay || (v as any).washerWeeklyLeaveDay || resolvedWasherLeaveDay;
       return {
         id: `veh_${Date.now()}_${index}`,
         owner_id: newUserId,
@@ -949,14 +998,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         preferred_wash_time: (v as any).needWashBefore || (v as any).need_wash_before || v.preferred_wash_time || ownerData.needWashBefore || '8:00 AM',
         needWashBefore: (v as any).needWashBefore || (v as any).need_wash_before || ownerData.needWashBefore || '8:00 AM',
         need_wash_before: (v as any).needWashBefore || (v as any).need_wash_before || ownerData.needWashBefore || '8:00 AM',
+        signupDate: signupDateIso,
+        serviceStartDate: serviceStartDateIso,
         subscriptionStartDate: tomorrowIso,
+        created_at: now.toISOString(),
         society_id: (v as any).society_id || ownerData.societyId || '',
         society_name: v.society_name || ownerData.societyName || ownerData.society || '',
         subscription_status: 'active',
         washes_this_month: 0,
         selected_plan: ownerData.selectedPlan || 'HOME BASIC',
         assigned_washer_id: (v as any).assigned_washer_id || ownerData.selectedWasherId || '',
-        assigned_washer_name: (v as any).assigned_washer_name || ownerData.selectedWasherName || 'Assigned Route Partner',
+        assigned_washer_name: (v as any).assigned_washer_name || ownerData.selectedWasherName || '',
         flat: v.flat || ownerData.flat || ownerData.flatNumber || ownerData.address,
         flatNumber: v.flatNumber || ownerData.flatNumber || ownerData.flat,
         adminId: v.adminId || ownerData.adminId || resolvedAdminId,
@@ -964,6 +1016,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         areaManagerId: resolvedAdminId,
         price: vPrice,
         subscription_price: vPrice,
+        washerLeaveDay: vLeaveDay,
+        washerWeeklyLeaveDay: vLeaveDay,
       };
     });
 
@@ -976,6 +1030,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem('torque_owner_name', ownerData.name);
       localStorage.setItem('torque_owner_id', newUserId);
       localStorage.setItem('torque_owner_phone', newUser.phone);
+      localStorage.setItem('torque_signup_date', signupDateIso);
+      localStorage.setItem('torque_service_start_date', serviceStartDateIso);
       if (ownerData.selectedWasherName) {
         localStorage.setItem('torque_assigned_washer_name', ownerData.selectedWasherName);
       }

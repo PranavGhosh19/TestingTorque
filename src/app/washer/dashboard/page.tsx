@@ -292,6 +292,7 @@ export default function WasherDashboardPage() {
                 src={firebaseWasher?.avatar || user?.avatar_url || "/images/washer_amit.jpg"}
                 alt={washerDisplayName}
                 fill
+                unoptimized
                 className="object-cover"
                 priority
               />
@@ -790,6 +791,7 @@ export default function WasherDashboardPage() {
                   src={viewingProofStop.proof_photo || '/images/honda_city_after.jpg'}
                   alt="Verified Wash Proof"
                   fill
+                  unoptimized
                   className="object-cover"
                 />
                 <div className="absolute bottom-2.5 left-2.5 right-2.5 p-2.5 rounded-xl bg-[#0A0D12]/80 backdrop-blur-md border border-white/[0.08] text-[11px] font-mono text-white flex items-center justify-between flex-wrap gap-1">
