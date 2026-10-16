@@ -9,6 +9,9 @@ import {
   Sparkles,
   AlertTriangle,
   ChevronRight,
+  ShieldCheck,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import SignatureProofCard from '@/components/SignatureProofCard';
@@ -335,12 +338,13 @@ export default function OwnerDashboardPage() {
         } catch (e) {}
       }
 
-      // 1. Service start date check: Prompt for wash feedback on registration day and each active care day!
-      const serviceStartDate =
-        primaryVehicle?.serviceStartDate ||
-        user?.serviceStartDate ||
-        (typeof window !== 'undefined' ? localStorage.getItem('torque_service_start_date') : null);
-      if (serviceStartDate && todayIso < serviceStartDate) {
+      // 1. Service start date check: Care starts from registration day onwards (same day!)
+      const signupDate =
+        primaryVehicle?.signupDate ||
+        user?.signupDate ||
+        (typeof window !== 'undefined' ? localStorage.getItem('torque_signup_date') : null);
+      const effectiveStartDate = signupDate || todayIso;
+      if (effectiveStartDate && todayIso < effectiveStartDate) {
         return;
       }
 
@@ -581,6 +585,76 @@ export default function OwnerDashboardPage() {
               todayFeedbackStatus={todayFeedbackStatus}
             />
 
+            {/* DAILY WASH VERIFICATION QUESTION CARD */}
+            <div className="p-5 sm:p-6 rounded-[22px] bg-gradient-to-r from-[#162325] via-[#11161D] to-[#161C25] border border-[#2DD4A0]/30 shadow-2xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="w-11 h-11 rounded-2xl bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-[#2DD4A0] text-black uppercase">
+                        Daily Care Verification
+                      </span>
+                      <span className="text-xs font-mono text-white/50">
+                        {todayIst.dayNum} {todayIst.monthName.slice(0, 3)} {todayIst.year}
+                      </span>
+                    </div>
+                    <h3 className="text-base sm:text-lg font-bold text-white mt-1">
+                      Was your car washed today ({todayIst.dayNum} {todayIst.monthName.slice(0, 3)} {todayIst.year})?
+                    </h3>
+                    <p className="text-xs text-white/70 mt-0.5">
+                      {primaryVehicle?.registration_number ? `${primaryVehicle.registration_number} • ` : ''}
+                      Select Yes or No to record and save your response in Firestore with date.
+                    </p>
+                  </div>
+                </div>
+
+                {todayFeedbackStatus && (
+                  <div className="self-start sm:self-center">
+                    <span
+                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
+                        todayFeedbackStatus === 'yes'
+                          ? 'bg-[#2DD4A0]/20 text-[#2DD4A0] border-[#2DD4A0]/40'
+                          : 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                      }`}
+                    >
+                      {todayFeedbackStatus === 'yes' ? 'Recorded: Cleaned ✓' : 'Recorded: Not Cleaned (Orange)'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => handleDailyFeedbackAnswer('yes')}
+                  className={`py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+                    todayFeedbackStatus === 'yes'
+                      ? 'bg-[#2DD4A0] text-black shadow-[#2DD4A0]/25 ring-2 ring-[#2DD4A0]'
+                      : 'bg-[#2DD4A0]/20 hover:bg-[#2DD4A0]/30 text-[#2DD4A0] border border-[#2DD4A0]/40'
+                  }`}
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Yes</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDailyFeedbackAnswer('no')}
+                  className={`py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+                    todayFeedbackStatus === 'no'
+                      ? 'bg-amber-500 text-black shadow-amber-500/25 ring-2 ring-amber-500'
+                      : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
+                  }`}
+                >
+                  <XCircle className="w-4 h-4" />
+                  <span>No</span>
+                </button>
+              </div>
+            </div>
+
             {/* ORANGE FLAGGED ALERT BANNER IF OWNER SAID NO */}
             {todayFeedbackStatus === 'no' && (
               <div className="p-4 rounded-[20px] bg-gradient-to-r from-amber-500/15 via-[#11161D] to-[#11161D] border border-amber-500/40 text-amber-200 text-xs shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -718,6 +792,10 @@ export default function OwnerDashboardPage() {
             feedbacks={allDailyFeedbacks}
             signupDate={primaryVehicle?.signupDate || user?.signupDate}
             serviceStartDate={primaryVehicle?.serviceStartDate || user?.serviceStartDate}
+            onFeedbackChange={(dateIso, ans) => {
+              if (dateIso === todayIso) setTodayFeedbackStatus(ans);
+              setAllDailyFeedbacks((prev) => ({ ...prev, [dateIso]: ans }));
+            }}
           />
         </div>
 

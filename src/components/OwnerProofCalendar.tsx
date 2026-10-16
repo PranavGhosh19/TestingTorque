@@ -15,14 +15,20 @@ import {
   MapPin,
   User,
   Info,
+  ShieldCheck,
+  XCircle,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { WashRecord } from '@/lib/types';
-import { fetchDailyWashFeedbackFromFirestore } from '@/lib/firebaseService';
+import {
+  fetchDailyWashFeedbackFromFirestore,
+  saveDailyWashFeedbackToFirestore,
+} from '@/lib/firebaseService';
 import { getTodayISTDate, getNextDayIso } from '@/lib/washUtils';
 
 interface DayStatus {
   date: number; // Day of month: 1-31
+  isoDate: string; // 'YYYY-MM-DD'
   fullDate: Date;
   dateString: string; // e.g. '01 Oct'
   dayOfWeek: string; // 'Mon', 'Tue', etc.
@@ -50,6 +56,7 @@ interface OwnerProofCalendarProps {
   feedbacks?: Record<string, 'yes' | 'no'>;
   signupDate?: string;
   serviceStartDate?: string;
+  onFeedbackChange?: (dateIso: string, answer: 'yes' | 'no') => void;
 }
 
 export default function OwnerProofCalendar({
@@ -63,6 +70,7 @@ export default function OwnerProofCalendar({
   feedbacks: propFeedbacks,
   signupDate: propSignupDate,
   serviceStartDate: propServiceStartDate,
+  onFeedbackChange,
 }: OwnerProofCalendarProps = {}) {
   const { washes: storeWashes, todayWash: storeTodayWash, vehicles, user } = useStore();
 
@@ -185,8 +193,11 @@ export default function OwnerProofCalendar({
     return todayIso;
   }, [propSignupDate, currentVehicle?.signupDate, user?.signupDate, user?.created_at, todayIso]);
 
-  // Recording starts from signup date
+  // Care starts on the exact day owner signs up (NOT next day)
   const effectiveServiceStartDate = useMemo(() => {
+    if (effectiveSignupDate) {
+      return effectiveSignupDate;
+    }
     if (propServiceStartDate) return propServiceStartDate;
     if (currentVehicle?.serviceStartDate) return currentVehicle.serviceStartDate;
     if (user?.serviceStartDate) return user.serviceStartDate;
@@ -194,11 +205,45 @@ export default function OwnerProofCalendar({
       const local = localStorage.getItem('torque_service_start_date');
       if (local) return local;
     }
-    if (effectiveSignupDate) {
-      return effectiveSignupDate;
-    }
     return todayIso;
-  }, [propServiceStartDate, currentVehicle?.serviceStartDate, user?.serviceStartDate, effectiveSignupDate, todayIso]);
+  }, [effectiveSignupDate, propServiceStartDate, currentVehicle?.serviceStartDate, user?.serviceStartDate, todayIso]);
+
+  const handleCalendarDayFeedback = async (answer: 'yes' | 'no') => {
+    if (!selectedDay) return;
+    const dateIso = selectedDay.isoDate;
+
+    // Update local state immediately so calendar cell turns green/orange instantly
+    setDailyFeedbacks((prev) => ({
+      ...prev,
+      [dateIso]: answer,
+    }));
+
+    if (selectedDay.isToday && typeof window !== 'undefined') {
+      localStorage.setItem(`torque_daily_feedback_answered_${dateIso}`, answer);
+    }
+
+    if (onFeedbackChange) {
+      onFeedbackChange(dateIso, answer);
+    }
+
+    const targetOwnerId =
+      user?.id && user.id !== 'usr_guest'
+        ? user.id
+        : typeof window !== 'undefined'
+        ? localStorage.getItem('torque_owner_id')
+        : null;
+
+    try {
+      await saveDailyWashFeedbackToFirestore(
+        targetOwnerId || undefined,
+        currentVehicle?.id,
+        dateIso,
+        answer
+      );
+    } catch (err) {
+      console.warn('Failed to save calendar day feedback to firestore:', err);
+    }
+  };
 
   // Washer weekly leave day resolution
   const washerLeaveDay = useMemo(() => {
@@ -284,9 +329,15 @@ export default function OwnerProofCalendar({
       const dPadded = d < 10 ? `0${d}` : `${d}`;
       const isoDate = `${monthData.year}-${String(monthData.month + 1).padStart(2, '0')}-${dPadded}`;
 
-      // Date enrollment status
-      const isPriorToStart = effectiveServiceStartDate ? isoDate < effectiveServiceStartDate : false;
+      // Date enrollment status: Care starts from signup date onwards.
+      // Neither today nor signup date is EVER prior to start!
       const isSignupDate = isoDate === effectiveSignupDate;
+      const isPriorToStart =
+        isToday || isSignupDate
+          ? false
+          : effectiveServiceStartDate
+          ? isoDate < effectiveServiceStartDate
+          : false;
 
       // Match REAL wash record from store/Firestore for this vehicle
       let matchingWash: WashRecord | undefined;
@@ -397,6 +448,7 @@ export default function OwnerProofCalendar({
 
       list.push({
         date: d,
+        isoDate,
         fullDate,
         dateString,
         dayOfWeek,
@@ -577,25 +629,11 @@ export default function OwnerProofCalendar({
             let titleText = `Day ${day.date}: Scheduled care`;
 
             if (day.isPriorToStart) {
-              if (day.isSignupDate) {
-                if (day.isToday) {
-                  cellClasses =
-                    'bg-[#2DD4A0]/15 text-white border-2 border-[#2DD4A0] shadow-[0_0_15px_rgba(45,212,160,0.3)] scale-[1.02]';
-                  dotColor = 'bg-[#2DD4A0] shadow-[0_0_8px_rgba(45,212,160,0.8)]';
-                  titleText = `Day ${day.date}: Today • Signed up today! Daily wash recording starts tomorrow (${effectiveServiceStartDate})`;
-                } else {
-                  cellClasses =
-                    'bg-[#2DD4A0]/10 text-white/90 border border-[#2DD4A0]/40';
-                  dotColor = 'bg-[#2DD4A0]/60';
-                  titleText = `Day ${day.date}: Account Registration Day • Care recording started next day`;
-                }
-              } else {
-                // Past day before signup
-                cellClasses =
-                  'bg-white/[0.01] text-white/20 border border-white/[0.03] opacity-35 hover:opacity-60 cursor-pointer';
-                dotColor = 'bg-transparent';
-                titleText = `Day ${day.date}: Prior to enrollment (Care recording starts ${effectiveServiceStartDate})`;
-              }
+              // Past day before user registered
+              cellClasses =
+                'bg-white/[0.01] text-white/20 border border-white/[0.03] opacity-35 hover:opacity-60 cursor-pointer';
+              dotColor = 'bg-transparent';
+              titleText = `Day ${day.date}: Prior to Torque Care registration (Started ${effectiveServiceStartDate})`;
             } else if (day.hasProofUploaded) {
               cellClasses =
                 'bg-[#2DD4A0]/10 text-white border border-[#2DD4A0]/30 hover:bg-[#2DD4A0]/20';
@@ -805,30 +843,21 @@ export default function OwnerProofCalendar({
 
             {/* Modal Body with Scroll */}
             <div className="p-6 overflow-y-auto space-y-6">
-              {/* CASE 0: PRIOR TO SERVICE START */}
+              {/* CASE 0: PRIOR TO SERVICE START (Strictly for days before registration) */}
               {selectedDay.isPriorToStart && (
                 <div className="space-y-6">
-                  <div className="p-5 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 text-white space-y-2">
-                    <div className="flex items-center gap-2 font-bold text-sm text-[#2DD4A0]">
-                      <Sparkles className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                      <span>
-                        {selectedDay.isSignupDate
-                          ? selectedDay.isToday
-                            ? "Signed Up Today • Care Starts Tomorrow"
-                            : "Account Registration Date"
-                          : "Prior to Torque Care Registration"}
-                      </span>
+                  <div className="p-5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-white/70 space-y-2">
+                    <div className="flex items-center gap-2 font-bold text-sm text-white/60">
+                      <span>Prior to Torque Care Registration</span>
                     </div>
-                    <p className="text-xs text-white/80 leading-relaxed">
-                      {selectedDay.isSignupDate
-                        ? `You enrolled your vehicle on ${selectedDay.dateString}. Torque Care daily morning wash recording and route dispatch officially begins from tomorrow (${effectiveServiceStartDate}).`
-                        : `This date was before your Torque Care registration. Morning wash recording began on ${effectiveServiceStartDate}.`}
+                    <p className="text-xs text-white/60 leading-relaxed">
+                      This date was before your vehicle registration. Daily Torque Care morning wash recording began on {effectiveServiceStartDate}.
                     </p>
                   </div>
 
                   <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] space-y-3 text-xs">
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/50">
-                      Registration & Route Details
+                      Registration Details
                     </span>
                     <div className="grid grid-cols-2 gap-3">
                       <div>
@@ -836,7 +865,7 @@ export default function OwnerProofCalendar({
                         <span className="text-white font-bold">{effectiveSignupDate}</span>
                       </div>
                       <div>
-                        <span className="text-white/50 block text-[11px]">Service Starts:</span>
+                        <span className="text-white/50 block text-[11px]">Care Started:</span>
                         <span className="text-[#2DD4A0] font-bold">{effectiveServiceStartDate}</span>
                       </div>
                       <div>
@@ -848,6 +877,72 @@ export default function OwnerProofCalendar({
                         <span className="text-white font-bold">{parkingLocation}</span>
                       </div>
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* QUESTION: Was your car washed today (Date)? Yes / No */}
+              {!selectedDay.isPriorToStart && (
+                <div className="p-5 rounded-2xl bg-gradient-to-b from-[#161C25] to-[#11161D] border border-white/[0.12] space-y-4 shadow-xl">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-base font-bold text-white leading-snug">
+                        {selectedDay.isToday
+                          ? `Was your car washed today (${selectedDay.dateString})?`
+                          : `Was your car washed on ${selectedDay.dateString}?`}
+                      </h4>
+                      <p className="text-xs text-white/60 mt-0.5">
+                        Select Yes or No to record your feedback for {currentVehicle?.registration_number || 'your vehicle'}. Saved in Firestore with date.
+                      </p>
+                    </div>
+                  </div>
+
+                  {dailyFeedbacks[selectedDay.isoDate] && (
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="text-white/60">Saved Answer:</span>
+                      <span
+                        className={`font-bold px-2.5 py-0.5 rounded-full ${
+                          dailyFeedbacks[selectedDay.isoDate] === 'yes'
+                            ? 'bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/40'
+                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        }`}
+                      >
+                        {dailyFeedbacks[selectedDay.isoDate] === 'yes'
+                          ? 'Yes (Cleaned ✓)'
+                          : 'No (Flagged Orange)'}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleCalendarDayFeedback('yes')}
+                      className={`py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+                        dailyFeedbacks[selectedDay.isoDate] === 'yes'
+                          ? 'bg-[#2DD4A0] text-black shadow-[#2DD4A0]/25 ring-2 ring-[#2DD4A0]'
+                          : 'bg-[#2DD4A0]/20 hover:bg-[#2DD4A0]/30 text-[#2DD4A0] border border-[#2DD4A0]/40'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Yes</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleCalendarDayFeedback('no')}
+                      className={`py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+                        dailyFeedbacks[selectedDay.isoDate] === 'no'
+                          ? 'bg-amber-500 text-black shadow-amber-500/25 ring-2 ring-amber-500'
+                          : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
+                      }`}
+                    >
+                      <XCircle className="w-4 h-4" />
+                      <span>No</span>
+                    </button>
                   </div>
                 </div>
               )}
