@@ -185,7 +185,7 @@ export default function OwnerProofCalendar({
     return todayIso;
   }, [propSignupDate, currentVehicle?.signupDate, user?.signupDate, user?.created_at, todayIso]);
 
-  // Recording strictly starts from the NEXT date after signup
+  // Recording starts from signup date
   const effectiveServiceStartDate = useMemo(() => {
     if (propServiceStartDate) return propServiceStartDate;
     if (currentVehicle?.serviceStartDate) return currentVehicle.serviceStartDate;
@@ -195,9 +195,9 @@ export default function OwnerProofCalendar({
       if (local) return local;
     }
     if (effectiveSignupDate) {
-      return getNextDayIso(effectiveSignupDate);
+      return effectiveSignupDate;
     }
-    return getNextDayIso(todayIso);
+    return todayIso;
   }, [propServiceStartDate, currentVehicle?.serviceStartDate, user?.serviceStartDate, effectiveSignupDate, todayIso]);
 
   // Washer weekly leave day resolution

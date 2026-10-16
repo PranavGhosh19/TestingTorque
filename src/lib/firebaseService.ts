@@ -4569,6 +4569,23 @@ export async function saveDailyWashFeedbackToFirestore(
       }
     }
 
+    // 3. Save feedback record to Car_Owners/{ownerId} top-level document
+    try {
+      const ownerDocRef = doc(db, 'Car_Owners', resolvedOwnerId);
+      await setDoc(
+        ownerDocRef,
+        {
+          lastWashFeedbackDate: effectiveDate,
+          lastWashFeedbackAnswer: answer,
+          [`wash_feedback_${effectiveDate}`]: answer,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch (e) {
+      // ignore
+    }
+
     return { success: true };
   } catch (err: any) {
     console.warn('saveDailyWashFeedbackToFirestore notice:', err);

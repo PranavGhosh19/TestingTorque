@@ -120,9 +120,6 @@ export default function WashHistoryPage() {
                 <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">
                   Society Dedicated Specialist
                 </span>
-                <span className="text-[10px] font-bold text-white bg-[#161C25] px-2 py-0.5 rounded-full border border-white/[0.08]">
-                  ★ 4.9 Verified
-                </span>
               </div>
               <h2 className="text-base font-bold text-white mt-0.5">
                 Assigned Specialist: <span className="text-[#2DD4A0]">{assignedWasher}</span>

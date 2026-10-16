@@ -800,12 +800,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const signupDay = String(now.getDate()).padStart(2, '0');
     const signupDateIso = `${signupYear}-${signupMonth}-${signupDay}`;
 
-    const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const tomorrowYear = tomorrowDate.getFullYear();
-    const tomorrowMonth = String(tomorrowDate.getMonth() + 1).padStart(2, '0');
-    const tomorrowDay = String(tomorrowDate.getDate()).padStart(2, '0');
-    const serviceStartDateIso = `${tomorrowYear}-${tomorrowMonth}-${tomorrowDay}`;
-    tomorrowDate.setHours(6, 0, 0, 0);
+    const serviceStartDateIso = signupDateIso; // Care starts today upon signup
 
     const created: Vehicle = {
       ...newVeh,
@@ -929,12 +924,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const signupDay = String(now.getDate()).padStart(2, '0');
     const signupDateIso = `${signupYear}-${signupMonth}-${signupDay}`;
 
-    // Service & recording starts from the NEXT date
+    // Service & recording starts today on signup date
+    const serviceStartDateIso = signupDateIso;
     const tomorrowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    const tomorrowYear = tomorrowDate.getFullYear();
-    const tomorrowMonth = String(tomorrowDate.getMonth() + 1).padStart(2, '0');
-    const tomorrowDay = String(tomorrowDate.getDate()).padStart(2, '0');
-    const serviceStartDateIso = `${tomorrowYear}-${tomorrowMonth}-${tomorrowDay}`;
     tomorrowDate.setHours(6, 0, 0, 0);
     const tomorrowIso = tomorrowDate.toISOString();
 

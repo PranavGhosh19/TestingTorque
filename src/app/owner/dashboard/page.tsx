@@ -335,21 +335,12 @@ export default function OwnerDashboardPage() {
         } catch (e) {}
       }
 
-      // 1. Service start date check: Do NOT prompt for wash feedback on registration day or prior to service start!
-      // Registration is registered today, wash service recording starts from the NEXT date.
+      // 1. Service start date check: Prompt for wash feedback on registration day and each active care day!
       const serviceStartDate =
         primaryVehicle?.serviceStartDate ||
         user?.serviceStartDate ||
         (typeof window !== 'undefined' ? localStorage.getItem('torque_service_start_date') : null);
       if (serviceStartDate && todayIso < serviceStartDate) {
-        return;
-      }
-
-      const signupDate =
-        primaryVehicle?.signupDate ||
-        user?.signupDate ||
-        (typeof window !== 'undefined' ? localStorage.getItem('torque_signup_date') : null);
-      if (signupDate && todayIso <= signupDate) {
         return;
       }
 
@@ -756,7 +747,7 @@ export default function OwnerDashboardPage() {
         }
         parkingLocation={dashboardLocationDisplay || 'Assigned Bay'}
         washerName={assignedWasher?.name || 'Assigned Partner'}
-        dateDisplay={todayIst.dateDisplay}
+        dateDisplay={`${todayIst.dayNum} ${todayIst.monthName.slice(0, 3)} ${todayIst.year}`}
       />
 
       {/* Mobile Bottom Navigation */}

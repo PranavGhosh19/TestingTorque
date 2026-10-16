@@ -85,7 +85,7 @@ export default function DailyWashFeedbackModal({
                   <ShieldCheck className="w-6 h-6 text-[#2DD4A0]" />
                 </div>
                 <h3 className="text-lg sm:text-xl font-black text-white tracking-tight leading-snug">
-                  Was your Car cleaned today by the washer?
+                  Was your car washed today ({dateDisplay})?
                 </h3>
                 <p className="text-xs text-white/60 max-w-xs mx-auto leading-relaxed">
                   Help us verify your morning route standard for today.
