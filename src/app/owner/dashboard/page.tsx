@@ -774,13 +774,6 @@ export default function OwnerDashboardPage() {
             <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 block font-bold">
               MONTHLY WASH AUDIT &amp; PROOF CALENDAR
             </span>
-            <Link
-              href="/owner/washes/history"
-              className="text-xs text-[#2DD4A0] hover:underline flex items-center gap-1 font-mono font-medium"
-            >
-              <span>Full History</span>
-              <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
           </div>
           <OwnerProofCalendar
             assignedWasherName={assignedWasher?.name}

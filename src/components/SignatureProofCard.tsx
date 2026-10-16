@@ -197,26 +197,8 @@ export default function SignatureProofCard({
           )}
         </div>
 
-        {/* Clean Inspection Photo Showcase / Flagged State / Awaiting Care State */}
-        {isFlaggedNo ? (
-          <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-[#161C25] border border-amber-500/30 p-6 flex flex-col items-center justify-center text-center shadow-2xl">
-            <div className="w-14 h-14 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3.5 shadow-lg">
-              <AlertTriangle className="w-7 h-7" />
-            </div>
-            <div className="text-base font-bold text-amber-300 uppercase tracking-wide">
-              Flagged: Car Not Cleaned Today
-            </div>
-            <p suppressHydrationWarning className="text-xs text-white/65 max-w-sm mt-1 leading-relaxed">
-              You marked that your vehicle was not cleaned today by {washerName}. Today has been flagged Orange in your Care Calendar.
-            </p>
-            <div className="mt-4 flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-[11px] font-mono text-white/70">
-              <MapPin className="w-3 h-3 text-amber-400" />
-              <span>{parkingLocation}</span>
-              <span className="text-white/30">•</span>
-              <span className="text-amber-300">Flagged Orange in Calendar</span>
-            </div>
-          </div>
-        ) : hasProof && afterPhoto ? (
+        {/* Clean Inspection Photo Showcase */}
+        {hasProof && afterPhoto ? (
           <div className="relative z-10 rounded-2xl overflow-hidden aspect-4/3 sm:aspect-16/10 bg-slate-950 border border-white/10 group shadow-2xl">
             <Image
               src={afterPhoto}

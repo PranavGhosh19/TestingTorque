@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, CalendarCheck, UserCheck, Car, CheckCircle2, User } from 'lucide-react';
+import { Bell, CalendarCheck, UserCheck, Car, CheckCircle2, User, Settings } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 
@@ -74,15 +74,15 @@ export default function Navbar() {
             </Link>
 
             <Link
-              href="/owner/washes/history"
+              href="/owner/settings"
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                pathname.startsWith('/owner/washes')
+                pathname.startsWith('/owner/settings')
                   ? 'bg-[#2DD4A0] text-slate-950 shadow-md shadow-[#2DD4A0]/25 font-black'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Washes</span>
+              <Settings className="w-3.5 h-3.5" />
+              <span>Settings</span>
             </Link>
           </nav>
         ) : isWasherPortal ? (

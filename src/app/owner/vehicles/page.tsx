@@ -145,10 +145,10 @@ export default function OwnerVehiclesPage() {
 
                 <div className="pt-1">
                   <Link
-                    href="/owner/washes/history"
+                    href="/owner/dashboard"
                     className="w-full py-2.5 px-4 rounded-full bg-[#161C25] hover:bg-white/10 text-white font-mono text-xs font-bold text-center border border-white/[0.08] transition-colors flex items-center justify-center gap-1.5"
                   >
-                    <span>View Audit History</span>
+                    <span>View Audit Calendar</span>
                     <ChevronRight className="w-3.5 h-3.5 text-[#2DD4A0]" />
                   </Link>
                 </div>

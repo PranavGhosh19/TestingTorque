@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Car, CheckCircle2, User } from 'lucide-react';
+import { Home, Car, Settings, User } from 'lucide-react';
 
 export default function OwnerBottomNav() {
   const pathname = usePathname();
@@ -11,8 +11,8 @@ export default function OwnerBottomNav() {
   const links = [
     { href: '/owner/dashboard', label: 'Home', icon: Home },
     { href: '/owner/vehicles', label: 'Vehicles', icon: Car },
-    { href: '/owner/washes/history', label: 'Washes', icon: CheckCircle2 },
     { href: '/owner/profile', label: 'Profile', icon: User },
+    { href: '/owner/settings', label: 'Settings', icon: Settings },
   ];
 
   return (
