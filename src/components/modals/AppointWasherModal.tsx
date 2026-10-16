@@ -277,4 +277,8 @@ export default function AppointWasherModal({
               )}
             </button>
           </div>
-        </
+        </div>
+      </div>
+    </div>
+  );
+}
