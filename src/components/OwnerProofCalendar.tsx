@@ -41,6 +41,8 @@ interface DayStatus {
   isRestDay: boolean; // Rest day for washer schedule
   isPriorToStart: boolean; // Strictly before serviceStartDate
   isSignupDate: boolean; // Day user registered
+  isAutoConfirmedYes?: boolean; // True when past day ended without owner input and defaulted to Washed (Yes)
+  feedback?: 'yes' | 'no';
   wash?: WashRecord;
 }
 
@@ -400,7 +402,12 @@ export default function OwnerProofCalendar({
         });
       }
 
-      const dayFeedback = dailyFeedbacks[isoDate] || (matchingWash?.status === 'missed' ? 'no' : undefined);
+      // User requirement: If the user doesn't answer the question by the end of the day of that day,
+      // assume that the car was washed successfully, consider that "Yes".
+      // Example: On 18th October 2026, the user never opened the app, by the end of the day consider that the car was washed.
+      const rawFeedback = dailyFeedbacks[isoDate];
+      const isAutoYes = isPast && !isPriorToStart && !isRestDay && !rawFeedback;
+      const effectiveFeedback = rawFeedback || (isAutoYes ? 'yes' : undefined) || (matchingWash?.status === 'missed' ? 'no' : undefined);
 
       let hasProofUploaded = false;
       let isMissingProof = false;
@@ -410,11 +417,10 @@ export default function OwnerProofCalendar({
       // 1. If prior to serviceStartDate -> Pre-enrollment day (NO washes, NO alerts, NO proofs)
       // 2. If washer rest day (e.g. Sunday or weekly leave) -> Rest day (no wash)
       // 3. On active service days:
-      //    - If owner answered 'no' -> Flag it Orange
-      //    - If owner answered 'yes' -> Verified Cleaned
-      //    - If real matching wash completed -> Verified Cleaned
-      //    - If past day with no issue -> Considered Cleaned in 24h route
-      //    - Today without completed wash remains scheduled!
+      //    - If owner answered 'no' -> Flag it Orange (Missed wash)
+      //    - If owner answered 'yes' -> Cleaned ✓ (Green)
+      //    - If past day without an answer -> Auto-confirmed "Yes" (Cleaned ✓) by end of day
+      //    - Today without completed wash remains scheduled/in progress until answered or end of day
       if (isPriorToStart) {
         hasProofUploaded = false;
         isMissingProof = false;
@@ -424,23 +430,20 @@ export default function OwnerProofCalendar({
         isMissingProof = false;
         isVehicleUnavailable = false;
       } else {
-        if (dayFeedback === 'no') {
+        if (effectiveFeedback === 'no') {
           isMissingProof = true;
-        } else if (dayFeedback === 'yes') {
+          hasProofUploaded = false;
+        } else if (effectiveFeedback === 'yes' || isPast) {
           hasProofUploaded = true;
+          isMissingProof = false;
         } else if (matchingWash) {
-          if (matchingWash.status === 'completed' && (matchingWash.after_photo || (matchingWash as any).proof_photo)) {
+          if (matchingWash.status === 'completed') {
             hasProofUploaded = true;
           } else if (matchingWash.status === 'vehicle_unavailable') {
             isVehicleUnavailable = true;
           } else if (matchingWash.status === 'missed' || matchingWash.status === 'attempted') {
             isMissingProof = true;
-          } else if (matchingWash.status === 'completed') {
-            hasProofUploaded = true;
           }
-        } else if (isPast) {
-          // Past active service days where owner raised no issue
-          hasProofUploaded = true;
         }
       }
 
@@ -460,6 +463,8 @@ export default function OwnerProofCalendar({
         isRestDay,
         isPriorToStart,
         isSignupDate,
+        isAutoConfirmedYes: isAutoYes,
+        feedback: effectiveFeedback,
         wash: matchingWash,
       });
     }
@@ -636,7 +641,11 @@ export default function OwnerProofCalendar({
               cellClasses =
                 'bg-[#2DD4A0]/10 text-white border border-[#2DD4A0]/30 hover:bg-[#2DD4A0]/20';
               dotColor = 'bg-[#2DD4A0] shadow-[0_0_8px_rgba(45,212,160,0.8)]';
-              titleText = `Day ${day.date}: Verified proof uploaded ✓`;
+              titleText = `Day ${day.date}: ${
+                day.isAutoConfirmedYes
+                  ? 'Washed by default at end of day ✓'
+                  : 'Cleaned ✓'
+              }`;
             } else if (day.isMissingProof || day.isVehicleUnavailable) {
               cellClasses =
                 'bg-amber-500/10 text-amber-200 border border-amber-400/30 hover:bg-amber-500/20';
@@ -747,266 +756,332 @@ export default function OwnerProofCalendar({
       {/* ============================================================ */}
       {/* MODAL: PROOF INSPECTION ON DATE CLICK                        */}
       {/* ============================================================ */}
-      {selectedDay && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200">
-          <div className="w-full max-w-2xl bg-[#11161D] border border-white/[0.08] rounded-[20px] shadow-2xl overflow-hidden relative text-white flex flex-col max-h-[90vh]">
-            {/* Modal Header */}
-            <div className="p-6 border-b border-white/[0.08] flex items-center justify-between bg-[#161C25]/50">
-              <div className="flex items-center gap-3">
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-md ${
-                    selectedDay.isPriorToStart
-                      ? selectedDay.isSignupDate
+      {selectedDay && (() => {
+        const rawSelectedFeedback = dailyFeedbacks[selectedDay.isoDate];
+        const isAutoConfirmedPast =
+          selectedDay.isPast &&
+          !selectedDay.isPriorToStart &&
+          !selectedDay.isRestDay &&
+          !rawSelectedFeedback;
+        const selectedFeedback = rawSelectedFeedback || (isAutoConfirmedPast ? 'yes' : undefined);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200">
+            <div className="w-full max-w-2xl bg-[#11161D] border border-white/[0.08] rounded-[20px] shadow-2xl overflow-hidden relative text-white flex flex-col max-h-[90vh]">
+              {/* Modal Header */}
+              <div className="p-6 border-b border-white/[0.08] flex items-center justify-between bg-[#161C25]/50">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shadow-md ${
+                      selectedDay.isPriorToStart
+                        ? selectedDay.isSignupDate
+                          ? 'bg-[#2DD4A0] text-[#0A0D12] font-black'
+                          : 'border border-white/10 bg-[#161C25] text-white/40'
+                        : selectedDay.isToday
                         ? 'bg-[#2DD4A0] text-[#0A0D12] font-black'
-                        : 'border border-white/10 bg-[#161C25] text-white/40'
-                      : selectedDay.isToday
-                      ? 'bg-[#2DD4A0] text-[#0A0D12] font-black'
-                      : selectedDay.hasProofUploaded
-                      ? 'bg-[#2DD4A0] text-[#0A0D12]'
-                      : selectedDay.isMissingProof || selectedDay.isVehicleUnavailable
-                      ? 'bg-amber-400 text-[#0A0D12]'
-                      : selectedDay.isRestDay
-                      ? 'border border-white/10 bg-[#161C25] text-white/40'
-                      : 'border border-[#2DD4A0]/40 bg-[#2DD4A0]/10 text-[#2DD4A0]'
-                  }`}
-                >
-                  {selectedDay.date}
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-base sm:text-lg font-bold text-white">
-                      {selectedDay.dateString} {selectedDay.fullDate.getFullYear()}
-                    </h3>
-                    {selectedDay.isPriorToStart ? (
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 font-bold">
-                        {selectedDay.isSignupDate ? (selectedDay.isToday ? 'Signed Up Today' : 'Registration Day') : 'Prior to Enrollment'}
-                      </span>
-                    ) : selectedDay.isToday && (
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0] text-[#0A0D12] font-bold">
-                        Today
-                      </span>
-                    )}
-                    {selectedDay.hasProofUploaded && (
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0] text-[#0A0D12] font-bold">
-                        Verified Proof ✓
-                      </span>
-                    )}
-                    {(selectedDay.isMissingProof || selectedDay.isVehicleUnavailable) && (
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-amber-400 text-[#0A0D12] font-bold">
-                        {selectedDay.isVehicleUnavailable
-                          ? 'Vehicle Unavailable'
-                          : 'Flagged Orange • Not Cleaned'}
-                      </span>
-                    )}
-                    {!selectedDay.isPriorToStart && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30 font-bold">
-                        {selectedDay.isRestDay ? `${washerLeaveDay || 'Sunday'} Rest` : 'Scheduled Care'}
-                      </span>
-                    )}
+                        : selectedDay.hasProofUploaded
+                        ? 'bg-[#2DD4A0] text-[#0A0D12]'
+                        : selectedDay.isMissingProof || selectedDay.isVehicleUnavailable
+                        ? 'bg-amber-400 text-[#0A0D12]'
+                        : selectedDay.isRestDay
+                        ? 'border border-white/10 bg-[#161C25] text-white/40'
+                        : 'border border-[#2DD4A0]/40 bg-[#2DD4A0]/10 text-[#2DD4A0]'
+                    }`}
+                  >
+                    {selectedDay.date}
                   </div>
-                  <p className="text-xs text-white/50 font-mono mt-0.5">
-                    {currentVehicle?.make} {currentVehicle?.model} •{' '}
-                    {currentVehicle?.registration_number || 'Registered Vehicle'}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setSelectedDay(null)}
-                className="p-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white/60 hover:text-white transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Modal Body with Scroll */}
-            <div className="p-6 overflow-y-auto space-y-6">
-              {/* CASE 0: PRIOR TO SERVICE START (Strictly for days before registration) */}
-              {selectedDay.isPriorToStart && (
-                <div className="space-y-6">
-                  <div className="p-5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-white/70 space-y-2">
-                    <div className="flex items-center gap-2 font-bold text-sm text-white/60">
-                      <span>Prior to Torque Care Registration</span>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="text-base sm:text-lg font-bold text-white">
+                        {selectedDay.dateString} {selectedDay.fullDate.getFullYear()}
+                      </h3>
+                      {selectedDay.isPriorToStart ? (
+                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 font-bold">
+                          {selectedDay.isSignupDate ? (selectedDay.isToday ? 'Signed Up Today' : 'Registration Day') : 'Prior to Enrollment'}
+                        </span>
+                      ) : selectedDay.isToday && (
+                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0] text-[#0A0D12] font-bold">
+                          Today
+                        </span>
+                      )}
+                      {selectedDay.hasProofUploaded && (
+                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0] text-[#0A0D12] font-bold">
+                          {isAutoConfirmedPast ? 'Washed by Default ✓' : 'Cleaned ✓'}
+                        </span>
+                      )}
+                      {(selectedDay.isMissingProof || selectedDay.isVehicleUnavailable) && (
+                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-amber-400 text-[#0A0D12] font-bold">
+                          {selectedDay.isVehicleUnavailable
+                            ? 'Vehicle Unavailable'
+                            : 'Flagged Orange • Not Cleaned'}
+                        </span>
+                      )}
+                      {!selectedDay.isPriorToStart && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
+                        <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30 font-bold">
+                          {selectedDay.isRestDay ? `${washerLeaveDay || 'Sunday'} Rest` : 'Scheduled Care'}
+                        </span>
+                      )}
                     </div>
-                    <p className="text-xs text-white/60 leading-relaxed">
-                      This date was before your vehicle registration. Daily Torque Care morning wash recording began on {effectiveServiceStartDate}.
+                    <p className="text-xs text-white/50 font-mono mt-0.5">
+                      {currentVehicle?.make} {currentVehicle?.model} •{' '}
+                      {currentVehicle?.registration_number || 'Registered Vehicle'}
                     </p>
                   </div>
+                </div>
 
-                  <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] space-y-3 text-xs">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/50">
-                      Registration Details
-                    </span>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <span className="text-white/50 block text-[11px]">Enrolled On:</span>
-                        <span className="text-white font-bold">{effectiveSignupDate}</span>
+                <button
+                  onClick={() => setSelectedDay(null)}
+                  className="p-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white/60 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body with Scroll */}
+              <div className="p-6 overflow-y-auto space-y-6">
+                {/* CASE 0: PRIOR TO SERVICE START (Strictly for days before registration) */}
+                {selectedDay.isPriorToStart && (
+                  <div className="space-y-6">
+                    <div className="p-5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-white/70 space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-sm text-white/60">
+                        <span>Prior to Torque Care Registration</span>
                       </div>
-                      <div>
-                        <span className="text-white/50 block text-[11px]">Care Started:</span>
-                        <span className="text-[#2DD4A0] font-bold">{effectiveServiceStartDate}</span>
-                      </div>
-                      <div>
-                        <span className="text-white/50 block text-[11px]">Assigned Specialist:</span>
-                        <span className="text-white font-bold">{assignedWasherName}</span>
-                      </div>
-                      <div>
-                        <span className="text-white/50 block text-[11px]">Assigned Bay:</span>
-                        <span className="text-white font-bold">{parkingLocation}</span>
+                      <p className="text-xs text-white/60 leading-relaxed">
+                        This date was before your vehicle registration. Daily Torque Care morning wash recording began on {effectiveServiceStartDate}.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] space-y-3 text-xs">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/50">
+                        Registration Details
+                      </span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <span className="text-white/50 block text-[11px]">Enrolled On:</span>
+                          <span className="text-white font-bold">{effectiveSignupDate}</span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 block text-[11px]">Care Started:</span>
+                          <span className="text-[#2DD4A0] font-bold">{effectiveServiceStartDate}</span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 block text-[11px]">Assigned Specialist:</span>
+                          <span className="text-white font-bold">{assignedWasherName}</span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 block text-[11px]">Assigned Bay:</span>
+                          <span className="text-white font-bold">{parkingLocation}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* QUESTION: Was your car washed today (Date)? Yes / No */}
-              {!selectedDay.isPriorToStart && (
-                <div className="p-5 rounded-2xl bg-gradient-to-b from-[#161C25] to-[#11161D] border border-white/[0.12] space-y-4 shadow-xl">
-                  <div className="flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0">
-                      <ShieldCheck className="w-5 h-5" />
+                {/* QUESTION: Was your car washed today (Date)? Yes / No */}
+                {!selectedDay.isPriorToStart && !selectedDay.isRestDay && (
+                  <div className="p-5 rounded-2xl bg-gradient-to-b from-[#161C25] to-[#11161D] border border-white/[0.12] space-y-4 shadow-xl">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/15 border border-[#2DD4A0]/30 flex items-center justify-center text-[#2DD4A0] shrink-0">
+                        <ShieldCheck className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-base font-bold text-white leading-snug">
+                          {selectedDay.isToday
+                            ? `Was your car washed today (${selectedDay.dateString})?`
+                            : `Was your car washed on ${selectedDay.dateString}?`}
+                        </h4>
+                        <p className="text-xs text-white/60 mt-0.5">
+                          {selectedDay.isToday
+                            ? 'Confirm your daily wash. If unconfirmed by the end of today, it automatically defaults to Washed (Yes).'
+                            : 'Select Yes or No to record your feedback. Unanswered past days default to Washed (Yes).'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="text-base font-bold text-white leading-snug">
+
+                    {/* Status / Saved Answer Badge */}
+                    {selectedFeedback ? (
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="text-white/60">Status:</span>
+                        <span
+                          className={`font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 ${
+                            selectedFeedback === 'yes'
+                              ? 'bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/40'
+                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                          }`}
+                        >
+                          {selectedFeedback === 'yes' ? (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                              <span>
+                                {isAutoConfirmedPast
+                                  ? 'Yes (Auto-confirmed: Washed by default at end of day)'
+                                  : 'Yes (Cleaned ✓)'}
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="w-3.5 h-3.5 text-amber-400" />
+                              <span>No (Flagged Orange • Missed)</span>
+                            </>
+                          )}
+                        </span>
+                      </div>
+                    ) : selectedDay.isToday ? (
+                      <div className="p-2.5 rounded-xl bg-[#2DD4A0]/5 border border-[#2DD4A0]/15 text-[11px] text-[#2DD4A0]/80">
+                        Awaiting confirmation • If unanswered by end of day, car will automatically be considered washed.
+                      </div>
+                    ) : null}
+
+                    <div className="grid grid-cols-2 gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleCalendarDayFeedback('yes')}
+                        className={`py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+                          selectedFeedback === 'yes'
+                            ? 'bg-[#2DD4A0] text-black shadow-[#2DD4A0]/25 ring-2 ring-[#2DD4A0]'
+                            : 'bg-[#2DD4A0]/20 hover:bg-[#2DD4A0]/30 text-[#2DD4A0] border border-[#2DD4A0]/40'
+                        }`}
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        <span>Yes</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCalendarDayFeedback('no')}
+                        className={`py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+                          selectedFeedback === 'no'
+                            ? 'bg-amber-500 text-black shadow-amber-500/25 ring-2 ring-amber-500'
+                            : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
+                        }`}
+                      >
+                        <XCircle className="w-4 h-4" />
+                        <span>No</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* CASE: VERIFIED / WASHED DETAILS */}
+                {!selectedDay.isPriorToStart && selectedDay.hasProofUploaded && !selectedDay.isMissingProof && (
+                  <div className="space-y-4">
+                    <div className="p-5 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 text-white space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-sm text-[#2DD4A0]">
+                        <CheckCircle2 className="w-4 h-4 text-[#2DD4A0] shrink-0" />
+                        <span>
+                          {isAutoConfirmedPast
+                            ? 'Morning Wash Completed (Auto-Confirmed at End of Day)'
+                            : 'Morning Wash Cleaned'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-white/80 leading-relaxed">
+                        {isAutoConfirmedPast
+                          ? `As per Torque Care protocol, since no missed wash was flagged by the end of ${selectedDay.dateString}, this service was logged as successfully washed.`
+                          : `Service partner ${assignedWasherName} attended to ${currentVehicle?.registration_number || 'your vehicle'} during the morning route.`}
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] space-y-3 text-xs">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/50">
+                        Service Log Details
+                      </span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <span className="text-white/50 block text-[11px]">Specialist:</span>
+                          <span className="text-white font-bold">{assignedWasherName}</span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 block text-[11px]">Assigned Bay:</span>
+                          <span className="text-white font-bold">{parkingLocation}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* CASE 2: SCHEDULED / TODAY / REST / FUTURE CARE */}
+                {!selectedDay.isPriorToStart && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
+                  <div className="space-y-6">
+                    <div className="p-5 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 text-white space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-sm text-[#2DD4A0]">
+                        <Sparkles className="w-4 h-4 text-[#2DD4A0] shrink-0" />
+                        <span>
+                          {selectedDay.isToday
+                            ? "Today's Scheduled Care Window"
+                            : selectedDay.isRestDay
+                            ? `${washerLeaveDay || 'Sunday'} Rest Day`
+                            : 'Upcoming Scheduled Care'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-white/80 leading-relaxed">
                         {selectedDay.isToday
-                          ? `Was your car washed today (${selectedDay.dateString})?`
-                          : `Was your car washed on ${selectedDay.dateString}?`}
-                      </h4>
-                      <p className="text-xs text-white/60 mt-0.5">
-                        Select Yes or No to record your feedback for {currentVehicle?.registration_number || 'your vehicle'}. Saved in Firestore with date.
+                          ? `Specialist ${assignedWasherName} is assigned to wash your vehicle at ${parkingLocation} during the 06:30 AM – 09:30 AM route window. If not answered by the end of today, it will automatically be logged as washed.`
+                          : selectedDay.isRestDay
+                          ? `${washerLeaveDay || 'Sunday'} is a scheduled rest day for your assigned specialist. Morning wash tracking resumes on the next scheduled workday.`
+                          : `This date is scheduled for morning care. Service partner ${assignedWasherName} will attend to ${currentVehicle?.registration_number || 'your vehicle'} during the morning route.`}
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] space-y-3 text-xs">
+                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/50">
+                        Route Details
+                      </span>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <span className="text-white/50 block text-[11px]">Need Before:</span>
+                          <span className="text-white font-bold">
+                            Before {currentVehicle?.needWashBefore || (currentVehicle?.preferred_wash_time?.startsWith('Before') ? currentVehicle.preferred_wash_time.replace(/^Before\s+/i, '') : (currentVehicle?.preferred_wash_time || '8:00 AM'))}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-white/50 block text-[11px]">Assigned Bay:</span>
+                          <span className="text-white font-bold">{parkingLocation}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* CASE 4: FLAGGED / AWAY / MISSED */}
+                {(selectedDay.isMissingProof || selectedDay.isVehicleUnavailable) && (
+                  <div className="space-y-6">
+                    <div className="p-5 rounded-xl bg-amber-500/10 border border-amber-400/25 text-amber-200 space-y-2">
+                      <div className="flex items-center gap-2 font-bold text-sm text-amber-300">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <span>
+                          {selectedDay.isVehicleUnavailable
+                            ? 'Vehicle Unavailable Protocol'
+                            : 'Flagged: Car Not Cleaned by Washer (Orange)'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-white/80 leading-relaxed">
+                        {selectedDay.isVehicleUnavailable
+                          ? `The service partner arrived at ${parkingLocation}, but the vehicle was not parked in its assigned bay.`
+                          : 'Owner flagged that the vehicle was not cleaned today. Under Torque Care protection, priority re-wash protocol is activated.'}
                       </p>
                     </div>
                   </div>
+                )}
+              </div>
 
-                  {dailyFeedbacks[selectedDay.isoDate] && (
-                    <div className="flex items-center gap-2 text-xs">
-                      <span className="text-white/60">Saved Answer:</span>
-                      <span
-                        className={`font-bold px-2.5 py-0.5 rounded-full ${
-                          dailyFeedbacks[selectedDay.isoDate] === 'yes'
-                            ? 'bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/40'
-                            : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                        }`}
-                      >
-                        {dailyFeedbacks[selectedDay.isoDate] === 'yes'
-                          ? 'Yes (Cleaned ✓)'
-                          : 'No (Flagged Orange)'}
-                      </span>
-                    </div>
-                  )}
+              {/* Modal Bottom Actions */}
+              <div className="p-5 border-t border-white/[0.08] bg-[#161C25]/50 flex items-center justify-between gap-3">
+                <span className="text-xs text-white/50 font-mono">
+                  Torque Care • {selectedDay.dateString}
+                </span>
 
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <button
-                      type="button"
-                      onClick={() => handleCalendarDayFeedback('yes')}
-                      className={`py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
-                        dailyFeedbacks[selectedDay.isoDate] === 'yes'
-                          ? 'bg-[#2DD4A0] text-black shadow-[#2DD4A0]/25 ring-2 ring-[#2DD4A0]'
-                          : 'bg-[#2DD4A0]/20 hover:bg-[#2DD4A0]/30 text-[#2DD4A0] border border-[#2DD4A0]/40'
-                      }`}
-                    >
-                      <CheckCircle2 className="w-4 h-4" />
-                      <span>Yes</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleCalendarDayFeedback('no')}
-                      className={`py-3 px-4 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
-                        dailyFeedbacks[selectedDay.isoDate] === 'no'
-                          ? 'bg-amber-500 text-black shadow-amber-500/25 ring-2 ring-amber-500'
-                          : 'bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40'
-                      }`}
-                    >
-                      <XCircle className="w-4 h-4" />
-                      <span>No</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* CASE 2: SCHEDULED / TODAY / REST / FUTURE CARE */}
-              {!selectedDay.isPriorToStart && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
-                <div className="space-y-6">
-                  <div className="p-5 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 text-white space-y-2">
-                    <div className="flex items-center gap-2 font-bold text-sm text-[#2DD4A0]">
-                      <Sparkles className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                      <span>
-                        {selectedDay.isToday
-                          ? "Today's Scheduled Care Window"
-                          : selectedDay.isRestDay
-                          ? `${washerLeaveDay || 'Sunday'} Rest Day`
-                          : 'Upcoming Scheduled Care'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-white/80 leading-relaxed">
-                      {selectedDay.isToday
-                        ? `Specialist ${assignedWasherName} is assigned to wash your vehicle at ${parkingLocation} during the 06:30 AM – 09:30 AM route window. Photo proof will appear here once completed.`
-                        : selectedDay.isRestDay
-                        ? `${washerLeaveDay || 'Sunday'} is a scheduled rest day for your assigned specialist. Morning wash tracking resumes on the next scheduled workday.`
-                        : `This date is scheduled for morning care. Service partner ${assignedWasherName} will attend to ${currentVehicle?.registration_number || 'your vehicle'} during the morning route.`}
-                    </p>
-                  </div>
-
-                  <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] space-y-3 text-xs">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/50">
-                      Route Details
-                    </span>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <span className="text-white/50 block text-[11px]">Need Before:</span>
-                        <span className="text-white font-bold">
-                          Before {currentVehicle?.needWashBefore || (currentVehicle?.preferred_wash_time?.startsWith('Before') ? currentVehicle.preferred_wash_time.replace(/^Before\s+/i, '') : (currentVehicle?.preferred_wash_time || '8:00 AM'))}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-white/50 block text-[11px]">Assigned Bay:</span>
-                        <span className="text-white font-bold">{parkingLocation}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* CASE 4: FLAGGED / AWAY / MISSED */}
-              {(selectedDay.isMissingProof || selectedDay.isVehicleUnavailable) && (
-                <div className="space-y-6">
-                  <div className="p-5 rounded-xl bg-amber-500/10 border border-amber-400/25 text-amber-200 space-y-2">
-                    <div className="flex items-center gap-2 font-bold text-sm text-amber-300">
-                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span>
-                        {selectedDay.isVehicleUnavailable
-                          ? 'Vehicle Unavailable Protocol'
-                          : 'Flagged: Car Not Cleaned by Washer (Orange)'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-white/80 leading-relaxed">
-                      {selectedDay.isVehicleUnavailable
-                        ? `The service partner arrived at ${parkingLocation}, but the vehicle was not parked in its assigned bay.`
-                        : 'Owner flagged that the vehicle was not cleaned today. Under Torque Care protection, priority re-wash protocol is activated.'}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Modal Bottom Actions */}
-            <div className="p-5 border-t border-white/[0.08] bg-[#161C25]/50 flex items-center justify-between gap-3">
-              <span className="text-xs text-white/50 font-mono">
-                Torque Care • {selectedDay.dateString}
-              </span>
-
-              <button
-                type="button"
-                onClick={() => setSelectedDay(null)}
-                className="px-6 py-2 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] font-bold text-xs transition-all shadow-md active:scale-95 cursor-pointer"
-              >
-                Done
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedDay(null)}
+                  className="px-6 py-2 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] font-bold text-xs transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  Done
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

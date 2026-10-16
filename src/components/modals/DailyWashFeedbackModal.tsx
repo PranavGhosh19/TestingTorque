@@ -146,7 +146,7 @@ export default function DailyWashFeedbackModal({
 
               {/* Protocol explainer note */}
               <div className="p-2.5 rounded-xl bg-white/[0.02] border border-white/[0.04] text-[11px] text-white/45 text-center leading-normal">
-                If not opened during the 24-hour route, service defaults to cleaned. Answering <strong className="text-amber-300">No</strong> flags the day Orange in your calendar for priority resolution.
+                If not answered by the end of the day, your car is automatically considered washed successfully (<strong className="text-[#2DD4A0]">Yes</strong>). Answering <strong className="text-amber-300">No</strong> flags the day Orange in your calendar for billing deduction.
               </div>
             </div>
           </motion.div>

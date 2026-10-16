@@ -162,26 +162,83 @@ export default function OwnerDashboardPage() {
     return washes;
   }, [firebaseWashes, washes, primaryVehicle?.id]);
 
-  const verifiedWashesCount = useMemo(() => {
-    const targetVehId = primaryVehicle?.id;
-    const completedSet = new Set<string>();
+  const todayIst = useMemo(() => getTodayISTDate(), []);
+  const todayIso = todayIst.dateIso;
 
-    allVehicleWashes.forEach((w) => {
-      const isVehMatch = !targetVehId || w.vehicle_id === targetVehId;
-      if (isVehMatch && w.status === 'completed' && (w.after_photo || (w as any).proof_photo)) {
-        completedSet.add(w.id);
+  // Monthly wash metrics: washes cleaned vs missed
+  // User rule: If the user doesn't answer the question by the end of the day of that day,
+  // assume that the car was washed successfully, consider that "Yes".
+  // Example: On 18th October 2026, the user never opened the app, by the end of the day consider that the car was washed.
+  const monthMetrics = useMemo(() => {
+    const currentYear = todayIst.year;
+    const currentMonth = Number(todayIst.monthNum) - 1; // 0-indexed month
+    const todayDay = Number(todayIst.dayNum);
+
+    const signupDate =
+      primaryVehicle?.signupDate ||
+      user?.signupDate ||
+      (typeof window !== 'undefined' ? localStorage.getItem('torque_signup_date') : null);
+    const effectiveStartDate = signupDate || todayIso;
+
+    // Washer leave day
+    const washerLeave = (
+      primaryVehicle?.washerLeaveDay ||
+      (primaryVehicle as any)?.washerWeeklyLeaveDay ||
+      user?.washerLeaveDay ||
+      ''
+    ).toLowerCase();
+    const hasNoLeave = washerLeave.includes("doesn't") || washerLeave.includes('none') || washerLeave.includes('no leave');
+
+    let washes = 0;
+    let missed = 0;
+
+    for (let day = 1; day <= todayDay; day++) {
+      const dPadded = String(day).padStart(2, '0');
+      const mPadded = String(currentMonth + 1).padStart(2, '0');
+      const dateIso = `${currentYear}-${mPadded}-${dPadded}`;
+      const dayDate = new Date(currentYear, currentMonth, day);
+      const isSunday = dayDate.getDay() === 0;
+
+      const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayName = dayNames[dayDate.getDay()];
+
+      let isRestDay = false;
+      if (!hasNoLeave) {
+        if (washerLeave && washerLeave.includes(dayName)) {
+          isRestDay = true;
+        } else if (!washerLeave && isSunday) {
+          isRestDay = true;
+        }
       }
-    });
 
-    if (completedSet.size > 0) return completedSet.size;
-    if (primaryVehicle?.washes_this_month && primaryVehicle.washes_this_month > 0) {
-      return primaryVehicle.washes_this_month;
+      // If prior to service start (and not today and not signup date)
+      const isPrior = dateIso !== todayIso && dateIso !== signupDate && effectiveStartDate && dateIso < effectiveStartDate;
+      if (isPrior || isRestDay) {
+        continue;
+      }
+
+      const feedback = allDailyFeedbacks[dateIso] || (dateIso === todayIso ? todayFeedbackStatus : undefined);
+
+      if (dateIso === todayIso) {
+        // TODAY: in progress unless explicitly answered
+        if (feedback === 'yes') {
+          washes++;
+        } else if (feedback === 'no') {
+          missed++;
+        }
+      } else {
+        // PAST DAY:
+        // If unanswered by end of day, assume car was washed successfully ("Yes")
+        if (feedback === 'no') {
+          missed++;
+        } else {
+          washes++;
+        }
+      }
     }
-    if (primaryVehicle?.lastWashStatus === 'completed' || (primaryVehicle as any)?.last_wash_status === 'completed') {
-      return 1;
-    }
-    return 0;
-  }, [allVehicleWashes, primaryVehicle]);
+
+    return { washes, missed };
+  }, [todayIst, primaryVehicle, user, todayIso, allDailyFeedbacks, todayFeedbackStatus]);
 
   // Fetch live washers catalog from Firestore to verify State-City-District-Society cluster match
   useEffect(() => {
@@ -318,9 +375,6 @@ export default function OwnerDashboardPage() {
     }
     return washerSocietiesCovered || parkingBayOnly;
   }, [washerSocietiesCovered, parkingBayOnly]);
-
-  const todayIst = useMemo(() => getTodayISTDate(), []);
-  const todayIso = todayIst.dateIso;
 
   // Check if owner has answered today's wash verification question in Firestore
   useEffect(() => {
@@ -639,16 +693,19 @@ export default function OwnerDashboardPage() {
           <div className="grid grid-cols-2 gap-3.5">
             <div className="p-5 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white">
-                {verifiedWashesCount}
+                {monthMetrics.washes}
               </div>
               <div className="text-xs font-semibold text-white/70 mt-1">
                 Washes
               </div>
+              <span className="text-[10px] text-[#2DD4A0]/80 block mt-0.5 font-mono">
+                Cleaned This Month
+              </span>
             </div>
 
             <div className="p-5 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white/90">
-                {todayFeedbackStatus === 'no' ? 1 : 0}
+                {monthMetrics.missed}
               </div>
               <div className="text-xs font-semibold text-white/70 mt-1">
                 Missed
@@ -660,11 +717,11 @@ export default function OwnerDashboardPage() {
           </div>
         </div>
 
-        {/* INTERACTIVE MONTHLY WASH AUDIT & PROOF CALENDAR */}
+        {/* INTERACTIVE MONTHLY WASH AUDIT & TRACKING CALENDAR */}
         <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between px-1">
             <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 block font-bold">
-              MONTHLY WASH AUDIT &amp; PROOF CALENDAR
+              MONTHLY WASH AUDIT &amp; TRACKING CALENDAR
             </span>
           </div>
           <OwnerProofCalendar
