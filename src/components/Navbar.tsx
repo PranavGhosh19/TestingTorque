@@ -12,7 +12,7 @@ export default function Navbar() {
   const { role, notifications } = useStore();
 
   // Auth and role selection pages have their own dedicated centered navigation
-  if (pathname.startsWith('/auth') || pathname === '/get-started') {
+  if (pathname.startsWith('/auth')) {
     return null;
   }
 
@@ -128,7 +128,7 @@ export default function Navbar() {
         <div className="hidden md:flex items-center gap-4">
           {isPublicPage ? (
             <Link
-              href="/get-started"
+              href="/auth/signup"
               className="inline-flex items-center justify-center px-5 py-2 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] text-xs font-semibold transition-all hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98]"
             >
               <span>Get Torque Care</span>

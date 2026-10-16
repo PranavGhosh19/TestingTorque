@@ -282,7 +282,7 @@ export default function HowItWorksPage() {
               <span>Subscribe Your Car Today</span>
             </Link>
             <Link
-              href="/get-started"
+              href="/auth/signup"
               className="w-full sm:w-auto px-7 py-3.5 rounded-full bg-[#161C25] hover:bg-white/10 text-white font-bold text-sm border border-white/[0.08] transition-all"
             >
               <span>Get Started</span>

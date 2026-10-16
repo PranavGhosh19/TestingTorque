@@ -225,7 +225,7 @@ export default function HomePage() {
             >
               {/* Primary White Pill Button */}
               <Link
-                href="/get-started"
+                href="/auth/signup"
                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-full bg-white text-[#0A0D12] text-sm font-bold shadow-[0_0_30px_rgba(255,255,255,0.25)] hover:bg-slate-100 hover:scale-[1.02] active:scale-[0.98] transition-all"
               >
                 <span>Track Your Car</span>
@@ -466,7 +466,7 @@ export default function HomePage() {
 
           <div className="relative z-10 pt-2 flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
-              href="/get-started"
+              href="/auth/signup"
               className="w-full sm:w-auto px-8 py-4 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] font-bold text-sm shadow-[0_0_30px_rgba(255,255,255,0.3)] transition-all hover:scale-105"
             >
               Start Tracking Today
@@ -507,7 +507,7 @@ export default function HomePage() {
             className="fixed bottom-5 left-0 right-0 z-40 flex justify-center pointer-events-none md:hidden px-4 pb-[env(safe-area-inset-bottom)]"
           >
             <Link
-              href="/get-started"
+              href="/auth/signup"
               className="pointer-events-auto w-full max-w-xs py-3.5 px-6 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-[0_10px_35px_rgba(0,0,0,0.8),0_0_25px_rgba(255,255,255,0.25)] active:scale-[0.97] border border-white/20"
             >
               <span>Get Started</span>
