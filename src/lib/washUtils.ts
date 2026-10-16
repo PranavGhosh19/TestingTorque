@@ -188,4 +188,29 @@ export function isPresentDateProofBefore10AM(wash?: WashRecord | null): ProofVer
           timeZone: 'Asia/Kolkata',
           hour: 'numeric',
           minute: 'numeric',
-          hou
+          hour12: false,
+        });
+        const parts = istHourFormatter.formatToParts(parsedIso);
+        const h = Number(parts.find((p) => p.type === 'hour')?.value);
+        const m = Number(parts.find((p) => p.type === 'minute')?.value);
+
+        if (h < 10 || (h === 10 && m <= 30)) {
+          isBefore10AM = true;
+        } else {
+          isBefore10AM = false;
+        }
+      }
+    }
+  }
+
+  const isWashedToday = isToday && isCompleted && hasProof && isBefore10AM;
+
+  return {
+    isWashedToday,
+    isToday,
+    isCompleted,
+    hasProof,
+    isBefore10AM,
+    submissionTimeStr,
+  };
+}
