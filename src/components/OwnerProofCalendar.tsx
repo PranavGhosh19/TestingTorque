@@ -10,7 +10,6 @@ import {
   Clock,
   Sparkles,
   X,
-  Camera,
   Car,
   MapPin,
   User,
@@ -110,7 +109,6 @@ export default function OwnerProofCalendar({
 
   // Modal inspection state
   const [selectedDay, setSelectedDay] = useState<DayStatus | null>(null);
-  const [activePhotoTab, setActivePhotoTab] = useState<'after' | 'before'>('after');
   const [mounted, setMounted] = useState<boolean>(false);
 
   const [dailyFeedbacks, setDailyFeedbacks] = useState<Record<string, 'yes' | 'no'>>({});
@@ -684,7 +682,6 @@ export default function OwnerProofCalendar({
                 type="button"
                 onClick={() => {
                   setSelectedDay(day);
-                  setActivePhotoTab('after');
                 }}
                 className={`aspect-square w-full rounded-xl sm:rounded-[14px] p-1 flex flex-col items-center justify-center relative transition-all active:scale-95 cursor-pointer overflow-hidden ${cellClasses}`}
                 title={titleText}
@@ -943,128 +940,6 @@ export default function OwnerProofCalendar({
                       <XCircle className="w-4 h-4" />
                       <span>No</span>
                     </button>
-                  </div>
-                </div>
-              )}
-
-              {/* CASE 1: PROOF UPLOADED */}
-              {!selectedDay.isPriorToStart && selectedDay.hasProofUploaded && selectedDay.wash && (
-                <div className="space-y-6">
-                  {/* Photo Switcher / Preview */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono font-bold uppercase tracking-wider text-[#2DD4A0] flex items-center gap-1.5">
-                        <Camera className="w-3.5 h-3.5" /> High-Resolution Proof
-                      </span>
-
-                      {selectedDay.wash.before_photo && (
-                        <div className="flex items-center gap-1 bg-[#161C25] p-1 rounded-full border border-white/[0.08] text-xs">
-                          <button
-                            onClick={() => setActivePhotoTab('after')}
-                            className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
-                              activePhotoTab === 'after'
-                                ? 'bg-white text-[#0A0D12] font-bold shadow-xs'
-                                : 'text-white/60 hover:text-white'
-                            }`}
-                          >
-                            After Wash
-                          </button>
-                          <button
-                            onClick={() => setActivePhotoTab('before')}
-                            className={`px-3 py-1 rounded-full font-bold transition-all cursor-pointer ${
-                              activePhotoTab === 'before'
-                                ? 'bg-white text-[#0A0D12] font-bold shadow-xs'
-                                : 'text-white/60 hover:text-white'
-                            }`}
-                          >
-                            Before Wash
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Image Container with Watermark */}
-                    {selectedDay.wash.after_photo && (
-                      <div className="relative aspect-video w-full rounded-[16px] overflow-hidden border border-white/[0.08] bg-black shadow-2xl">
-                        <img
-                          src={
-                            activePhotoTab === 'after'
-                              ? selectedDay.wash.after_photo
-                              : selectedDay.wash.before_photo || selectedDay.wash.after_photo
-                          }
-                          alt="Wash Proof"
-                          className="w-full h-full object-cover"
-                        />
-
-                        {/* Official Proof Timestamp Watermark */}
-                        <div className="absolute bottom-3 left-3 right-3 p-3 rounded-xl bg-[#0A0D12]/80 backdrop-blur-md border border-white/[0.08] text-[11px] font-mono text-white/90 flex items-center justify-between flex-wrap gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0] animate-pulse" />
-                            <span className="text-white font-bold">
-                              {selectedDay.dateString} •{' '}
-                              {selectedDay.wash.completed_at || 'Morning Completed'}
-                            </span>
-                            <span className="text-white/40">|</span>
-                            <span className="text-[#2DD4A0]">
-                              {selectedDay.wash.parking_location || parkingLocation}
-                            </span>
-                          </div>
-                          <span className="text-[10px] text-[#2DD4A0] uppercase tracking-wider font-bold">
-                            Verified ✓
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Specialist & Quality Breakdown */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] space-y-2">
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/50">
-                        Technician Info
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl relative overflow-hidden border border-white/10 bg-neutral-900">
-                          <img
-                            src={assignedWasherAvatar}
-                            alt={assignedWasherName}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold text-white">
-                            {selectedDay.wash.washer_name &&
-                            selectedDay.wash.washer_name !== 'Unregistered Owner' &&
-                            selectedDay.wash.washer_name !== 'Washer Partner'
-                              ? selectedDay.wash.washer_name
-                              : assignedWasherName}
-                          </div>
-                          <div className="text-xs text-[#2DD4A0] font-medium">
-                            ★ 4.9 • Society Verified Specialist
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="p-4 rounded-xl bg-[#161C25] border border-white/[0.08] space-y-1.5">
-                      <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-white/50">
-                        Care Protocol Checklist
-                      </span>
-                      <ul className="text-xs space-y-1.5 text-white/80">
-                        <li className="flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                          <span>Dual-bucket microfiber scratchless wipe</span>
-                        </li>
-                        <li className="flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                          <span>pH-neutral cleanser & windshield clarity</span>
-                        </li>
-                        <li className="flex items-center gap-1.5">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                          <span>Verified photo proof uploaded</span>
-                        </li>
-                      </ul>
-                    </div>
                   </div>
                 </div>
               )}
