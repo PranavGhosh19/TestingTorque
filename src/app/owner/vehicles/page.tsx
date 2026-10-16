@@ -137,10 +137,6 @@ export default function OwnerVehiclesPage() {
                       {v.assigned_washer_name || user.assigned_washer_name || 'Amit Kumar'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between pt-1.5 border-t border-white/[0.06]">
-                    <span className="text-white/50">This Month:</span>
-                    <span className="text-[#2DD4A0] font-mono font-bold">{v.washes_this_month} washes verified</span>
-                  </div>
                 </div>
 
                 <div className="pt-1">

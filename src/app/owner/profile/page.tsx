@@ -549,12 +549,7 @@ export default function OwnerProfilePage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setWasherNameInput(effectiveWasherName || '');
-                    setWasherPhoneInput(
-                      effectiveWasherPhone ? effectiveWasherPhone.replace('+91', '').trim() : ''
-                    );
-                    setWasherError('');
-                    setShowAddWasherModal(true);
+                    router.push('/owner/settings');
                   }}
                   className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-[#2DD4A0] border border-white/10 text-xs font-mono font-bold tracking-wider transition-all shrink-0 cursor-pointer"
                 >
@@ -583,16 +578,6 @@ export default function OwnerProfilePage() {
           >
             <span className="flex items-center gap-2.5 text-white/80">
               <Car className="w-4 h-4 text-[#2DD4A0]" /> Manage Fleet ({vehicles.length} cars)
-            </span>
-            <ChevronRight className="w-4 h-4 text-white/40" />
-          </Link>
-
-          <Link
-            href="/owner/notifications"
-            className="p-4 flex items-center justify-between hover:bg-white/[0.04] transition-colors"
-          >
-            <span className="flex items-center gap-2.5 text-white/80">
-              <Bell className="w-4 h-4 text-[#2DD4A0]" /> Daily Photo Alerts & SMS
             </span>
             <ChevronRight className="w-4 h-4 text-white/40" />
           </Link>

@@ -3,7 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Bell, CalendarCheck, UserCheck, Car, CheckCircle2, User, Settings } from 'lucide-react';
+import { Bell, CalendarCheck, UserCheck, Car, CheckCircle2, User, Settings, LayoutDashboard } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 
@@ -58,9 +58,21 @@ export default function Navbar() {
           <TorqueLogo emblemSize={36} />
         </Link>
 
-        {/* Center Nav: Owner Portal Desktop Nav (Vehicle, Washes) */}
+        {/* Center Nav: Owner Portal Desktop Nav (Dashboard, Vehicle) */}
         {isOwnerPortal ? (
           <nav className="hidden md:flex items-center gap-1.5 bg-white/5 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xl shadow-lg md:absolute md:left-1/2 md:-translate-x-1/2">
+            <Link
+              href="/owner/dashboard"
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                pathname === '/owner/dashboard'
+                  ? 'bg-[#2DD4A0] text-slate-950 shadow-md shadow-[#2DD4A0]/25 font-black'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span>Dashboard</span>
+            </Link>
+
             <Link
               href="/owner/vehicles"
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
@@ -71,18 +83,6 @@ export default function Navbar() {
             >
               <Car className="w-3.5 h-3.5" />
               <span>Vehicle</span>
-            </Link>
-
-            <Link
-              href="/owner/washes/history"
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-                pathname.startsWith('/owner/washes')
-                  ? 'bg-[#2DD4A0] text-slate-950 shadow-md shadow-[#2DD4A0]/25 font-black'
-                  : 'text-slate-300 hover:text-white hover:bg-white/10'
-              }`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" />
-              <span>Washes</span>
             </Link>
           </nav>
         ) : isWasherPortal ? (
@@ -136,16 +136,6 @@ export default function Navbar() {
           ) : isOwnerPortal ? (
             <div className="flex items-center gap-3">
               <Link
-                href="/owner/notifications"
-                className="relative p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors"
-                title="Notifications"
-              >
-                <Bell className="w-4 h-4" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#2DD4A0] animate-pulse" />
-                )}
-              </Link>
-              <Link
                 href="/owner/profile"
                 className="flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-colors"
               >
@@ -177,15 +167,17 @@ export default function Navbar() {
             </div>
           ) : (
             <div className="flex items-center gap-3">
-              <Link
-                href={role === 'owner' ? '/owner/notifications' : '/washer/notifications'}
-                className="relative p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors"
-              >
-                <Bell className="w-4 h-4" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                )}
-              </Link>
+              {role === 'washer' && (
+                <Link
+                  href="/washer/notifications"
+                  className="relative p-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white border border-white/10 transition-colors"
+                >
+                  <Bell className="w-4 h-4" />
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                  )}
+                </Link>
+              )}
               <Link
                 href={`/${role}/dashboard`}
                 className="text-xs font-bold text-[#080D1A] bg-white px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors shadow-sm"

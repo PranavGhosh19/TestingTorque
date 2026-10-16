@@ -251,10 +251,6 @@ export default function SignatureProofCard({
                       {washerName}
                     </span>
                   </div>
-                  <p className="text-[10px] sm:text-[11px] text-white/60 flex items-center gap-1 mt-0.5 truncate">
-                    <MapPin className="w-3 h-3 text-[#2DD4A0] shrink-0" />
-                    <span className="truncate max-w-[130px] sm:max-w-none">{displayLocationText}</span>
-                  </p>
                 </div>
               </div>
               <Link
