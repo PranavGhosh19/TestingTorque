@@ -4398,6 +4398,32 @@ export async function findCarOwnerByIdInFirestore(uid: string): Promise<User | n
 }
 
 /**
+ * Lookup for a Car Owner profile by email address.
+ */
+export async function findCarOwnerByEmailInFirestore(email: string): Promise<User | null> {
+  try {
+    if (!email) return null;
+    const trimmed = email.trim();
+    const q = query(collection(db, 'Car_Owners'), where('email', '==', trimmed.toLowerCase()));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const d = snap.docs[0];
+      return { id: d.id, uid: d.id, ...d.data() } as User;
+    }
+    const qExact = query(collection(db, 'Car_Owners'), where('email', '==', trimmed));
+    const snapExact = await getDocs(qExact);
+    if (!snapExact.empty) {
+      const d = snapExact.docs[0];
+      return { id: d.id, uid: d.id, ...d.data() } as User;
+    }
+    return null;
+  } catch (err) {
+    console.warn('findCarOwnerByEmailInFirestore error:', err);
+    return null;
+  }
+}
+
+/**
  * Fetch all registered vehicles under a specific Car Owner UID from subcollection.
  */
 export async function fetchCarOwnerVehiclesFromFirestore(uid: string): Promise<Vehicle[]> {

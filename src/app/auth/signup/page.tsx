@@ -32,6 +32,7 @@ import {
   fetchAllSocieties,
   FirestoreSociety,
   findCarOwnerByIdInFirestore,
+  findCarOwnerByEmailInFirestore,
   fetchCarOwnerVehiclesFromFirestore,
   fetchAllWashersFromFirestore,
   isWasherMatchForOwner,
@@ -299,38 +300,47 @@ export default function SignUpPage() {
         photoURL,
       });
 
-      // Check if this owner has already fully registered in Firestore
+      // Check if this owner has already registered in Firestore (login flow)
       try {
-        const existingOwner = await findCarOwnerByIdInFirestore(uid);
+        let existingOwner = await findCarOwnerByIdInFirestore(uid);
+        if (!existingOwner && email) {
+          existingOwner = await findCarOwnerByEmailInFirestore(email);
+        }
+
         if (existingOwner) {
-          const existingVehicles = await fetchCarOwnerVehiclesFromFirestore(uid);
-          if (existingVehicles && existingVehicles.length > 0) {
-            setUser({
-              ...existingOwner,
-              role: 'owner',
-              status: 'active',
-            });
-            setVehicles(existingVehicles);
-            setRole('owner');
-            setIsLoggedIn(true);
+          const ownerDocId = existingOwner.id || uid;
+          const existingVehicles = await fetchCarOwnerVehiclesFromFirestore(ownerDocId);
+          const resolvedVehicles =
+            existingVehicles && existingVehicles.length > 0
+              ? existingVehicles
+              : (existingOwner as any).vehicles || [];
 
-            if (typeof window !== 'undefined') {
-              localStorage.setItem('torque_logged_in', 'true');
-              localStorage.setItem('torque_owner_name', existingOwner.name);
-              localStorage.setItem('torque_owner_id', uid);
-              localStorage.setItem('torque_user', JSON.stringify(existingOwner));
-              localStorage.removeItem('torque_vehicles');
-            }
+          setUser({
+            ...existingOwner,
+            role: 'owner',
+            status: 'active',
+          });
+          setVehicles(resolvedVehicles);
+          setRole('owner');
+          setIsLoggedIn(true);
 
-            router.replace('/owner/dashboard');
-            return;
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('torque_logged_in', 'true');
+            localStorage.setItem('torque_owner_name', existingOwner.name || displayName);
+            localStorage.setItem('torque_owner_id', ownerDocId);
+            localStorage.setItem('torque_user', JSON.stringify(existingOwner));
+            localStorage.removeItem('torque_vehicles');
           }
+
+          // Existing registered user -> direct to dashboard
+          router.replace('/owner/dashboard');
+          return;
         }
       } catch (checkErr) {
         console.warn('Notice checking existing owner record:', checkErr);
       }
 
-      // Move directly to Step 2: Cars
+      // New user sign up -> move to Step 2: Cars
       setStep(2);
     } catch (err: any) {
       console.error('Google Sign-in Error:', err);
@@ -530,59 +540,57 @@ export default function SignUpPage() {
 
       {/* Main Container */}
       <main className="max-w-2xl mx-auto w-full px-4 sm:px-6 py-8 sm:py-12 flex-1">
-        {/* Stepper Indicator */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between max-w-xs mx-auto mb-3">
-            {[
-              { num: 1, label: 'Google Auth' },
-              { num: 2, label: 'Cars' },
-              { num: 3, label: 'Society' },
-            ].map((s, idx) => (
-              <React.Fragment key={s.num}>
-                <div className="flex flex-col items-center">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
-                      step === s.num
-                        ? 'bg-[#2DD4A0] text-black ring-4 ring-[#2DD4A0]/20'
-                        : step > s.num
-                        ? 'bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/40'
-                        : 'bg-white/5 text-white/40 border border-white/10'
-                    }`}
-                  >
-                    {step > s.num ? <Check className="w-4 h-4 stroke-[3]" /> : s.num}
+        {/* Stepper Indicator - only shown during sign up flow (steps 2 & 3) */}
+        {step > 1 && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between max-w-xs mx-auto mb-3">
+              {[
+                { num: 2, label: 'Cars' },
+                { num: 3, label: 'Society' },
+              ].map((s, idx) => (
+                <React.Fragment key={s.num}>
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                        step === s.num
+                          ? 'bg-[#2DD4A0] text-black ring-4 ring-[#2DD4A0]/20'
+                          : step > s.num
+                          ? 'bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/40'
+                          : 'bg-white/5 text-white/40 border border-white/10'
+                      }`}
+                    >
+                      {step > s.num ? <Check className="w-4 h-4 stroke-[3]" /> : s.num}
+                    </div>
+                    <span
+                      className={`text-[10px] mt-1 font-mono uppercase tracking-wider ${
+                        step === s.num ? 'text-[#2DD4A0] font-bold' : 'text-white/40'
+                      }`}
+                    >
+                      {s.label}
+                    </span>
                   </div>
-                  <span
-                    className={`text-[10px] mt-1 font-mono uppercase tracking-wider ${
-                      step === s.num ? 'text-[#2DD4A0] font-bold' : 'text-white/40'
-                    }`}
-                  >
-                    {s.label}
-                  </span>
-                </div>
-                {idx < 2 && (
-                  <div
-                    className={`flex-1 h-[2px] mx-2 transition-all ${
-                      step > idx + 1 ? 'bg-[#2DD4A0]' : 'bg-white/10'
-                    }`}
-                  />
-                )}
-              </React.Fragment>
-            ))}
+                  {idx < 1 && (
+                    <div
+                      className={`flex-1 h-[2px] mx-2 transition-all ${
+                        step > 2 ? 'bg-[#2DD4A0]' : 'bg-white/10'
+                      }`}
+                    />
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ========================================================= */}
-        {/* STEP 1: Google Authentication */}
+        {/* STEP 1: Log in or sign up */}
         {/* ========================================================= */}
         {step === 1 && (
           <div className="p-7 sm:p-10 rounded-3xl bg-[#11161D] border border-white/[0.08] shadow-2xl space-y-7 animate-in fade-in duration-200">
-            <div className="text-center space-y-2">
+            <div className="text-center">
               <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                Car Owner Registration
+                Log in or sign up
               </h1>
-              <p className="text-xs sm:text-sm text-white/60 max-w-md mx-auto leading-relaxed">
-                Register and Start Tracking
-              </p>
             </div>
 
             {authError && (
@@ -642,7 +650,7 @@ export default function SignUpPage() {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div>
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">
-                    Step 2 of 3 • Vehicle Registration
+                    Step 2 • Vehicle Registration
                   </span>
                   <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
                     Register Your Vehicle(s)
@@ -947,7 +955,7 @@ export default function SignUpPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">
-                      Step 3 of 3 • Building Location
+                      Step 3 • Building Location
                     </span>
                     <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-white/10 text-white/70">
                       Optional
