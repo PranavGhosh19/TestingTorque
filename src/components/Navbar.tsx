@@ -28,6 +28,11 @@ export default function Navbar() {
     pathname.startsWith('/about') ||
     pathname.startsWith('/contact') ||
     pathname.startsWith('/auth') ||
+    pathname.startsWith('/car-wash-payment-calculator') ||
+    pathname.startsWith('/car-wash-tracking') ||
+    pathname.startsWith('/car-wash-tracking-template') ||
+    pathname.startsWith('/guides') ||
+    pathname.startsWith('/how-it-works') ||
     pathname.startsWith('/washer/login') ||
     pathname.startsWith('/admin/login') ||
     pathname.startsWith('/owner/login');
@@ -48,11 +53,11 @@ export default function Navbar() {
         hideOnMobile ? 'hidden md:block' : ''
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-center md:justify-between relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
         {/* Brand Logo - Performance Shield Emblem & Spec-sheet Wordmark */}
         <Link
           href={isOwnerPortal ? '/owner/dashboard' : '/'}
-          className="flex items-center group transition-transform hover:opacity-95"
+          className="flex items-center group transition-transform hover:opacity-95 shrink-0"
         >
           <TorqueLogo emblemSize={36} />
         </Link>
@@ -110,7 +115,50 @@ export default function Navbar() {
               <span>Profile</span>
             </Link>
           </nav>
-        ) : null}
+        ) : (
+          <nav className="hidden lg:flex items-center gap-1 bg-white/[0.04] border border-white/[0.08] p-1 rounded-2xl backdrop-blur-xl shadow-lg md:absolute md:left-1/2 md:-translate-x-1/2">
+            <Link
+              href="/car-wash-payment-calculator"
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                pathname === '/car-wash-payment-calculator'
+                  ? 'bg-[#2DD4A0] text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Calculator
+            </Link>
+            <Link
+              href="/car-wash-tracking"
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                pathname === '/car-wash-tracking'
+                  ? 'bg-[#2DD4A0] text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Tracking Guide
+            </Link>
+            <Link
+              href="/car-wash-tracking-template"
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                pathname === '/car-wash-tracking-template'
+                  ? 'bg-[#2DD4A0] text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              Free Template
+            </Link>
+            <Link
+              href="/how-it-works"
+              className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
+                pathname === '/how-it-works'
+                  ? 'bg-[#2DD4A0] text-slate-950 font-bold shadow-sm'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              How It Works
+            </Link>
+          </nav>
+        )}
 
         {/* Right CTA */}
         <div className="hidden md:flex items-center gap-4">
@@ -119,7 +167,7 @@ export default function Navbar() {
               href="/auth/signup"
               className="inline-flex items-center justify-center px-5 py-2 rounded-full bg-white hover:bg-slate-100 text-[#0A0D12] text-xs font-semibold transition-all hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] active:scale-[0.98]"
             >
-              <span>Get Torque Care</span>
+              <span>Track Your Car</span>
             </Link>
           ) : isOwnerPortal ? (
             <div className="flex items-center gap-3">

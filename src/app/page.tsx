@@ -22,6 +22,9 @@ import {
   Building2,
   DollarSign,
   TrendingDown,
+  Calculator,
+  FileSpreadsheet,
+  BookOpen,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 
@@ -179,14 +182,19 @@ export default function HomePage() {
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-16 sm:pt-20 lg:pt-28 pb-12 sm:pb-16 flex-1 flex flex-col justify-center">
           <div className="max-w-2xl text-left">
             
+            {/* Tagline */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 text-[#2DD4A0] text-xs font-mono font-bold uppercase tracking-wider mb-5">
+              <span>Your Car. Always Cared For.</span>
+            </div>
+
             {/* Bold Headline */}
             <motion.h1
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7 }}
-              className="text-4xl sm:text-6xl lg:text-[72px] font-bold text-white tracking-[0.02em] leading-[1.04] uppercase font-automotive-title mb-6"
+              className="text-4xl sm:text-6xl lg:text-[68px] font-bold text-white tracking-[0.02em] leading-[1.04] uppercase font-automotive-title mb-6"
             >
-              TRACK YOUR MISSED WASHES.
+              KNOW WHEN IT WAS WASHED. KEEP TRACK OF WHAT YOU PAY.
             </motion.h1>
 
             {/* Subheading */}
@@ -194,10 +202,35 @@ export default function HomePage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.15 }}
-              className="text-base sm:text-lg text-white/75 max-w-lg font-normal leading-relaxed mb-10"
+              className="text-base sm:text-lg text-white/75 max-w-xl font-normal leading-relaxed mb-8"
             >
-              Track your missed washes for the month and pay only for the washes. Register with us, track daily washes with a simple Yes / No, and analyse your monthly services provided.
+              Torque Care helps car owners maintain a record of their daily car cleaning, track missed washes and understand their monthly payments — without replacing their existing car washer.
             </motion.p>
+
+            {/* Four Pillars Pills */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.7, delay: 0.2 }}
+              className="flex items-center gap-2.5 sm:gap-3 flex-wrap mb-8 text-xs font-mono text-white/70"
+            >
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                <Check className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                <span>Wash calendar</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                <Check className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                <span>Missed-wash records</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                <Check className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                <span>Daily 1-tap check</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/5 border border-white/10">
+                <Check className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                <span>Fair-payment tracking</span>
+              </div>
+            </motion.div>
 
             {/* CTAs */}
             <motion.div
@@ -213,6 +246,15 @@ export default function HomePage() {
               >
                 <span>Track Your Car</span>
                 <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              </Link>
+
+              {/* Secondary Calculator Button */}
+              <Link
+                href="/car-wash-payment-calculator"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-full bg-white/5 hover:bg-white/10 text-white text-sm font-bold border border-white/10 transition-all hover:border-[#2DD4A0]/40"
+              >
+                <Calculator className="w-4 h-4 text-[#2DD4A0]" />
+                <span>Free Payment Calculator</span>
               </Link>
             </motion.div>
 
@@ -449,7 +491,117 @@ export default function HomePage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 4. THREE STEP HOW IT WORKS */}
+      {/* 4. TOOLS & ARCHITECTURE SUITE */}
+      {/* ========================================================================= */}
+      <section className="py-24 sm:py-32 bg-[#0A0D12] border-b border-white/[0.08]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
+            <span className="text-xs font-mono font-bold tracking-[0.2em] text-[#2DD4A0] uppercase block">
+              FREE TOOLS &amp; RESOURCES
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-white uppercase font-automotive-title">
+              Tools to track, calculate and settle fairly
+            </h2>
+            <p className="text-sm text-white/65 leading-relaxed font-normal">
+              Explore our free interactive payment calculator, attendance guides, and downloadable templates built specifically for apartment car owners.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Card 1: Calculator */}
+            <div className="p-6 rounded-2xl bg-[#11161D] border border-white/[0.08] hover:border-[#2DD4A0]/40 transition-all flex flex-col justify-between space-y-6 group">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 flex items-center justify-center text-[#2DD4A0]">
+                  <Calculator className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-white group-hover:text-[#2DD4A0] transition-colors">
+                  Payment Calculator
+                </h3>
+                <p className="text-xs text-white/60 leading-relaxed">
+                  Enter your monthly fee, scheduled holidays, and missed washes to calculate exact fair deductions with zero arguments.
+                </p>
+              </div>
+              <Link
+                href="/car-wash-payment-calculator"
+                className="text-xs font-bold font-mono text-[#2DD4A0] flex items-center gap-1.5 hover:underline"
+              >
+                <span>Calculate Deductions</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {/* Card 2: Tracking Guide */}
+            <div className="p-6 rounded-2xl bg-[#11161D] border border-white/[0.08] hover:border-[#2DD4A0]/40 transition-all flex flex-col justify-between space-y-6 group">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                  <Calendar className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-white group-hover:text-[#2DD4A0] transition-colors">
+                  Wash Calendar Guide
+                </h3>
+                <p className="text-xs text-white/60 leading-relaxed">
+                  Explore our interactive monthly calendar demo. Learn how 1-tap daily confirmation maintains indisputable proof.
+                </p>
+              </div>
+              <Link
+                href="/car-wash-tracking"
+                className="text-xs font-bold font-mono text-blue-400 flex items-center gap-1.5 hover:underline"
+              >
+                <span>Explore Calendar</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {/* Card 3: Free Template */}
+            <div className="p-6 rounded-2xl bg-[#11161D] border border-white/[0.08] hover:border-[#2DD4A0]/40 transition-all flex flex-col justify-between space-y-6 group">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+                  <FileSpreadsheet className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-white group-hover:text-[#2DD4A0] transition-colors">
+                  Free Excel Template
+                </h3>
+                <p className="text-xs text-white/60 leading-relaxed">
+                  Download a pre-configured Excel attendance sheet or print a daily clipboard checklist for your parking bay.
+                </p>
+              </div>
+              <Link
+                href="/car-wash-tracking-template"
+                className="text-xs font-bold font-mono text-purple-400 flex items-center gap-1.5 hover:underline"
+              >
+                <span>Download Template</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
+            {/* Card 4: Missed Washes Guide */}
+            <div className="p-6 rounded-2xl bg-[#11161D] border border-white/[0.08] hover:border-[#2DD4A0]/40 transition-all flex flex-col justify-between space-y-6 group">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <h3 className="text-base font-bold text-white group-hover:text-[#2DD4A0] transition-colors">
+                  Missed-Wash Guide
+                </h3>
+                <p className="text-xs text-white/60 leading-relaxed">
+                  Understand rest days vs. missed visits. Ready-to-use polite WhatsApp templates to settle payments respectfully.
+                </p>
+              </div>
+              <Link
+                href="/guides/missed-car-washes"
+                className="text-xs font-bold font-mono text-amber-400 flex items-center gap-1.5 hover:underline"
+              >
+                <span>Read Guide</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 5. THREE STEP HOW IT WORKS */}
       {/* ========================================================================= */}
       <section className="py-24 sm:py-32 bg-[#0A0D12]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -496,7 +648,7 @@ export default function HomePage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 5. FINAL CALL TO ACTION BANNER */}
+      {/* 6. FINAL CALL TO ACTION BANNER */}
       {/* ========================================================================= */}
       <section className="py-24 sm:py-32 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto text-center">
         <div className="p-10 sm:p-16 rounded-[20px] bg-[#11161D] border border-white/[0.12] shadow-[0_24px_60px_rgba(0,0,0,0.8)] relative overflow-hidden space-y-8">
@@ -526,14 +678,24 @@ export default function HomePage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 6. FOOTER */}
+      {/* 7. FOOTER */}
       {/* ========================================================================= */}
       <footer className="bg-[#05080E] border-t border-white/[0.08] pt-14 pb-28 md:py-14 px-4 sm:px-6 lg:px-8 text-xs text-white/40">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
             <Link href="/" className="hover:opacity-95 transition-opacity">
               <TorqueLogo emblemSize={32} />
             </Link>
+            <span>• Fair Car Cleaning Records &amp; Payment Tracking</span>
+          </div>
+
+          <div className="flex items-center gap-5 sm:gap-6 text-white/60 flex-wrap justify-center font-medium">
+            <Link href="/" className="hover:text-white">Home</Link>
+            <Link href="/car-wash-payment-calculator" className="hover:text-[#2DD4A0]">Payment Calculator</Link>
+            <Link href="/car-wash-tracking" className="hover:text-[#2DD4A0]">Tracking Guide</Link>
+            <Link href="/car-wash-tracking-template" className="hover:text-[#2DD4A0]">Free Template</Link>
+            <Link href="/guides/missed-car-washes" className="hover:text-[#2DD4A0]">Missed Washes</Link>
+            <Link href="/how-it-works" className="hover:text-[#2DD4A0]">How It Works</Link>
           </div>
 
           <div>© 2026 Torque Care Technologies Inc. All rights reserved.</div>
