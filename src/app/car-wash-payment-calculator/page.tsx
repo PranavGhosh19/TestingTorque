@@ -27,7 +27,7 @@ export default function CarWashPaymentCalculatorPage() {
   const [daysInPeriod, setDaysInPeriod] = useState<28 | 30 | 31>(30);
   const [scheduledHolidays, setScheduledHolidays] = useState<number>(4);
   const [eligibleMissedWashes, setEligibleMissedWashes] = useState<number>(6);
-  const [paymentMethod, setPaymentMethod] = useState<'per_day_calendar' | 'per_day_working' | 'fixed'>('per_day_calendar');
+  const [paymentMethod, setPaymentMethod] = useState<'per_day_calendar' | 'per_day_working' | 'fixed'>('per_day_working');
   const [copied, setCopied] = useState<boolean>(false);
 
   // Calculations
@@ -286,29 +286,7 @@ export default function CarWashPaymentCalculatorPage() {
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* Method 1: Illustrative Per-Day Deduction */}
-                <button
-                  type="button"
-                  onClick={() => setPaymentMethod('per_day_calendar')}
-                  className={`p-4 rounded-2xl border text-left transition-all ${
-                    paymentMethod === 'per_day_calendar'
-                      ? 'bg-[#2DD4A0]/10 border-[#2DD4A0] text-white ring-1 ring-[#2DD4A0]/30'
-                      : 'bg-white/[0.02] border-white/10 text-white/60 hover:bg-white/[0.05]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-[#2DD4A0] font-mono uppercase tracking-wider">
-                      Illustrative per-day deduction
-                    </span>
-                    {paymentMethod === 'per_day_calendar' && <Check className="w-3.5 h-3.5 text-[#2DD4A0]" />}
-                  </div>
-                  <div className="text-xs text-white/70 font-medium">Standard Calendar Ratio</div>
-                  <p className="text-[11px] text-white/45 mt-1 leading-snug">
-                    Fee divided across 30 days. Pay for delivered washes (Total − Holidays − Missed).
-                  </p>
-                </button>
-
-                {/* Method 2: Working Days Only */}
+                {/* Method 1: Working Days Only (Default) */}
                 <button
                   type="button"
                   onClick={() => setPaymentMethod('per_day_working')}
@@ -319,14 +297,40 @@ export default function CarWashPaymentCalculatorPage() {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                      Working-days rate
+                    <span className={`text-xs font-bold font-mono uppercase tracking-wider ${
+                      paymentMethod === 'per_day_working' ? 'text-[#2DD4A0]' : 'text-white/60'
+                    }`}>
+                      Working-days rate (Default)
                     </span>
                     {paymentMethod === 'per_day_working' && <Check className="w-3.5 h-3.5 text-[#2DD4A0]" />}
                   </div>
                   <div className="text-xs text-white/70 font-medium">Rest Days Excluded</div>
                   <p className="text-[11px] text-white/45 mt-1 leading-snug">
                     Holidays excluded from rate base. Fee divided across planned working days only.
+                  </p>
+                </button>
+
+                {/* Method 2: Illustrative Per-Day Calendar Ratio */}
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('per_day_calendar')}
+                  className={`p-4 rounded-2xl border text-left transition-all ${
+                    paymentMethod === 'per_day_calendar'
+                      ? 'bg-[#2DD4A0]/10 border-[#2DD4A0] text-white ring-1 ring-[#2DD4A0]/30'
+                      : 'bg-white/[0.02] border-white/10 text-white/60 hover:bg-white/[0.05]'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs font-bold font-mono uppercase tracking-wider ${
+                      paymentMethod === 'per_day_calendar' ? 'text-[#2DD4A0]' : 'text-white/60'
+                    }`}>
+                      Calendar-day ratio
+                    </span>
+                    {paymentMethod === 'per_day_calendar' && <Check className="w-3.5 h-3.5 text-[#2DD4A0]" />}
+                  </div>
+                  <div className="text-xs text-white/70 font-medium">Standard Calendar Ratio</div>
+                  <p className="text-[11px] text-white/45 mt-1 leading-snug">
+                    Fee divided across 30 days. Pay for delivered washes (Total − Holidays − Missed).
                   </p>
                 </button>
               </div>
