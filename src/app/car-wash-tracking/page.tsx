@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
-  Calendar,
   Check,
   X,
   AlertTriangle,
@@ -25,12 +24,11 @@ export default function CarWashTrackingGuidePage() {
   // Interactive calendar demonstration state
   const [selectedDay, setSelectedDay] = useState<number | null>(18);
   const [demoWashes, setDemoWashes] = useState<{ [day: number]: 'done' | 'missed' | 'off' }>({
-    1: 'done', 2: 'done', 3: 'done', 4: 'off', 5: 'done',
-    6: 'done', 7: 'missed', 8: 'done', 9: 'done', 10: 'done',
-    11: 'off', 12: 'done', 13: 'done', 14: 'missed', 15: 'done',
-    16: 'done', 17: 'done', 18: 'done', 19: 'done', 20: 'done',
-    21: 'done', 22: 'done', 23: 'done', 24: 'missed', 25: 'off',
-    26: 'done', 27: 'done', 28: 'done', 29: 'done', 30: 'done',
+    1: 'done', 2: 'done', 3: 'done', 4: 'done', 5: 'done', 6: 'done', 7: 'off',
+    8: 'done', 9: 'done', 10: 'missed', 11: 'done', 12: 'done', 13: 'done', 14: 'off',
+    15: 'done', 16: 'done', 17: 'done', 18: 'done', 19: 'done', 20: 'done', 21: 'off',
+    22: 'done', 23: 'done', 24: 'missed', 25: 'done', 26: 'done', 27: 'done', 28: 'off',
+    29: 'done', 30: 'done',
   });
 
   const toggleDayStatus = (day: number) => {
@@ -53,11 +51,6 @@ export default function CarWashTrackingGuidePage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[#2DD4A0]/10 rounded-full blur-[140px] pointer-events-none -z-10" />
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 text-[#2DD4A0] text-xs font-mono font-bold uppercase tracking-wider">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Product Guide • Attendance &amp; Records</span>
-          </div>
-
           <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white uppercase font-automotive-title">
             Daily Car Wash Tracking: Attendance, Records &amp; Proof
           </h1>

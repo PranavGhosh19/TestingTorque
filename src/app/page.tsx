@@ -181,20 +181,14 @@ export default function HomePage() {
         {/* Main Hero Content */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full pt-16 sm:pt-20 lg:pt-28 pb-12 sm:pb-16 flex-1 flex flex-col justify-center">
           <div className="max-w-2xl text-left">
-            
-            {/* Tagline */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 text-[#2DD4A0] text-xs font-mono font-bold uppercase tracking-wider mb-5">
-              <span>Your Car. Always Cared For.</span>
-            </div>
-
             {/* Bold Headline */}
             <motion.h1
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7 }}
-              className="text-4xl sm:text-6xl lg:text-[68px] font-bold text-white tracking-[0.02em] leading-[1.04] uppercase font-automotive-title mb-6"
+              className="text-4xl sm:text-6xl lg:text-[68px] font-bold text-white tracking-tight leading-[1.08] mb-6"
             >
-              KNOW WHEN IT WAS WASHED. KEEP TRACK OF WHAT YOU PAY.
+              Your car, always cared for
             </motion.h1>
 
             {/* Subheading */}
