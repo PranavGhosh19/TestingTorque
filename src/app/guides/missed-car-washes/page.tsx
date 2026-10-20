@@ -17,7 +17,6 @@ import {
   HelpCircle,
   FileSpreadsheet,
 } from 'lucide-react';
-import Navbar from '@/components/Navbar';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 
 export default function MissedCarWashesGuidePage() {
@@ -49,8 +48,6 @@ export default function MissedCarWashesGuidePage() {
 
   return (
     <div className="min-h-screen bg-[#0A0D12] text-white selection:bg-[#2DD4A0] selection:text-black font-sans">
-      <Navbar />
-
       {/* Hero Header */}
       <header className="relative pt-12 pb-16 sm:pt-16 sm:pb-20 border-b border-white/[0.08] overflow-hidden">
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[#2DD4A0]/10 rounded-full blur-[140px] pointer-events-none -z-10" />
