@@ -83,7 +83,7 @@ export default function CarWashPaymentCalculatorPage() {
       `• Washes Delivered: ${calculation.completedWashes} Washes (${calculation.completionRate}%)\n` +
       `• Total Deductions: ₹${calculation.deductionAmount.toFixed(2)}\n` +
       `• Estimated Amount Payable: ₹${calculation.payableAmount.toFixed(2)}\n\n` +
-      `Calculated fairly using Torque Care: https://torquecare.com/car-wash-payment-calculator`;
+      `Calculated fairly using Torque Care: https://torquecare.in/car-wash-payment-calculator`;
 
     navigator.clipboard.writeText(summaryText);
     setCopied(true);

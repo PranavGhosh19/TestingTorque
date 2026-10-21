@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://torquecare.com').replace(/\/$/, '');
+  const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://torquecare.in').replace(/\/$/, '');
   const lastModified = new Date().toISOString().split('T')[0];
 
   return [

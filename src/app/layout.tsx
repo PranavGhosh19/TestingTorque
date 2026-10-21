@@ -20,7 +20,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://torquecare.com'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://torquecare.in'),
   title: "Torque Care — Your Car. Always Cared For.",
   description: "Your car. Always cared for. Verified morning washes, trusted apartment partners, and effortless peace of mind.",
   manifest: "/manifest.json",
