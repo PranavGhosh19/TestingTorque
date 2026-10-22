@@ -220,7 +220,7 @@ export default function OwnerDashboardPage() {
         continue;
       }
 
-      const washCandidate = primaryVehicleWashes.find((w) => {
+      const washCandidate = allVehicleWashes.find((w: WashRecord) => {
         const sDate = (w.scheduled_date || '').trim();
         return sDate.startsWith(dateIso) || (w.id && w.id.includes(dateIso));
       });
@@ -257,7 +257,7 @@ export default function OwnerDashboardPage() {
     }
 
     return { washes, missed };
-  }, [todayIst, primaryVehicle, user, todayIso, allDailyFeedbacks, todayFeedbackStatus, primaryVehicleWashes]);
+  }, [todayIst, primaryVehicle, user, todayIso, allDailyFeedbacks, todayFeedbackStatus, allVehicleWashes]);
 
   // Fetch live washers catalog from Firestore to verify State-City-District-Society cluster match
   useEffect(() => {
