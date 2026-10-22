@@ -2063,6 +2063,19 @@ export async function fetchOwnerDashboardFromFirestore(
               const schedDate = wData.scheduledDate || wData.date || (wData.day ? `${wData.year}-${String(wData.monthNum || currentIst.monthNum).padStart(2, '0')}-${String(wData.day).padStart(2, '0')}` : 'Today');
               const washUniqueKey = wData.washId || wDocId || `wash_${vId}_${schedDate}`;
 
+              const rawOwnerFeedback =
+                wData.ownerFeedback ||
+                wData.answer ||
+                (wData.flaggedOrange || wData.flaggedNotCleaned || wData.status === 'missed'
+                  ? 'no'
+                  : wData.ownerFeedback === 'yes' || wData.isCleaned
+                  ? 'yes'
+                  : undefined);
+
+              const resolvedStatus =
+                (wData.status as any) ||
+                (rawOwnerFeedback === 'no' ? 'missed' : 'completed');
+
               const record: WashRecord = {
                 id: washUniqueKey,
                 vehicle_id: vId,
@@ -2073,7 +2086,7 @@ export async function fetchOwnerDashboardFromFirestore(
                 washer_name: resolvedWasherName,
                 washer_avatar: wData.washerAvatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(resolvedWasherName)}&background=0B132B&color=10B981&bold=true`,
                 washer_rating: 4.9,
-                status: (wData.status as any) || 'completed',
+                status: resolvedStatus,
                 scheduled_date: schedDate,
                 scheduled_time: vehicleObj.preferred_wash_time,
                 completed_at: wData.completedAt || null,
@@ -2083,10 +2096,13 @@ export async function fetchOwnerDashboardFromFirestore(
                 created_at: wData.createdAt?.toDate ? wData.createdAt.toDate().toISOString() : (typeof wData.createdAt === 'string' ? wData.createdAt : null),
                 is_sunday_priority: false,
                 is_backup_covered: false,
+                ownerFeedback: rawOwnerFeedback,
+                flaggedNotCleaned: rawOwnerFeedback === 'no' || !!wData.flaggedNotCleaned || !!wData.flaggedOrange,
+                notes: wData.notes || (rawOwnerFeedback === 'no' ? 'Owner flagged: Car not cleaned today by washer (Orange)' : undefined),
               };
 
               washMap.set(schedDate, record);
-              if (record.status === 'completed') {
+              if (record.status === 'completed' && record.ownerFeedback !== 'no' && !record.flaggedNotCleaned) {
                 vehicleWashCount++;
               }
             };
@@ -4585,8 +4601,10 @@ export async function saveDailyWashFeedbackToFirestore(
           date: effectiveDate,
           vehicleId: vehicleId || null,
           answer,
+          ownerFeedback: answer,
           isCleaned: answer === 'yes',
           flaggedOrange: answer === 'no',
+          flaggedNotCleaned: answer === 'no',
           status: washStatus,
           timestamp: serverTimestamp(),
           updatedAt: serverTimestamp(),
@@ -4652,7 +4670,10 @@ export async function saveDailyWashFeedbackToFirestore(
         {
           lastWashFeedbackDate: effectiveDate,
           lastWashFeedbackAnswer: answer,
+          lastOwnerFeedback: answer,
           [`wash_feedback_${effectiveDate}`]: answer,
+          [`owner_feedback_${effectiveDate}`]: answer,
+          [`ownerFeedback_${effectiveDate}`]: answer,
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -4667,7 +4688,7 @@ export async function saveDailyWashFeedbackToFirestore(
 }
 
 /**
- * Fetches all daily feedback records from Car_Owners/{ownerId}/DailyFeedback and top-level document
+ * Fetches all daily feedback records from Car_Owners/{ownerId}/DailyFeedback, top-level document, and Vehicles/Washes
  */
 export async function fetchDailyWashFeedbackFromFirestore(
   ownerId?: string
@@ -4691,8 +4712,12 @@ export async function fetchDailyWashFeedbackFromFirestore(
     );
     snap.docs.forEach((d) => {
       const data = d.data();
-      if (data.answer === 'yes' || data.answer === 'no') {
-        result[d.id] = data.answer;
+      const rawAns =
+        data.ownerFeedback ||
+        data.answer ||
+        (data.flaggedOrange || data.flaggedNotCleaned || data.status === 'missed' ? 'no' : undefined);
+      if (rawAns === 'yes' || rawAns === 'no') {
+        result[d.id] = rawAns;
       }
     });
 
@@ -4701,8 +4726,12 @@ export async function fetchDailyWashFeedbackFromFirestore(
     if (ownerDocSnap.exists()) {
       const oData = ownerDocSnap.data();
       Object.keys(oData).forEach((k) => {
-        if (k.startsWith('wash_feedback_')) {
-          const date = k.replace('wash_feedback_', '');
+        if (
+          k.startsWith('wash_feedback_') ||
+          k.startsWith('owner_feedback_') ||
+          k.startsWith('ownerFeedback_')
+        ) {
+          const date = k.replace(/^wash_feedback_|^owner_feedback_|^ownerFeedback_/, '');
           const val = oData[k];
           if ((val === 'yes' || val === 'no') && !result[date]) {
             result[date] = val;
@@ -4711,13 +4740,37 @@ export async function fetchDailyWashFeedbackFromFirestore(
       });
       if (
         oData.lastWashFeedbackDate &&
-        (oData.lastWashFeedbackAnswer === 'yes' || oData.lastWashFeedbackAnswer === 'no')
+        (oData.lastWashFeedbackAnswer === 'yes' ||
+          oData.lastWashFeedbackAnswer === 'no' ||
+          oData.lastOwnerFeedback === 'yes' ||
+          oData.lastOwnerFeedback === 'no')
       ) {
         if (!result[oData.lastWashFeedbackDate]) {
-          result[oData.lastWashFeedbackDate] = oData.lastWashFeedbackAnswer;
+          result[oData.lastWashFeedbackDate] =
+            oData.lastOwnerFeedback || oData.lastWashFeedbackAnswer;
         }
       }
     }
+
+    // 3. Scan vehicle washes for any documents with ownerFeedback or flagged status
+    try {
+      const vSnap = await getDocs(collection(db, 'Car_Owners', resolvedOwnerId, 'Vehicles'));
+      for (const vDoc of vSnap.docs) {
+        const vId = vDoc.id;
+        const wSnap = await getDocs(collection(db, 'Car_Owners', resolvedOwnerId, 'Vehicles', vId, 'Washes'));
+        wSnap.docs.forEach((w) => {
+          const wData = w.data();
+          const date = wData.scheduled_date || wData.scheduledDate || wData.date;
+          const fb =
+            wData.ownerFeedback ||
+            wData.answer ||
+            (wData.flaggedOrange || wData.flaggedNotCleaned || wData.status === 'missed' ? 'no' : undefined);
+          if (date && (fb === 'yes' || fb === 'no') && !result[date]) {
+            result[date] = fb;
+          }
+        });
+      }
+    } catch (e) {}
   } catch (err) {
     console.warn('fetchDailyWashFeedbackFromFirestore notice:', err);
   }
@@ -4746,8 +4799,12 @@ export function subscribeToDailyWashFeedbackFromFirestore(
         const feedbacks: Record<string, 'yes' | 'no'> = {};
         snap.docs.forEach((d) => {
           const data = d.data();
-          if (data.answer === 'yes' || data.answer === 'no') {
-            feedbacks[d.id] = data.answer;
+          const rawAns =
+            data.ownerFeedback ||
+            data.answer ||
+            (data.flaggedOrange || data.flaggedNotCleaned || data.status === 'missed' ? 'no' : undefined);
+          if (rawAns === 'yes' || rawAns === 'no') {
+            feedbacks[d.id] = rawAns;
           }
         });
         callback(feedbacks);

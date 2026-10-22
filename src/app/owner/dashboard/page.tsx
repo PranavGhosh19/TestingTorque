@@ -220,7 +220,23 @@ export default function OwnerDashboardPage() {
         continue;
       }
 
-      const feedback = allDailyFeedbacks[dateIso] || (dateIso === todayIso ? todayFeedbackStatus : undefined);
+      const washCandidate = primaryVehicleWashes.find((w) => {
+        const sDate = (w.scheduled_date || '').trim();
+        return sDate.startsWith(dateIso) || (w.id && w.id.includes(dateIso));
+      });
+
+      const washOwnerFb =
+        washCandidate?.ownerFeedback === 'no' ||
+        (washCandidate as any)?.flaggedNotCleaned ||
+        (washCandidate as any)?.flaggedOrange ||
+        washCandidate?.status === 'missed'
+          ? 'no'
+          : washCandidate?.ownerFeedback === 'yes' || (washCandidate as any)?.isCleaned
+          ? 'yes'
+          : undefined;
+
+      const directFb = allDailyFeedbacks[dateIso] || (dateIso === todayIso ? todayFeedbackStatus : undefined);
+      const feedback = directFb === 'no' || washOwnerFb === 'no' ? 'no' : (directFb === 'yes' || washOwnerFb === 'yes' ? 'yes' : undefined);
 
       if (dateIso === todayIso) {
         // TODAY: in progress unless explicitly answered
@@ -241,7 +257,7 @@ export default function OwnerDashboardPage() {
     }
 
     return { washes, missed };
-  }, [todayIst, primaryVehicle, user, todayIso, allDailyFeedbacks, todayFeedbackStatus]);
+  }, [todayIst, primaryVehicle, user, todayIso, allDailyFeedbacks, todayFeedbackStatus, primaryVehicleWashes]);
 
   // Fetch live washers catalog from Firestore to verify State-City-District-Society cluster match
   useEffect(() => {

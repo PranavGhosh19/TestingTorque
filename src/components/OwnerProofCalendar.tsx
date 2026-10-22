@@ -433,26 +433,50 @@ export default function OwnerProofCalendar({
         });
       }
 
-      // User requirement: If the user doesn't answer the question by the end of the day of that day,
+      // User requirement: from the firestore, if ownerFeedback is "no", flag that in orange in the calendar.
+      // Also: If the user doesn't answer the question by the end of the day of that day,
       // assume that the car was washed successfully, consider that "Yes".
       // Example: On 18th October 2026, the user never opened the app, by the end of the day consider that the car was washed.
-      const rawFeedback = dailyFeedbacks[isoDate];
-      const isAutoYes = isPast && !isPriorToStart && !isRestDay && !rawFeedback;
-      const effectiveFeedback = rawFeedback || (isAutoYes ? 'yes' : undefined) || (matchingWash?.status === 'missed' ? 'no' : undefined);
+      const directFeedback = dailyFeedbacks[isoDate];
+      const washOwnerFeedback: 'yes' | 'no' | undefined = (
+        matchingWash?.ownerFeedback === 'no' ||
+        (matchingWash as any)?.flaggedNotCleaned ||
+        (matchingWash as any)?.flaggedOrange ||
+        matchingWash?.status === 'missed'
+      )
+        ? 'no'
+        : (matchingWash?.ownerFeedback === 'yes' || (matchingWash as any)?.isCleaned)
+        ? 'yes'
+        : undefined;
+
+      // If either Firestore feedback or wash document feedback has 'no', then 'no' takes absolute precedence!
+      const resolvedFeedback: 'yes' | 'no' | undefined =
+        directFeedback === 'no' || washOwnerFeedback === 'no'
+          ? 'no'
+          : directFeedback === 'yes' || washOwnerFeedback === 'yes'
+          ? 'yes'
+          : undefined;
+
+      const isAutoYes = isPast && !isPriorToStart && !isRestDay && !resolvedFeedback;
+      const effectiveFeedback: 'yes' | 'no' | undefined = resolvedFeedback || (isAutoYes ? 'yes' : undefined);
 
       let hasProofUploaded = false;
       let isMissingProof = false;
       let isVehicleUnavailable = false;
 
       // STRICT RULES:
-      // 1. If prior to serviceStartDate -> Pre-enrollment day (NO washes, NO alerts, NO proofs)
-      // 2. If washer rest day (e.g. Sunday or weekly leave) -> Rest day (no wash)
-      // 3. On active service days:
-      //    - If owner answered 'no' -> Flag it Orange (Missed wash)
+      // 1. If owner answered 'no' / ownerFeedback === 'no' -> Flag it Orange (Missed wash)
+      // 2. If prior to serviceStartDate -> Pre-enrollment day (NO washes, NO alerts, NO proofs)
+      // 3. If washer rest day (e.g. Sunday or weekly leave) -> Rest day (no wash)
+      // 4. On active service days:
       //    - If owner answered 'yes' -> Cleaned ✓ (Green)
       //    - If past day without an answer -> Auto-confirmed "Yes" (Cleaned ✓) by end of day
       //    - Today without completed wash remains scheduled/in progress until answered or end of day
-      if (isPriorToStart) {
+      if (effectiveFeedback === 'no') {
+        isMissingProof = true;
+        hasProofUploaded = false;
+        isVehicleUnavailable = false;
+      } else if (isPriorToStart) {
         hasProofUploaded = false;
         isMissingProof = false;
         isVehicleUnavailable = false;
@@ -461,10 +485,7 @@ export default function OwnerProofCalendar({
         isMissingProof = false;
         isVehicleUnavailable = false;
       } else {
-        if (effectiveFeedback === 'no') {
-          isMissingProof = true;
-          hasProofUploaded = false;
-        } else if (effectiveFeedback === 'yes' || isPast) {
+        if (effectiveFeedback === 'yes' || isPast) {
           hasProofUploaded = true;
           isMissingProof = false;
         } else if (matchingWash) {
@@ -514,12 +535,12 @@ export default function OwnerProofCalendar({
   ]);
 
   // Summary counts for current month view (strictly excluding pre-start days)
-  const verifiedCount = days.filter((d) => !d.isPriorToStart && d.hasProofUploaded).length;
+  const verifiedCount = days.filter((d) => !d.isPriorToStart && d.hasProofUploaded && d.feedback !== 'no').length;
   const missingOrAlertCount = days.filter(
-    (d) => !d.isPriorToStart && (d.isMissingProof || d.isVehicleUnavailable)
+    (d) => !d.isPriorToStart && (d.isMissingProof || d.isVehicleUnavailable || d.feedback === 'no' || d.wash?.ownerFeedback === 'no')
   ).length;
   const scheduledCount = days.filter(
-    (d) => !d.isPriorToStart && (d.isFuture || d.isToday) && !d.isRestDay && !d.hasProofUploaded && !d.isMissingProof
+    (d) => !d.isPriorToStart && (d.isFuture || d.isToday) && !d.isRestDay && !d.hasProofUploaded && !d.isMissingProof && d.feedback !== 'no'
   ).length;
 
   useEffect(() => {
@@ -672,7 +693,15 @@ export default function OwnerProofCalendar({
             let dotColor = 'bg-[#2DD4A0]/40';
             let titleText = `Day ${day.date}: Scheduled care`;
 
-            if (day.isPriorToStart) {
+            const isFlaggedOrange = day.isMissingProof || day.feedback === 'no' || day.wash?.ownerFeedback === 'no';
+
+            if (isFlaggedOrange) {
+              // Flagged Orange in the calendar (ownerFeedback is "no")
+              cellClasses =
+                'bg-amber-500/15 text-amber-300 border border-amber-400/50 hover:bg-amber-500/25 shadow-[0_0_12px_rgba(251,191,36,0.25)]';
+              dotColor = 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]';
+              titleText = `Day ${day.date}: Flagged Orange • Car not cleaned by washer`;
+            } else if (day.isPriorToStart) {
               // Past day before user registered
               cellClasses =
                 'bg-white/[0.01] text-white/20 border border-white/[0.03] opacity-35 hover:opacity-60 cursor-pointer';
@@ -687,13 +716,11 @@ export default function OwnerProofCalendar({
                   ? 'Washed by default at end of day ✓'
                   : 'Cleaned ✓'
               }`;
-            } else if (day.isMissingProof || day.isVehicleUnavailable) {
+            } else if (day.isVehicleUnavailable) {
               cellClasses =
                 'bg-amber-500/10 text-amber-200 border border-amber-400/30 hover:bg-amber-500/20';
               dotColor = 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]';
-              titleText = `Day ${day.date}: ${
-                day.isVehicleUnavailable ? 'Vehicle unavailable' : 'Proof flagged'
-              }`;
+              titleText = `Day ${day.date}: Vehicle unavailable`;
             } else if (day.isRestDay) {
               cellClasses =
                 'bg-white/[0.01] text-white/30 border border-white/[0.04]';
@@ -708,11 +735,11 @@ export default function OwnerProofCalendar({
 
             // Highlighting TODAY when today is ON or AFTER service start date
             if (day.isToday && !day.isPriorToStart) {
-              if (day.isMissingProof) {
+              if (isFlaggedOrange) {
                 cellClasses =
-                  'bg-amber-500/20 text-amber-200 font-black border-2 border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.5)] scale-[1.02]';
-                dotColor = 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]';
-                titleText = `Day ${day.date}: Today • Flagged: Car not cleaned by washer (Orange)`;
+                  'bg-amber-500/20 text-amber-300 font-black border-2 border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.6)] scale-[1.02]';
+                dotColor = 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]';
+                titleText = `Day ${day.date}: Today • Flagged Orange: Car not cleaned by washer`;
               } else if (day.hasProofUploaded) {
                 cellClasses =
                   'bg-[#2DD4A0] text-[#0A0D12] font-black shadow-[0_0_15px_rgba(45,212,160,0.4)] border-[#2DD4A0] scale-[1.02]';
@@ -738,7 +765,9 @@ export default function OwnerProofCalendar({
               >
                 <span
                   className={`text-xs sm:text-sm font-bold ${
-                    day.isToday
+                    isFlaggedOrange
+                      ? 'text-amber-300 font-black'
+                      : day.isToday
                       ? day.isPriorToStart
                         ? 'text-[#2DD4A0] font-black'
                         : day.hasProofUploaded
@@ -798,18 +827,24 @@ export default function OwnerProofCalendar({
       {/* MODAL: PROOF INSPECTION ON DATE CLICK                        */}
       {/* ============================================================ */}
       {selectedDay && (() => {
-        const rawSelectedFeedback = dailyFeedbacks[selectedDay.isoDate];
+        const rawSelectedFeedback =
+          selectedDay.feedback ||
+          dailyFeedbacks[selectedDay.isoDate] ||
+          (selectedDay.wash?.ownerFeedback as 'yes' | 'no') ||
+          ((selectedDay.wash as any)?.flaggedNotCleaned || (selectedDay.wash as any)?.flaggedOrange || selectedDay.wash?.status === 'missed' ? 'no' : undefined);
         const isAutoConfirmedPast =
           selectedDay.isPast &&
           !selectedDay.isPriorToStart &&
           !selectedDay.isRestDay &&
-          !rawSelectedFeedback;
+          !rawSelectedFeedback &&
+          !selectedDay.isMissingProof;
         const selectedFeedback = rawSelectedFeedback || (isAutoConfirmedPast ? 'yes' : undefined);
 
+        const isCurrentlyMissed = selectedFeedback === 'no' || selectedDay.isMissingProof || selectedDay.wash?.ownerFeedback === 'no';
         const isCurrentlyCleaned =
-          selectedFeedback === 'yes' ||
-          (selectedDay.isPast && !selectedDay.isPriorToStart && !selectedDay.isRestDay && selectedFeedback !== 'no');
-        const isCurrentlyMissed = selectedFeedback === 'no';
+          !isCurrentlyMissed &&
+          (selectedFeedback === 'yes' ||
+          (selectedDay.isPast && !selectedDay.isPriorToStart && !selectedDay.isRestDay));
         const isCurrentlyVehicleUnavailable = !isCurrentlyCleaned && !isCurrentlyMissed && selectedDay.isVehicleUnavailable;
 
         return (
