@@ -2,62 +2,80 @@ import type { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = (process.env.NEXT_PUBLIC_SITE_URL || 'https://torquecare.in').replace(/\/$/, '');
-  const lastModified = new Date().toISOString().split('T')[0];
 
   return [
+    // Core Product & Landing
     {
       url: `${baseUrl}`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 1.0,
-    },
-    {
-      url: `${baseUrl}/car-wash-payment-calculator`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/car-wash-tracking`,
-      lastModified,
-      changeFrequency: 'weekly',
-      priority: 0.9,
-    },
-    {
-      url: `${baseUrl}/car-wash-tracking-template`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
-      url: `${baseUrl}/guides/missed-car-washes`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.8,
+      lastModified: '2026-10-20',
     },
     {
       url: `${baseUrl}/how-it-works`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.8,
+      lastModified: '2026-10-20',
     },
     {
+      url: `${baseUrl}/pricing`,
+      lastModified: '2026-10-21',
+    },
+
+    // High-Intent Free Utilities & Tools
+    {
+      url: `${baseUrl}/car-wash-payment-calculator`,
+      lastModified: '2026-10-21',
+    },
+    {
+      url: `${baseUrl}/car-wash-tracking`,
+      lastModified: '2026-10-20',
+    },
+    {
+      url: `${baseUrl}/car-wash-tracking-template`,
+      lastModified: '2026-10-20',
+    },
+
+    // SEO Guides & Educational Cluster
+    {
+      url: `${baseUrl}/guides`,
+      lastModified: '2026-10-21',
+    },
+    {
+      url: `${baseUrl}/guides/car-washer-attendance-tracking`,
+      lastModified: '2026-10-21',
+    },
+    {
+      url: `${baseUrl}/guides/pay-for-missed-car-wash-days`,
+      lastModified: '2026-10-21',
+    },
+    {
+      url: `${baseUrl}/guides/monthly-car-wash-cost-india`,
+      lastModified: '2026-10-21',
+    },
+    {
+      url: `${baseUrl}/guides/missed-car-washes`,
+      lastModified: '2026-10-20',
+    },
+
+    // Trust, Company & Legal Pages
+    {
       url: `${baseUrl}/about`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.7,
+      lastModified: '2026-10-16',
     },
     {
       url: `${baseUrl}/contact`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.6,
+      lastModified: '2026-10-11',
     },
     {
+      url: `${baseUrl}/privacy`,
+      lastModified: '2026-10-21',
+    },
+    {
+      url: `${baseUrl}/terms`,
+      lastModified: '2026-10-21',
+    },
+
+    // User Onboarding Entry
+    {
       url: `${baseUrl}/auth/signup`,
-      lastModified,
-      changeFrequency: 'monthly',
-      priority: 0.5,
+      lastModified: '2026-10-18',
     },
   ];
 }

@@ -685,11 +685,15 @@ export default function HomePage() {
 
           <div className="flex items-center gap-5 sm:gap-6 text-white/60 flex-wrap justify-center font-medium">
             <Link href="/" className="hover:text-white">Home</Link>
+            <Link href="/guides" className="hover:text-white">Guides</Link>
             <Link href="/car-wash-payment-calculator" className="hover:text-[#2DD4A0]">Payment Calculator</Link>
             <Link href="/car-wash-tracking" className="hover:text-[#2DD4A0]">Tracking Guide</Link>
             <Link href="/car-wash-tracking-template" className="hover:text-[#2DD4A0]">Free Template</Link>
-            <Link href="/guides/missed-car-washes" className="hover:text-[#2DD4A0]">Missed Washes</Link>
-            <Link href="/how-it-works" className="hover:text-[#2DD4A0]">How It Works</Link>
+            <Link href="/pricing" className="hover:text-white">Pricing</Link>
+            <Link href="/about" className="hover:text-white">About</Link>
+            <Link href="/privacy" className="hover:text-white">Privacy</Link>
+            <Link href="/terms" className="hover:text-white">Terms</Link>
+            <Link href="/contact" className="hover:text-white">Contact</Link>
           </div>
 
           <div>© 2026 Torque Care Technologies Inc. All rights reserved.</div>

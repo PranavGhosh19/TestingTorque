@@ -135,27 +135,27 @@ export default function Navbar() {
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
-              Tracking Guide
+              Tracking
             </Link>
             <Link
-              href="/car-wash-tracking-template"
+              href="/guides"
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                pathname === '/car-wash-tracking-template'
+                pathname.startsWith('/guides')
                   ? 'bg-[#2DD4A0] text-slate-950 font-bold shadow-sm'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
-              Free Template
+              Guides
             </Link>
             <Link
-              href="/how-it-works"
+              href="/pricing"
               className={`px-3 py-1.5 rounded-xl text-xs font-medium transition-all ${
-                pathname === '/how-it-works'
+                pathname === '/pricing'
                   ? 'bg-[#2DD4A0] text-slate-950 font-bold shadow-sm'
                   : 'text-slate-300 hover:text-white hover:bg-white/10'
               }`}
             >
-              How It Works
+              Pricing
             </Link>
           </nav>
         )}
