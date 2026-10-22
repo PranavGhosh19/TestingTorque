@@ -25,6 +25,7 @@ import {
   isWasherMatchForOwner,
   saveDailyWashFeedbackToFirestore,
   fetchDailyWashFeedbackFromFirestore,
+  subscribeToDailyWashFeedbackFromFirestore,
 } from '@/lib/firebaseService';
 import { Vehicle, WasherPartner, WashRecord } from '@/lib/types';
 import { isPresentDateProofBefore10AM, isWashFromToday, getTodayISTDate } from '@/lib/washUtils';
@@ -376,20 +377,51 @@ export default function OwnerDashboardPage() {
     return washerSocietiesCovered || parkingBayOnly;
   }, [washerSocietiesCovered, parkingBayOnly]);
 
-  // Check if owner has answered today's wash verification question in Firestore
+  // 1. Fetch & Subscribe in real-time to owner's daily wash feedbacks from Firestore
+  useEffect(() => {
+    let isMounted = true;
+    const targetOwnerId =
+      user.id && user.id !== 'usr_guest'
+        ? user.id
+        : typeof window !== 'undefined'
+        ? localStorage.getItem('torque_owner_id')
+        : null;
+
+    if (!targetOwnerId) return;
+
+    // Initial load from Firestore
+    fetchDailyWashFeedbackFromFirestore(targetOwnerId).then((fb) => {
+      if (isMounted && fb && Object.keys(fb).length > 0) {
+        setAllDailyFeedbacks((prev) => ({ ...prev, ...fb }));
+        if (fb[todayIso]) {
+          setTodayFeedbackStatus(fb[todayIso]);
+        }
+      }
+    });
+
+    // Real-time listener for any feedback saves across calendar days
+    const unsubscribe = subscribeToDailyWashFeedbackFromFirestore(targetOwnerId, (feedbacks) => {
+      if (isMounted && feedbacks) {
+        setAllDailyFeedbacks((prev) => ({ ...prev, ...feedbacks }));
+        if (feedbacks[todayIso]) {
+          setTodayFeedbackStatus(feedbacks[todayIso]);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [user.id, todayIso]);
+
+  // 2. Check if owner should be prompted for today's wash verification modal
   useEffect(() => {
     let isMounted = true;
     let timer: NodeJS.Timeout | null = null;
 
-    async function checkDailyFeedback() {
-      // Clean up legacy local storage cache
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem('torque_daily_wash_feedbacks');
-        } catch (e) {}
-      }
-
-      // 1. Service start date check: Care starts from registration day onwards (same day!)
+    function evaluateDailyPrompt() {
+      // 1. Service start date check: Care starts from registration day onwards
       const signupDate =
         primaryVehicle?.signupDate ||
         user?.signupDate ||
@@ -416,74 +448,50 @@ export default function OwnerDashboardPage() {
         return; // Default Sunday rest
       }
 
-      // 3. Resolve owner ID
-      const targetOwnerId =
-        user.id && user.id !== 'usr_guest'
-          ? user.id
-          : typeof window !== 'undefined'
-          ? localStorage.getItem('torque_owner_id')
-          : null;
+      // 3. Fast guard: if question was already answered for today
+      if (todayFeedbackStatus || allDailyFeedbacks[todayIso]) {
+        return;
+      }
 
-      if (!targetOwnerId) return;
-
-      // 3. Fast local guard: if question was already answered today, do NOT show popup!
       if (typeof window !== 'undefined') {
         const localAnswer = localStorage.getItem(`torque_daily_feedback_answered_${todayIso}`);
         if (localAnswer === 'yes' || localAnswer === 'no') {
-          if (isMounted) {
-            setTodayFeedbackStatus(localAnswer as 'yes' | 'no');
-            setAllDailyFeedbacks((prev) => ({ ...prev, [todayIso]: localAnswer as 'yes' | 'no' }));
-          }
+          return;
+        }
+        const dismissed = localStorage.getItem(`torque_daily_feedback_dismissed_${todayIso}`);
+        if (dismissed === 'true') {
           return;
         }
       }
 
-      try {
-        const feedbacks = await fetchDailyWashFeedbackFromFirestore(targetOwnerId);
-        if (!isMounted) return;
-
-        if (feedbacks) {
-          setAllDailyFeedbacks(feedbacks);
-        }
-
-        // 4. Firestore check: if question was already answered for today, do NOT show popup!
-        if (feedbacks && feedbacks[todayIso]) {
-          setTodayFeedbackStatus(feedbacks[todayIso]);
-          if (typeof window !== 'undefined') {
-            localStorage.setItem(`torque_daily_feedback_answered_${todayIso}`, feedbacks[todayIso]);
-          }
-          return;
-        }
-
-        // 5. Dismissal check: if owner dismissed the modal today, don't keep showing it
-        if (typeof window !== 'undefined') {
-          const dismissed = localStorage.getItem(`torque_daily_feedback_dismissed_${todayIso}`);
-          if (dismissed === 'true') return;
-        }
-
-        // 6. Only prompt if question has NOT been answered for the day
-        timer = setTimeout(() => {
-          if (isMounted) setShowDailyFeedbackModal(true);
-        }, 700);
-      } catch (e) {
-        console.warn('Daily feedback Firestore check notice:', e);
-      }
+      // 4. Only prompt if question has NOT been answered for the day
+      timer = setTimeout(() => {
+        if (isMounted) setShowDailyFeedbackModal(true);
+      }, 700);
     }
 
-    checkDailyFeedback();
+    evaluateDailyPrompt();
+
     return () => {
       isMounted = false;
       if (timer) clearTimeout(timer);
     };
-  }, [todayIso, user.id]);
+  }, [todayIso, user.id, primaryVehicle, todayFeedbackStatus, allDailyFeedbacks]);
 
-  const handleDailyFeedbackAnswer = async (answer: 'yes' | 'no') => {
-    setTodayFeedbackStatus(answer);
-    setShowDailyFeedbackModal(false);
-    setAllDailyFeedbacks((prev) => ({ ...prev, [todayIso]: answer }));
+  const handleDailyFeedbackAnswer = async (answer: 'yes' | 'no', targetDate?: string) => {
+    const effectiveDate = targetDate || todayIso;
+    const isToday = effectiveDate === todayIso;
+
+    if (isToday) {
+      setTodayFeedbackStatus(answer);
+      setShowDailyFeedbackModal(false);
+    }
+
+    // Optimistically update allDailyFeedbacks so calendar cells and monthMetrics reflect instantly
+    setAllDailyFeedbacks((prev) => ({ ...prev, [effectiveDate]: answer }));
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`torque_daily_feedback_answered_${todayIso}`, answer);
+      localStorage.setItem(`torque_daily_feedback_answered_${effectiveDate}`, answer);
     }
 
     const targetOwnerId =
@@ -493,46 +501,46 @@ export default function OwnerDashboardPage() {
         ? localStorage.getItem('torque_owner_id')
         : null;
 
-    if (answer === 'no') {
-      setFirebaseTodayWash((prev) => {
-        return {
-          id: prev?.id || `wash_missed_${todayIso}`,
-          vehicle_id: primaryVehicle?.id || 'veh_default',
-          washer_id: targetWasherId || 'wsh_assigned',
-          status: 'missed',
-          flaggedNotCleaned: true,
-          ownerFeedback: 'no',
-          scheduled_date: todayIso,
-          month_key: todayIst.monthKey,
-          notes: 'Owner flagged: Car not cleaned today by washer (Orange)',
-        } as unknown as WashRecord;
-      });
-    } else {
-      setFirebaseTodayWash((prev) => {
-        return {
-          id: prev?.id || `wash_verified_${todayIso}`,
-          vehicle_id: primaryVehicle?.id || 'veh_default',
-          washer_id: targetWasherId || 'wsh_assigned',
-          status: 'completed',
-          flaggedNotCleaned: false,
-          ownerFeedback: 'yes',
-          scheduled_date: todayIso,
-          completed_at: prev?.completed_at || '08:00 AM',
-          after_photo: prev?.after_photo || '/images/creta_after.jpg',
-          notes: 'Owner verified: Cleaned ✓',
-        } as unknown as WashRecord;
-      });
+    if (isToday) {
+      if (answer === 'no') {
+        setFirebaseTodayWash((prev) => {
+          return {
+            id: prev?.id || `wash_missed_${todayIso}`,
+            vehicle_id: primaryVehicle?.id || 'veh_default',
+            washer_id: targetWasherId || 'wsh_assigned',
+            status: 'missed',
+            flaggedNotCleaned: true,
+            ownerFeedback: 'no',
+            scheduled_date: todayIso,
+            month_key: todayIst.monthKey,
+            notes: 'Owner flagged: Car not cleaned today by washer (Orange)',
+          } as unknown as WashRecord;
+        });
+      } else {
+        setFirebaseTodayWash((prev) => {
+          return {
+            id: prev?.id || `wash_verified_${todayIso}`,
+            vehicle_id: primaryVehicle?.id || 'veh_default',
+            washer_id: targetWasherId || 'wsh_assigned',
+            status: 'completed',
+            flaggedNotCleaned: false,
+            ownerFeedback: 'yes',
+            scheduled_date: todayIso,
+            completed_at: prev?.completed_at || '08:00 AM',
+            after_photo: prev?.after_photo || '/images/creta_after.jpg',
+            notes: 'Owner verified: Cleaned ✓',
+          } as unknown as WashRecord;
+        });
+      }
     }
 
     try {
-      if (targetOwnerId) {
-        await saveDailyWashFeedbackToFirestore(
-          targetOwnerId,
-          primaryVehicle?.id,
-          todayIso,
-          answer
-        );
-      }
+      await saveDailyWashFeedbackToFirestore(
+        targetOwnerId || undefined,
+        primaryVehicle?.id,
+        effectiveDate,
+        answer
+      );
     } catch (err) {
       console.warn('Failed to save daily wash feedback to Firestore:', err);
     }
@@ -735,8 +743,7 @@ export default function OwnerDashboardPage() {
             signupDate={primaryVehicle?.signupDate || user?.signupDate}
             serviceStartDate={primaryVehicle?.serviceStartDate || user?.serviceStartDate}
             onFeedbackChange={(dateIso, ans) => {
-              if (dateIso === todayIso) setTodayFeedbackStatus(ans);
-              setAllDailyFeedbacks((prev) => ({ ...prev, [dateIso]: ans }));
+              handleDailyFeedbackAnswer(ans, dateIso);
             }}
           />
         </div>

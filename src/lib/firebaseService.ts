@@ -12,6 +12,7 @@ import {
   query,
   where,
   serverTimestamp,
+  onSnapshot,
 } from 'firebase/firestore';
 import { ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { db, storage, auth } from './firebase';
@@ -4497,9 +4498,35 @@ export async function fetchCarOwnerProfileData(
 }
 
 /**
- * Saves owner daily feedback for today's wash ("Was your Car cleaned today by the washer? Yes / No")
+ * Resolves the active owner document ID from direct argument, localStorage, or torque_user.
+ */
+export function resolveEffectiveOwnerId(ownerId?: string): string | null {
+  if (ownerId && ownerId !== 'usr_guest') return ownerId;
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('torque_owner_id');
+    if (stored && stored !== 'usr_guest') return stored;
+    try {
+      const u = localStorage.getItem('torque_user');
+      if (u) {
+        const parsed = JSON.parse(u);
+        if (parsed?.id && parsed.id !== 'usr_guest') return parsed.id;
+      }
+    } catch {}
+    const adminUid = localStorage.getItem('torque_admin_uid');
+    if (adminUid && adminUid !== 'usr_guest') return adminUid;
+  }
+  return null;
+}
+
+/**
+ * Saves owner daily feedback for any calendar wash date ("Was your Car cleaned today by the washer? Yes / No")
  * - If "yes": records status as completed / cleaned.
- * - If "no": flags the wash as missed/not cleaned (Orange in Calendar).
+ * - If "no": flags the wash as missed / not cleaned (Orange in Calendar).
+ * Writes reliably to:
+ * 1. Car_Owners/{ownerId}/DailyFeedback/{dateIso}
+ * 2. Car_Owners/{ownerId}/Vehicles/{vehicleId}/{monthKey}/{dateIso} & Months/{monthKey}/Dates/{dateIso}
+ * 3. Car_Owners/{ownerId}/Vehicles/{vehicleId}/Washes/wash_{vehicleId}_{dateIso}
+ * 4. Car_Owners/{ownerId} top-level document fields
  */
 export async function saveDailyWashFeedbackToFirestore(
   ownerId?: string,
@@ -4510,23 +4537,44 @@ export async function saveDailyWashFeedbackToFirestore(
   try {
     const today = getTodayISTDate();
     const effectiveDate = dateIso || today.dateIso;
-    const resolvedOwnerId =
-      ownerId && ownerId !== 'usr_guest'
-        ? ownerId
-        : typeof window !== 'undefined'
-        ? localStorage.getItem('torque_owner_id')
-        : null;
+    const resolvedOwnerId = resolveEffectiveOwnerId(ownerId);
 
-    // Clean up any legacy local storage if present
+    // Clean up any legacy local storage if present and sync current day
     if (typeof window !== 'undefined') {
       try {
         localStorage.removeItem('torque_daily_wash_feedbacks');
+        localStorage.setItem(`torque_daily_feedback_answered_${effectiveDate}`, answer);
       } catch (e) {}
     }
 
     if (!resolvedOwnerId) {
       return { success: true };
     }
+
+    // Determine accurate monthKey for this effectiveDate (e.g. "October_2026")
+    let monthKey: string;
+    if (effectiveDate && effectiveDate.includes('-')) {
+      const [y, m, d] = effectiveDate.split('-').map(Number);
+      const dObj = new Date(y, m - 1, d, 12, 0, 0);
+      monthKey = getTodayISTDate(dObj).monthKey;
+    } else {
+      monthKey = today.monthKey;
+    }
+
+    const washStatus = answer === 'yes' ? 'completed' : 'missed';
+    const washPatch = {
+      status: washStatus,
+      ownerFeedback: answer,
+      flaggedNotCleaned: answer === 'no',
+      isCleaned: answer === 'yes',
+      scheduled_date: effectiveDate,
+      month_key: monthKey,
+      notes:
+        answer === 'no'
+          ? 'Owner flagged: Car not cleaned today by washer (Orange)'
+          : 'Owner confirmed: Cleaned ✓',
+      updatedAt: serverTimestamp(),
+    };
 
     // 1. Write feedback record to Car_Owners/{ownerId}/DailyFeedback/{dateIso}
     try {
@@ -4539,6 +4587,7 @@ export async function saveDailyWashFeedbackToFirestore(
           answer,
           isCleaned: answer === 'yes',
           flaggedOrange: answer === 'no',
+          status: washStatus,
           timestamp: serverTimestamp(),
           updatedAt: serverTimestamp(),
         },
@@ -4548,22 +4597,10 @@ export async function saveDailyWashFeedbackToFirestore(
       console.warn('saveDailyWashFeedbackToFirestore daily feedback notice:', e);
     }
 
-    // 2. If vehicleId exists, update wash records for this date
+    // 2. If vehicleId exists, update wash records for this date across month collections & washes
     if (vehicleId) {
-      const monthKey = today.monthKey;
-      const washStatus = answer === 'yes' ? 'completed' : 'missed';
-      const washPatch = {
-        status: washStatus,
-        ownerFeedback: answer,
-        flaggedNotCleaned: answer === 'no',
-        notes:
-          answer === 'no'
-            ? 'Owner flagged: Car not cleaned today by washer'
-            : 'Owner confirmed: Cleaned ✓',
-        updatedAt: serverTimestamp(),
-      };
-
       try {
+        // Direct month subcollection
         const monthDateDocRef = doc(
           db,
           'Car_Owners',
@@ -4574,9 +4611,23 @@ export async function saveDailyWashFeedbackToFirestore(
           effectiveDate
         );
         await setDoc(monthDateDocRef, washPatch, { merge: true });
-      } catch (err) {
-        // ignore
-      }
+      } catch (err) {}
+
+      try {
+        // Nested Months subcollection
+        const nestedMonthDocRef = doc(
+          db,
+          'Car_Owners',
+          resolvedOwnerId,
+          'Vehicles',
+          vehicleId,
+          'Months',
+          monthKey,
+          'Dates',
+          effectiveDate
+        );
+        await setDoc(nestedMonthDocRef, washPatch, { merge: true });
+      } catch (err) {}
 
       try {
         const washId = `wash_${vehicleId}_${effectiveDate}`;
@@ -4590,9 +4641,7 @@ export async function saveDailyWashFeedbackToFirestore(
           washId
         );
         await setDoc(washRef, washPatch, { merge: true });
-      } catch (err) {
-        // ignore
-      }
+      } catch (err) {}
     }
 
     // 3. Save feedback record to Car_Owners/{ownerId} top-level document
@@ -4608,9 +4657,7 @@ export async function saveDailyWashFeedbackToFirestore(
         },
         { merge: true }
       );
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
 
     return { success: true };
   } catch (err: any) {
@@ -4620,7 +4667,7 @@ export async function saveDailyWashFeedbackToFirestore(
 }
 
 /**
- * Fetches all daily feedback records from Car_Owners/{ownerId}/DailyFeedback
+ * Fetches all daily feedback records from Car_Owners/{ownerId}/DailyFeedback and top-level document
  */
 export async function fetchDailyWashFeedbackFromFirestore(
   ownerId?: string
@@ -4635,14 +4682,10 @@ export async function fetchDailyWashFeedbackFromFirestore(
   }
 
   try {
-    const resolvedOwnerId =
-      ownerId && ownerId !== 'usr_guest'
-        ? ownerId
-        : typeof window !== 'undefined'
-        ? localStorage.getItem('torque_owner_id')
-        : null;
+    const resolvedOwnerId = resolveEffectiveOwnerId(ownerId);
     if (!resolvedOwnerId) return result;
 
+    // 1. Fetch from Car_Owners/{resolvedOwnerId}/DailyFeedback
     const snap = await getDocs(
       collection(db, 'Car_Owners', resolvedOwnerId, 'DailyFeedback')
     );
@@ -4652,11 +4695,73 @@ export async function fetchDailyWashFeedbackFromFirestore(
         result[d.id] = data.answer;
       }
     });
+
+    // 2. Fetch top-level fields from Car_Owners/{resolvedOwnerId}
+    const ownerDocSnap = await getDoc(doc(db, 'Car_Owners', resolvedOwnerId));
+    if (ownerDocSnap.exists()) {
+      const oData = ownerDocSnap.data();
+      Object.keys(oData).forEach((k) => {
+        if (k.startsWith('wash_feedback_')) {
+          const date = k.replace('wash_feedback_', '');
+          const val = oData[k];
+          if ((val === 'yes' || val === 'no') && !result[date]) {
+            result[date] = val;
+          }
+        }
+      });
+      if (
+        oData.lastWashFeedbackDate &&
+        (oData.lastWashFeedbackAnswer === 'yes' || oData.lastWashFeedbackAnswer === 'no')
+      ) {
+        if (!result[oData.lastWashFeedbackDate]) {
+          result[oData.lastWashFeedbackDate] = oData.lastWashFeedbackAnswer;
+        }
+      }
+    }
   } catch (err) {
     console.warn('fetchDailyWashFeedbackFromFirestore notice:', err);
   }
 
   return result;
 }
+
+/**
+ * Subscribes to real-time changes in Car_Owners/{ownerId}/DailyFeedback
+ * Returns an unsubscribe cleanup function.
+ */
+export function subscribeToDailyWashFeedbackFromFirestore(
+  ownerId?: string,
+  callback?: (feedbacks: Record<string, 'yes' | 'no'>) => void
+): () => void {
+  const resolvedOwnerId = resolveEffectiveOwnerId(ownerId);
+  if (!resolvedOwnerId || !callback) {
+    return () => {};
+  }
+
+  try {
+    const fbCollectionRef = collection(db, 'Car_Owners', resolvedOwnerId, 'DailyFeedback');
+    const unsub = onSnapshot(
+      fbCollectionRef,
+      (snap) => {
+        const feedbacks: Record<string, 'yes' | 'no'> = {};
+        snap.docs.forEach((d) => {
+          const data = d.data();
+          if (data.answer === 'yes' || data.answer === 'no') {
+            feedbacks[d.id] = data.answer;
+          }
+        });
+        callback(feedbacks);
+      },
+      (err) => {
+        console.warn('subscribeToDailyWashFeedbackFromFirestore snapshot notice:', err);
+      }
+    );
+    return unsub;
+  } catch (err) {
+    console.warn('subscribeToDailyWashFeedbackFromFirestore setup notice:', err);
+    return () => {};
+  }
+}
+
 
 

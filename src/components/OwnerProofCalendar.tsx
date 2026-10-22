@@ -16,12 +16,14 @@ import {
   Info,
   ShieldCheck,
   XCircle,
+  RefreshCw,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import { WashRecord } from '@/lib/types';
 import {
   fetchDailyWashFeedbackFromFirestore,
   saveDailyWashFeedbackToFirestore,
+  subscribeToDailyWashFeedbackFromFirestore,
 } from '@/lib/firebaseService';
 import { getTodayISTDate, getNextDayIso } from '@/lib/washUtils';
 
@@ -114,6 +116,8 @@ export default function OwnerProofCalendar({
   const [mounted, setMounted] = useState<boolean>(false);
 
   const [dailyFeedbacks, setDailyFeedbacks] = useState<Record<string, 'yes' | 'no'>>({});
+  const [savingDate, setSavingDate] = useState<string | null>(null);
+  const [savedDate, setSavedDate] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -129,7 +133,7 @@ export default function OwnerProofCalendar({
       setDailyFeedbacks((prev) => ({ ...prev, ...propFeedbacks }));
     }
 
-    // Always fetch directly from Firestore
+    // Always fetch directly and subscribe to Firestore
     const targetOwnerId =
       user?.id && user.id !== 'usr_guest'
         ? user.id
@@ -139,12 +143,28 @@ export default function OwnerProofCalendar({
 
     if (targetOwnerId) {
       fetchDailyWashFeedbackFromFirestore(targetOwnerId).then((fb) => {
+        if (fb && Object.keys(fb).length > 0) {
+          setDailyFeedbacks((prev) => ({ ...prev, ...fb }));
+        }
+      });
+
+      const unsub = subscribeToDailyWashFeedbackFromFirestore(targetOwnerId, (fb) => {
         if (fb) {
           setDailyFeedbacks((prev) => ({ ...prev, ...fb }));
         }
       });
+
+      return () => {
+        unsub();
+      };
     }
-  }, [user?.id, propFeedbacks]);
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (propFeedbacks && Object.keys(propFeedbacks).length > 0) {
+      setDailyFeedbacks((prev) => ({ ...prev, ...propFeedbacks }));
+    }
+  }, [propFeedbacks]);
 
   useEffect(() => {
     if (todayFeedbackStatus) {
@@ -233,6 +253,9 @@ export default function OwnerProofCalendar({
         ? localStorage.getItem('torque_owner_id')
         : null;
 
+    setSavingDate(dateIso);
+    setSavedDate(null);
+
     try {
       await saveDailyWashFeedbackToFirestore(
         targetOwnerId || undefined,
@@ -240,7 +263,13 @@ export default function OwnerProofCalendar({
         dateIso,
         answer
       );
+      setSavingDate(null);
+      setSavedDate(dateIso);
+      setTimeout(() => {
+        setSavedDate((curr) => (curr === dateIso ? null : curr));
+      }, 2500);
     } catch (err) {
+      setSavingDate(null);
       console.warn('Failed to save calendar day feedback to firestore:', err);
     }
   };
@@ -765,6 +794,12 @@ export default function OwnerProofCalendar({
           !rawSelectedFeedback;
         const selectedFeedback = rawSelectedFeedback || (isAutoConfirmedPast ? 'yes' : undefined);
 
+        const isCurrentlyCleaned =
+          selectedFeedback === 'yes' ||
+          (selectedDay.isPast && !selectedDay.isPriorToStart && !selectedDay.isRestDay && selectedFeedback !== 'no');
+        const isCurrentlyMissed = selectedFeedback === 'no';
+        const isCurrentlyVehicleUnavailable = !isCurrentlyCleaned && !isCurrentlyMissed && selectedDay.isVehicleUnavailable;
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl animate-in fade-in duration-200">
             <div className="w-full max-w-2xl bg-[#11161D] border border-white/[0.08] rounded-[20px] shadow-2xl overflow-hidden relative text-white flex flex-col max-h-[90vh]">
@@ -777,12 +812,12 @@ export default function OwnerProofCalendar({
                         ? selectedDay.isSignupDate
                           ? 'bg-[#2DD4A0] text-[#0A0D12] font-black'
                           : 'border border-white/10 bg-[#161C25] text-white/40'
+                        : isCurrentlyMissed || isCurrentlyVehicleUnavailable
+                        ? 'bg-amber-400 text-[#0A0D12]'
+                        : isCurrentlyCleaned
+                        ? 'bg-[#2DD4A0] text-[#0A0D12]'
                         : selectedDay.isToday
                         ? 'bg-[#2DD4A0] text-[#0A0D12] font-black'
-                        : selectedDay.hasProofUploaded
-                        ? 'bg-[#2DD4A0] text-[#0A0D12]'
-                        : selectedDay.isMissingProof || selectedDay.isVehicleUnavailable
-                        ? 'bg-amber-400 text-[#0A0D12]'
                         : selectedDay.isRestDay
                         ? 'border border-white/10 bg-[#161C25] text-white/40'
                         : 'border border-[#2DD4A0]/40 bg-[#2DD4A0]/10 text-[#2DD4A0]'
@@ -799,24 +834,24 @@ export default function OwnerProofCalendar({
                         <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-400/30 font-bold">
                           {selectedDay.isSignupDate ? (selectedDay.isToday ? 'Signed Up Today' : 'Registration Day') : 'Prior to Enrollment'}
                         </span>
-                      ) : selectedDay.isToday && (
+                      ) : selectedDay.isToday && !selectedFeedback ? (
                         <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0] text-[#0A0D12] font-bold">
-                          Today
+                          Today • In Progress
                         </span>
-                      )}
-                      {selectedDay.hasProofUploaded && (
+                      ) : null}
+                      {isCurrentlyCleaned && (
                         <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0] text-[#0A0D12] font-bold">
                           {isAutoConfirmedPast ? 'Washed by Default ✓' : 'Cleaned ✓'}
                         </span>
                       )}
-                      {(selectedDay.isMissingProof || selectedDay.isVehicleUnavailable) && (
+                      {(isCurrentlyMissed || isCurrentlyVehicleUnavailable) && (
                         <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-amber-400 text-[#0A0D12] font-bold">
-                          {selectedDay.isVehicleUnavailable
+                          {isCurrentlyVehicleUnavailable
                             ? 'Vehicle Unavailable'
                             : 'Flagged Orange • Not Cleaned'}
                         </span>
                       )}
-                      {!selectedDay.isPriorToStart && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
+                      {!selectedDay.isPriorToStart && !isCurrentlyCleaned && !isCurrentlyMissed && !isCurrentlyVehicleUnavailable && (
                         <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded-full bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30 font-bold">
                           {selectedDay.isRestDay ? `${washerLeaveDay || 'Sunday'} Rest` : 'Scheduled Care'}
                         </span>
@@ -898,39 +933,52 @@ export default function OwnerProofCalendar({
                       </div>
                     </div>
 
-                    {/* Status / Saved Answer Badge */}
-                    {selectedFeedback ? (
-                      <div className="flex items-center gap-2 text-xs">
-                        <span className="text-white/60">Status:</span>
-                        <span
-                          className={`font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 ${
-                            selectedFeedback === 'yes'
-                              ? 'bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/40'
-                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                          }`}
-                        >
-                          {selectedFeedback === 'yes' ? (
-                            <>
-                              <CheckCircle2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
-                              <span>
-                                {isAutoConfirmedPast
-                                  ? 'Yes (Auto-confirmed: Washed by default at end of day)'
-                                  : 'Yes (Cleaned ✓)'}
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <XCircle className="w-3.5 h-3.5 text-amber-400" />
-                              <span>No (Flagged Orange • Missed)</span>
-                            </>
-                          )}
+                    {/* Status / Saved Answer Badge & Firebase Sync Indicator */}
+                    <div className="flex items-center justify-between flex-wrap gap-2 text-xs">
+                      {selectedFeedback ? (
+                        <div className="flex items-center gap-2">
+                          <span className="text-white/60">Status:</span>
+                          <span
+                            className={`font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 ${
+                              selectedFeedback === 'yes'
+                                ? 'bg-[#2DD4A0]/20 text-[#2DD4A0] border border-[#2DD4A0]/40'
+                                : 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                            }`}
+                          >
+                            {selectedFeedback === 'yes' ? (
+                              <>
+                                <CheckCircle2 className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                                <span>
+                                  {isAutoConfirmedPast
+                                    ? 'Yes (Auto-confirmed: Washed by default at end of day)'
+                                    : 'Yes (Cleaned ✓)'}
+                                </span>
+                              </>
+                            ) : (
+                              <>
+                                <XCircle className="w-3.5 h-3.5 text-amber-400" />
+                                <span>No (Flagged Orange • Missed)</span>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      ) : selectedDay.isToday ? (
+                        <div className="p-2.5 rounded-xl bg-[#2DD4A0]/5 border border-[#2DD4A0]/15 text-[11px] text-[#2DD4A0]/80">
+                          Awaiting confirmation • If unanswered by end of day, car will automatically be considered washed.
+                        </div>
+                      ) : null}
+
+                      {/* Firebase Sync Feedback */}
+                      {savingDate === selectedDay.isoDate ? (
+                        <span className="text-[11px] font-mono text-blue-400 animate-pulse flex items-center gap-1.5 ml-auto">
+                          <RefreshCw className="w-3 h-3 animate-spin" /> Saving to Firebase...
                         </span>
-                      </div>
-                    ) : selectedDay.isToday ? (
-                      <div className="p-2.5 rounded-xl bg-[#2DD4A0]/5 border border-[#2DD4A0]/15 text-[11px] text-[#2DD4A0]/80">
-                        Awaiting confirmation • If unanswered by end of day, car will automatically be considered washed.
-                      </div>
-                    ) : null}
+                      ) : savedDate === selectedDay.isoDate ? (
+                        <span className="text-[11px] font-mono text-[#2DD4A0] flex items-center gap-1.5 ml-auto">
+                          <CheckCircle2 className="w-3 h-3 text-[#2DD4A0]" /> Saved to Firebase ✓
+                        </span>
+                      ) : null}
+                    </div>
 
                     <div className="grid grid-cols-2 gap-3 pt-1">
                       <button
@@ -963,7 +1011,7 @@ export default function OwnerProofCalendar({
                 )}
 
                 {/* CASE: VERIFIED / WASHED DETAILS */}
-                {!selectedDay.isPriorToStart && selectedDay.hasProofUploaded && !selectedDay.isMissingProof && (
+                {!selectedDay.isPriorToStart && isCurrentlyCleaned && !isCurrentlyMissed && (
                   <div className="space-y-4">
                     <div className="p-5 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 text-white space-y-2">
                       <div className="flex items-center gap-2 font-bold text-sm text-[#2DD4A0]">
@@ -1000,7 +1048,7 @@ export default function OwnerProofCalendar({
                 )}
 
                 {/* CASE 2: SCHEDULED / TODAY / REST / FUTURE CARE */}
-                {!selectedDay.isPriorToStart && !selectedDay.hasProofUploaded && !selectedDay.isMissingProof && !selectedDay.isVehicleUnavailable && (
+                {!selectedDay.isPriorToStart && !isCurrentlyCleaned && !isCurrentlyMissed && !isCurrentlyVehicleUnavailable && (
                   <div className="space-y-6">
                     <div className="p-5 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/25 text-white space-y-2">
                       <div className="flex items-center gap-2 font-bold text-sm text-[#2DD4A0]">
@@ -1043,19 +1091,19 @@ export default function OwnerProofCalendar({
                 )}
 
                 {/* CASE 4: FLAGGED / AWAY / MISSED */}
-                {(selectedDay.isMissingProof || selectedDay.isVehicleUnavailable) && (
+                {(isCurrentlyMissed || isCurrentlyVehicleUnavailable) && (
                   <div className="space-y-6">
                     <div className="p-5 rounded-xl bg-amber-500/10 border border-amber-400/25 text-amber-200 space-y-2">
                       <div className="flex items-center gap-2 font-bold text-sm text-amber-300">
                         <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                         <span>
-                          {selectedDay.isVehicleUnavailable
+                          {isCurrentlyVehicleUnavailable
                             ? 'Vehicle Unavailable Protocol'
                             : 'Flagged: Car Not Cleaned by Washer (Orange)'}
                         </span>
                       </div>
                       <p className="text-xs text-white/80 leading-relaxed">
-                        {selectedDay.isVehicleUnavailable
+                        {isCurrentlyVehicleUnavailable
                           ? `The service partner arrived at ${parkingLocation}, but the vehicle was not parked in its assigned bay.`
                           : 'Owner flagged that the vehicle was not cleaned today. Under Torque Care protection, priority re-wash protocol is activated.'}
                       </p>
