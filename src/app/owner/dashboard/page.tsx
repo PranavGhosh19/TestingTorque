@@ -49,6 +49,7 @@ export default function OwnerDashboardPage() {
   const [showDailyFeedbackModal, setShowDailyFeedbackModal] = useState(false);
   const [todayFeedbackStatus, setTodayFeedbackStatus] = useState<'yes' | 'no' | null>(null);
   const [allDailyFeedbacks, setAllDailyFeedbacks] = useState<Record<string, 'yes' | 'no'>>({});
+  const [calendarStats, setCalendarStats] = useState<{ verifiedCount: number; missingCount: number } | null>(null);
   const [liveWashersList, setLiveWashersList] = useState<WasherPartner[]>([]);
 
   // REDIRECT TO LANDING PAGE IF NOT LOGGED IN
@@ -178,7 +179,8 @@ export default function OwnerDashboardPage() {
     const signupDate =
       primaryVehicle?.signupDate ||
       user?.signupDate ||
-      (typeof window !== 'undefined' ? localStorage.getItem('torque_signup_date') : null);
+      (typeof window !== 'undefined' ? localStorage.getItem('torque_signup_date') : null) ||
+      (user?.created_at && user.created_at.includes('T') ? user.created_at.split('T')[0] : null);
     const effectiveStartDate = signupDate || todayIso;
 
     // Washer leave day
@@ -701,7 +703,7 @@ export default function OwnerDashboardPage() {
           <div className="grid grid-cols-2 gap-3.5">
             <div className="p-5 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white">
-                {monthMetrics.washes}
+                {calendarStats ? calendarStats.verifiedCount : monthMetrics.washes}
               </div>
               <div className="text-xs font-semibold text-white/70 mt-1">
                 Washes
@@ -713,7 +715,7 @@ export default function OwnerDashboardPage() {
 
             <div className="p-5 rounded-[20px] bg-[#11161D] border border-white/[0.08] text-center shadow-xl">
               <div className="text-2xl sm:text-3xl font-black text-white/90">
-                {monthMetrics.missed}
+                {calendarStats ? calendarStats.missingCount : monthMetrics.missed}
               </div>
               <div className="text-xs font-semibold text-white/70 mt-1">
                 Missed
@@ -740,10 +742,32 @@ export default function OwnerDashboardPage() {
             todayWash={activeTodayWash || todayWash}
             todayFeedbackStatus={todayFeedbackStatus}
             feedbacks={allDailyFeedbacks}
-            signupDate={primaryVehicle?.signupDate || user?.signupDate}
-            serviceStartDate={primaryVehicle?.serviceStartDate || user?.serviceStartDate}
+            signupDate={
+              primaryVehicle?.signupDate ||
+              user?.signupDate ||
+              (typeof window !== 'undefined' ? localStorage.getItem('torque_signup_date') : null) ||
+              (user?.created_at && user.created_at.includes('T') ? user.created_at.split('T')[0] : null) ||
+              todayIso
+            }
+            serviceStartDate={
+              primaryVehicle?.serviceStartDate ||
+              user?.serviceStartDate ||
+              primaryVehicle?.signupDate ||
+              user?.signupDate ||
+              (typeof window !== 'undefined' ? localStorage.getItem('torque_service_start_date') : null) ||
+              (user?.created_at && user.created_at.includes('T') ? user.created_at.split('T')[0] : null) ||
+              todayIso
+            }
             onFeedbackChange={(dateIso, ans) => {
               handleDailyFeedbackAnswer(ans, dateIso);
+            }}
+            onStatsChange={(stats) => {
+              if (stats.isCurrentMonth) {
+                setCalendarStats({
+                  verifiedCount: stats.verifiedCount,
+                  missingCount: stats.missingCount,
+                });
+              }
             }}
           />
         </div>

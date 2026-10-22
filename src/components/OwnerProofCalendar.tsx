@@ -60,6 +60,7 @@ interface OwnerProofCalendarProps {
   signupDate?: string;
   serviceStartDate?: string;
   onFeedbackChange?: (dateIso: string, answer: 'yes' | 'no') => void;
+  onStatsChange?: (stats: { verifiedCount: number; missingCount: number; isCurrentMonth: boolean }) => void;
 }
 
 export default function OwnerProofCalendar({
@@ -74,6 +75,7 @@ export default function OwnerProofCalendar({
   signupDate: propSignupDate,
   serviceStartDate: propServiceStartDate,
   onFeedbackChange,
+  onStatsChange,
 }: OwnerProofCalendarProps = {}) {
   const { washes: storeWashes, todayWash: storeTodayWash, vehicles, user } = useStore();
 
@@ -519,6 +521,16 @@ export default function OwnerProofCalendar({
   const scheduledCount = days.filter(
     (d) => !d.isPriorToStart && (d.isFuture || d.isToday) && !d.isRestDay && !d.hasProofUploaded && !d.isMissingProof
   ).length;
+
+  useEffect(() => {
+    if (onStatsChange) {
+      onStatsChange({
+        verifiedCount,
+        missingCount: missingOrAlertCount,
+        isCurrentMonth: monthOffset === 0,
+      });
+    }
+  }, [verifiedCount, missingOrAlertCount, monthOffset, onStatsChange]);
 
   return (
     <div className="w-full rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
