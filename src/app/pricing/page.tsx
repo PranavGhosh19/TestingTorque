@@ -6,11 +6,6 @@ import { motion } from 'framer-motion';
 import {
   Check,
   ArrowRight,
-  ShieldCheck,
-  Building2,
-  Car,
-  HelpCircle,
-  Sparkles,
 } from 'lucide-react';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 
@@ -18,7 +13,7 @@ export default function PricingPage() {
   const faqs = [
     {
       q: 'Is the daily car wash tracking app really free for car owners?',
-      a: 'Yes, 100% free. You can track your daily washes, log missed days, view your monthly attendance calendar, and use our month-end payment calculator without paying a single rupee.',
+      a: 'Yes, 100% free. You can track your daily washes, log missed days, view your monthly attendance calendar, and verify cleaning without paying a single rupee.',
     },
     {
       q: 'Do I need to enter credit card or bank details to register?',
@@ -26,11 +21,11 @@ export default function PricingPage() {
     },
     {
       q: 'Does my existing cleaner need to install a special app?',
-      a: 'No! You can use Torque Care as your own personal tracker. If your apartment society adopts Torque Care Community, washers receive an ultra-simple dedicated workflow, but as an individual car owner, your cleaner doesn’t need anything.',
+      a: 'No! You can use Torque Care as your own personal tracker. As an individual car owner, your cleaner doesn’t need to install anything.',
     },
     {
-      q: 'What is the Society / RWA plan?',
-      a: 'For apartment resident associations (RWAs) and societies that want centralized cleaner attendance, route clustering, complaint management, and verified multi-vehicle parking bay coverage, we offer custom community onboarding.',
+      q: 'Can I track multiple vehicles under one account?',
+      a: 'Yes. You can register all your household cars, assign parking bays, and track daily attendance records for each vehicle individually.',
     },
   ];
 
@@ -41,28 +36,23 @@ export default function PricingPage() {
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-[#2DD4A0]/10 rounded-full blur-[140px] pointer-events-none -z-10" />
 
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 text-[#2DD4A0] text-xs font-mono font-bold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Transparent Pricing</span>
-          </div>
-
           <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white uppercase font-automotive-title">
             Simple, Transparent Plans
           </h1>
 
           <p className="text-base sm:text-lg text-white/70 max-w-2xl mx-auto leading-relaxed font-normal">
-            Free forever for individual car owners to track attendance and calculate payments. Enterprise solutions available for apartment societies and RWAs.
+            Free forever for car owners to track daily washes, verify cleaner attendance, and log missed days.
           </p>
         </div>
       </header>
 
       {/* Main Pricing Cards */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 space-y-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="max-w-xl mx-auto">
           {/* Card 1: Individual Car Owner (Free) */}
-          <div className="p-8 rounded-3xl bg-[#11161D] border-2 border-[#2DD4A0] shadow-[0_0_40px_rgba(45,212,160,0.12)] flex flex-col justify-between relative">
+          <div className="p-8 sm:p-10 rounded-3xl bg-[#11161D] border-2 border-[#2DD4A0] shadow-[0_0_40px_rgba(45,212,160,0.12)] flex flex-col justify-between relative">
             <div className="absolute -top-3 left-8 px-3 py-1 rounded-full bg-[#2DD4A0] text-slate-950 text-[10px] font-mono font-bold uppercase tracking-wider">
-              Most Popular • For Car Owners
+              100% Free • For Car Owners
             </div>
 
             <div className="space-y-6">
@@ -94,14 +84,6 @@ export default function PricingPage() {
                 </div>
                 <div className="flex items-center gap-2.5">
                   <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                  <span>Automatic month-end payment deduction calculator</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                  <span>One-click WhatsApp UPI settlement breakdown</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
                   <span>Multi-vehicle support for your family cars</span>
                 </div>
               </div>
@@ -113,61 +95,6 @@ export default function PricingPage() {
                 className="w-full py-3.5 px-6 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-slate-950 font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-lg"
               >
                 <span>Get Started Free</span>
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Card 2: Society & Community Plan */}
-          <div className="p-8 rounded-3xl bg-[#11161D] border border-white/[0.08] flex flex-col justify-between">
-            <div className="space-y-6">
-              <div>
-                <div className="text-xs font-mono uppercase text-white/40 font-bold">Societies &amp; RWAs</div>
-                <h2 className="text-2xl font-bold text-white mt-1">Community Fleet</h2>
-                <p className="text-xs text-white/60 mt-1">
-                  For apartment committees and property managers seeking verified cleaner operations.
-                </p>
-              </div>
-
-              <div className="flex items-baseline gap-2">
-                <span className="text-3xl sm:text-4xl font-extrabold text-white">Custom</span>
-                <span className="text-xs font-mono text-white/50">based on society size</span>
-              </div>
-
-              <div className="pt-4 border-t border-white/[0.08] space-y-3 text-xs sm:text-sm text-white/80">
-                <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                  <span>Centralized Society Admin Dashboard</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                  <span>Basement parking bay route clustering</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                  <span>Cleaner attendance and leave management</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                  <span>Complaint logging and replacement coverage</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                  <span>Society-wide billing and monthly reconciliation</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-[#2DD4A0] shrink-0" />
-                  <span>Dedicated resident support channel</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="pt-8">
-              <Link
-                href="/contact"
-                className="w-full py-3.5 px-6 rounded-full bg-white/5 hover:bg-white/10 text-white font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 border border-white/10"
-              >
-                <span>Talk to Community Team</span>
                 <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
