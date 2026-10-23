@@ -26,6 +26,7 @@ import {
   saveDailyWashFeedbackToFirestore,
   fetchDailyWashFeedbackFromFirestore,
   subscribeToDailyWashFeedbackFromFirestore,
+  resolveEffectiveOwnerId,
 } from '@/lib/firebaseService';
 import { Vehicle, WasherPartner, WashRecord } from '@/lib/types';
 import { isPresentDateProofBefore10AM, isWashFromToday, getTodayISTDate } from '@/lib/washUtils';
