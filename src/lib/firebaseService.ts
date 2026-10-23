@@ -1811,7 +1811,7 @@ export interface OwnerDashboardFirebaseData {
  * - Assigned Washer Partner from Washers collection
  */
 export async function fetchOwnerDashboardFromFirestore(
-  userId?: string,
+  userId: string = 'usr_pranav_1',
   userPhone?: string
 ): Promise<OwnerDashboardFirebaseData> {
   const result: OwnerDashboardFirebaseData = {
@@ -1826,7 +1826,7 @@ export async function fetchOwnerDashboardFromFirestore(
   try {
     // 1. Check Car_Owners collection (Car_Owners/{ownerId})
     let carOwnerDocData: any = null;
-    let resolvedOwnerId = userId;
+    let resolvedOwnerId: string = userId || 'usr_pranav_1';
 
     if (userId && userId !== 'usr_guest') {
       const carOwnerDocRef = doc(db, 'Car_Owners', userId);
@@ -1938,6 +1938,8 @@ export async function fetchOwnerDashboardFromFirestore(
       };
       result.source = 'firebase_live';
 
+      const activeUser = result.user;
+
       // 2. Fetch Vehicles subcollection: Car_Owners/{ownerId}/Vehicles
       try {
         const vehiclesSubRef = collection(db, 'Car_Owners', resolvedOwnerId, 'Vehicles');
@@ -1960,13 +1962,13 @@ export async function fetchOwnerDashboardFromFirestore(
             vData.need_wash_before ||
             vData.preferredWashTime ||
             vData.preferred_wash_time ||
-            result.user.needWashBefore ||
+            activeUser?.needWashBefore ||
             '8:00 AM';
 
           const vehicleObj: Vehicle = {
             id: vId,
             owner_id: resolvedOwnerId,
-            owner_name: vData.ownerName || result.user.name,
+            owner_name: vData.ownerName || activeUser?.name || 'Car Owner',
             registration_number: vData.registrationNumber || vData.registration_number || '',
             make: vData.make || '',
             model: vData.model || '',
@@ -1977,17 +1979,17 @@ export async function fetchOwnerDashboardFromFirestore(
             needWashBefore: effectiveNeedBefore,
             need_wash_before: effectiveNeedBefore,
             subscriptionStartDate: vData.subscription?.startDate || vData.subscriptionStartDate,
-            society_id: vData.societyId || vData.society_id || result.user.societyId || '',
-            society_name: vData.societyName || vData.society_name || result.user.societyName || result.user.society || '',
+            society_id: vData.societyId || vData.society_id || activeUser?.societyId || '',
+            society_name: vData.societyName || vData.society_name || activeUser?.societyName || activeUser?.society || '',
             subscription_status: 'active',
             washes_this_month: sub.washesUsed ?? vData.washes_this_month ?? 0,
-            selected_plan: sub.planId || vData.selected_plan || result.user.selected_plan || 'HOME BASIC',
+            selected_plan: sub.planId || vData.selected_plan || activeUser?.selected_plan || 'HOME BASIC',
             assigned_washer_id: vData.isBackupActive
               ? (vData.backupWasherId || vData.activeWasherId || vData.assigned_washer_id || '')
-              : (vData.activeWasherId || vData.washerId || vData.assigned_washer_id || result.user.assigned_washer_id || ''),
+              : (vData.activeWasherId || vData.washerId || vData.assigned_washer_id || activeUser?.assigned_washer_id || ''),
             assigned_washer_name: vData.isBackupActive
               ? (vData.backupWasherName || vData.activeWasherName || vData.assigned_washer_name || '')
-              : (vData.activeWasherName || vData.washerName || vData.assigned_washer_name || result.user.assigned_washer_name || ''),
+              : (vData.activeWasherName || vData.washerName || vData.assigned_washer_name || activeUser?.assigned_washer_name || ''),
             price: vPrice,
             subscription_price: vPrice,
             primaryWasherId: vData.primaryWasherId,
@@ -2004,7 +2006,7 @@ export async function fetchOwnerDashboardFromFirestore(
             backupAssignedAt: vData.backupAssignedAt,
           };
 
-          if (vData.isBackupActive) {
+          if (vData.isBackupActive && result.user) {
             result.user.assigned_washer_id = vData.backupWasherId || vData.activeWasherId || result.user.assigned_washer_id;
             result.user.assigned_washer_name = vData.backupWasherName || vData.activeWasherName || result.user.assigned_washer_name;
           }
