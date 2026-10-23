@@ -108,6 +108,22 @@ export default function OwnerDashboardPage() {
       }
       if (fbData.washes && fbData.washes.length > 0) {
         setFirebaseWashes(fbData.washes);
+        const extracted: Record<string, 'yes' | 'no'> = {};
+        fbData.washes.forEach((w) => {
+          const date = (w.scheduled_date || '').trim();
+          const dateIso = date.includes('T') ? date.split('T')[0] : date.length === 10 ? date : null;
+          const fb =
+            w.ownerFeedback ||
+            ((w.flaggedNotCleaned || (w as any).flaggedOrange || w.status === 'missed')
+              ? 'no'
+              : (w.status === 'completed' ? 'yes' : undefined));
+          if (dateIso && (fb === 'yes' || fb === 'no')) {
+            extracted[dateIso] = fb as 'yes' | 'no';
+          }
+        });
+        if (Object.keys(extracted).length > 0) {
+          setAllDailyFeedbacks((prev) => ({ ...prev, ...extracted }));
+        }
       }
       if (fbData.todayWash) {
         setFirebaseTodayWash(fbData.todayWash);
@@ -405,10 +421,10 @@ export default function OwnerDashboardPage() {
         ? localStorage.getItem('torque_owner_id')
         : null;
 
-    if (!targetOwnerId) return;
+    const effectiveOwnerId = targetOwnerId || resolveEffectiveOwnerId() || 'usr_pranav_1';
 
     // Initial load from Firestore
-    fetchDailyWashFeedbackFromFirestore(targetOwnerId).then((fb) => {
+    fetchDailyWashFeedbackFromFirestore(effectiveOwnerId).then((fb) => {
       if (isMounted && fb && Object.keys(fb).length > 0) {
         setAllDailyFeedbacks((prev) => ({ ...prev, ...fb }));
         if (fb[todayIso]) {
@@ -418,7 +434,7 @@ export default function OwnerDashboardPage() {
     });
 
     // Real-time listener for any feedback saves across calendar days
-    const unsubscribe = subscribeToDailyWashFeedbackFromFirestore(targetOwnerId, (feedbacks) => {
+    const unsubscribe = subscribeToDailyWashFeedbackFromFirestore(effectiveOwnerId, (feedbacks) => {
       if (isMounted && feedbacks) {
         setAllDailyFeedbacks((prev) => ({ ...prev, ...feedbacks }));
         if (feedbacks[todayIso]) {

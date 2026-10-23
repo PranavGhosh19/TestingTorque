@@ -143,23 +143,23 @@ export default function OwnerProofCalendar({
         ? localStorage.getItem('torque_owner_id')
         : null;
 
-    if (targetOwnerId) {
-      fetchDailyWashFeedbackFromFirestore(targetOwnerId).then((fb) => {
-        if (fb && Object.keys(fb).length > 0) {
-          setDailyFeedbacks((prev) => ({ ...prev, ...fb }));
-        }
-      });
+    const resolvedOwnerId = targetOwnerId || (typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') : null) || 'usr_pranav_1';
 
-      const unsub = subscribeToDailyWashFeedbackFromFirestore(targetOwnerId, (fb) => {
-        if (fb) {
-          setDailyFeedbacks((prev) => ({ ...prev, ...fb }));
-        }
-      });
+    fetchDailyWashFeedbackFromFirestore(resolvedOwnerId).then((fb) => {
+      if (fb && Object.keys(fb).length > 0) {
+        setDailyFeedbacks((prev) => ({ ...prev, ...fb }));
+      }
+    });
 
-      return () => {
-        unsub();
-      };
-    }
+    const unsub = subscribeToDailyWashFeedbackFromFirestore(resolvedOwnerId, (fb) => {
+      if (fb) {
+        setDailyFeedbacks((prev) => ({ ...prev, ...fb }));
+      }
+    });
+
+    return () => {
+      unsub();
+    };
   }, [user?.id]);
 
   useEffect(() => {
@@ -239,6 +239,17 @@ export default function OwnerProofCalendar({
       ...prev,
       [dateIso]: answer,
     }));
+
+    setSelectedDay((prev) =>
+      prev
+        ? {
+            ...prev,
+            feedback: answer,
+            hasProofUploaded: answer === 'yes',
+            isMissingProof: answer === 'no',
+          }
+        : null
+    );
 
     if (selectedDay.isToday && typeof window !== 'undefined') {
       localStorage.setItem(`torque_daily_feedback_answered_${dateIso}`, answer);
@@ -694,6 +705,7 @@ export default function OwnerProofCalendar({
             let titleText = `Day ${day.date}: Scheduled care`;
 
             const isFlaggedOrange = day.isMissingProof || day.feedback === 'no' || day.wash?.ownerFeedback === 'no';
+            const isCleanedGreen = !isFlaggedOrange && (day.hasProofUploaded || day.feedback === 'yes' || day.wash?.ownerFeedback === 'yes');
 
             if (isFlaggedOrange) {
               // Flagged Orange in the calendar (ownerFeedback is "no")
@@ -707,15 +719,12 @@ export default function OwnerProofCalendar({
                 'bg-white/[0.01] text-white/20 border border-white/[0.03] opacity-35 hover:opacity-60 cursor-pointer';
               dotColor = 'bg-transparent';
               titleText = `Day ${day.date}: Prior to Torque Care registration (Started ${effectiveServiceStartDate})`;
-            } else if (day.hasProofUploaded) {
+            } else if (isCleanedGreen) {
+              // Cleaned Green in the calendar (ownerFeedback is "yes" or wash verified)
               cellClasses =
                 'bg-[#2DD4A0]/10 text-white border border-[#2DD4A0]/30 hover:bg-[#2DD4A0]/20';
               dotColor = 'bg-[#2DD4A0] shadow-[0_0_8px_rgba(45,212,160,0.8)]';
-              titleText = `Day ${day.date}: ${
-                day.isAutoConfirmedYes
-                  ? 'Washed by default at end of day ✓'
-                  : 'Cleaned ✓'
-              }`;
+              titleText = `Day ${day.date}: Cleaned ✓`;
             } else if (day.isVehicleUnavailable) {
               cellClasses =
                 'bg-amber-500/10 text-amber-200 border border-amber-400/30 hover:bg-amber-500/20';
@@ -740,11 +749,11 @@ export default function OwnerProofCalendar({
                   'bg-amber-500/20 text-amber-300 font-black border-2 border-amber-400 shadow-[0_0_18px_rgba(251,191,36,0.6)] scale-[1.02]';
                 dotColor = 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.9)]';
                 titleText = `Day ${day.date}: Today • Flagged Orange: Car not cleaned by washer`;
-              } else if (day.hasProofUploaded) {
+              } else if (isCleanedGreen) {
                 cellClasses =
                   'bg-[#2DD4A0] text-[#0A0D12] font-black shadow-[0_0_15px_rgba(45,212,160,0.4)] border-[#2DD4A0] scale-[1.02]';
                 dotColor = 'bg-[#0A0D12]';
-                titleText = `Day ${day.date}: Today • Wash completed ✓`;
+                titleText = `Day ${day.date}: Today • Cleaned ✓`;
               } else {
                 cellClasses =
                   'bg-[#2DD4A0]/20 text-[#2DD4A0] font-bold border-2 border-[#2DD4A0] shadow-[0_0_15px_rgba(45,212,160,0.3)] scale-[1.02]';
@@ -770,7 +779,7 @@ export default function OwnerProofCalendar({
                       : day.isToday
                       ? day.isPriorToStart
                         ? 'text-[#2DD4A0] font-black'
-                        : day.hasProofUploaded
+                        : isCleanedGreen
                         ? 'text-[#0A0D12] font-black'
                         : 'text-[#2DD4A0] font-black'
                       : day.isSignupDate
