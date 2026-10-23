@@ -2060,8 +2060,13 @@ export async function fetchOwnerDashboardFromFirestore(
                 '';
 
               const washPhotoUrl = proof.photoUrl || wData.photoUrl || (wData.status === 'completed' ? '/images/honda_city_after.jpg' : null);
-              const schedDate = wData.scheduledDate || wData.date || (wData.day ? `${wData.year}-${String(wData.monthNum || currentIst.monthNum).padStart(2, '0')}-${String(wData.day).padStart(2, '0')}` : 'Today');
-              const washUniqueKey = wData.washId || wDocId || `wash_${vId}_${schedDate}`;
+              const schedDate =
+                wData.scheduled_date ||
+                wData.scheduledDate ||
+                wData.date ||
+                (wDocId && wDocId.startsWith('202') ? wDocId : null) ||
+                (wData.day ? `${wData.year || currentIst.year}-${String(wData.monthNum || currentIst.monthNum).padStart(2, '0')}-${String(wData.day).padStart(2, '0')}` : 'Today');
+              const washUniqueKey = wData.washId || (wDocId && wDocId.startsWith('wash_') ? wDocId : `wash_${vId}_${schedDate}`);
 
               const rawOwnerFeedback =
                 wData.ownerFeedback ||
@@ -2073,8 +2078,10 @@ export async function fetchOwnerDashboardFromFirestore(
                   : undefined);
 
               const resolvedStatus =
-                (wData.status as any) ||
-                (rawOwnerFeedback === 'no' ? 'missed' : 'completed');
+                rawOwnerFeedback === 'no'
+                  ? 'missed'
+                  : (wData.status as any) ||
+                    (wData.isCleaned ? 'completed' : 'completed');
 
               const record: WashRecord = {
                 id: washUniqueKey,
@@ -4723,60 +4730,71 @@ export async function fetchDailyWashFeedbackFromFirestore(
       resolvedOwnerId = 'usr_pranav_1';
     }
 
-    // 1. Fetch from Car_Owners/{resolvedOwnerId}/DailyFeedback
-    const snap = await getDocs(
-      collection(db, 'Car_Owners', resolvedOwnerId, 'DailyFeedback')
-    );
-    snap.docs.forEach((d) => {
-      const data = d.data();
-      const rawAns =
-        data.ownerFeedback ||
-        data.answer ||
-        (data.flaggedOrange || data.flaggedNotCleaned || data.status === 'missed' ? 'no' : (data.status === 'completed' || data.isCleaned ? 'yes' : undefined));
-      if (rawAns === 'yes' || rawAns === 'no') {
-        result[d.id] = rawAns;
-      }
-    });
-
-    // 2. Fetch top-level fields from Car_Owners/{resolvedOwnerId}
-    const ownerDocSnap = await getDoc(doc(db, 'Car_Owners', resolvedOwnerId));
-    if (ownerDocSnap.exists()) {
-      const oData = ownerDocSnap.data();
-      Object.keys(oData).forEach((k) => {
-        if (
-          k.startsWith('wash_feedback_') ||
-          k.startsWith('owner_feedback_') ||
-          k.startsWith('ownerFeedback_') ||
-          k.startsWith('feedback_')
-        ) {
-          const date = k.replace(/^wash_feedback_|^owner_feedback_|^ownerFeedback_|^feedback_/, '');
-          const val = oData[k];
-          if ((val === 'yes' || val === 'no') && !result[date]) {
-            result[date] = val;
-          }
+    // 1. Fetch from Car_Owners/{resolvedOwnerId}/DailyFeedback (isolated try/catch)
+    try {
+      const snap = await getDocs(
+        collection(db, 'Car_Owners', resolvedOwnerId, 'DailyFeedback')
+      );
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        const rawAns =
+          data.ownerFeedback ||
+          data.answer ||
+          (data.flaggedOrange || data.flaggedNotCleaned || data.status === 'missed' ? 'no' : (data.status === 'completed' || data.isCleaned ? 'yes' : undefined));
+        if (rawAns === 'no') {
+          result[d.id] = 'no';
+        } else if (rawAns === 'yes' && !result[d.id]) {
+          result[d.id] = 'yes';
         }
       });
-      if (
-        oData.lastWashFeedbackDate &&
-        (oData.lastWashFeedbackAnswer === 'yes' ||
-          oData.lastWashFeedbackAnswer === 'no' ||
-          oData.lastOwnerFeedback === 'yes' ||
-          oData.lastOwnerFeedback === 'no')
-      ) {
-        if (!result[oData.lastWashFeedbackDate]) {
-          result[oData.lastWashFeedbackDate] =
-            oData.lastOwnerFeedback || oData.lastWashFeedbackAnswer;
-        }
-      }
-      if (oData.dailyFeedbacks && typeof oData.dailyFeedbacks === 'object') {
-        Object.keys(oData.dailyFeedbacks).forEach((d) => {
-          const v = oData.dailyFeedbacks[d];
-          if ((v === 'yes' || v === 'no') && !result[d]) {
-            result[d] = v;
+    } catch (e) {
+      // Ignore permission or collection missing errors
+    }
+
+    // 2. Fetch top-level fields from Car_Owners/{resolvedOwnerId}
+    try {
+      const ownerDocSnap = await getDoc(doc(db, 'Car_Owners', resolvedOwnerId));
+      if (ownerDocSnap.exists()) {
+        const oData = ownerDocSnap.data();
+        Object.keys(oData).forEach((k) => {
+          if (
+            k.startsWith('wash_feedback_') ||
+            k.startsWith('owner_feedback_') ||
+            k.startsWith('ownerFeedback_') ||
+            k.startsWith('feedback_')
+          ) {
+            const date = k.replace(/^wash_feedback_|^owner_feedback_|^ownerFeedback_|^feedback_/, '');
+            const val = oData[k];
+            if (val === 'no') {
+              result[date] = 'no';
+            } else if (val === 'yes' && !result[date]) {
+              result[date] = 'yes';
+            }
           }
         });
+        if (
+          oData.lastWashFeedbackDate &&
+          (oData.lastWashFeedbackAnswer || oData.lastOwnerFeedback)
+        ) {
+          const lastAns = oData.lastOwnerFeedback || oData.lastWashFeedbackAnswer;
+          if (lastAns === 'no') {
+            result[oData.lastWashFeedbackDate] = 'no';
+          } else if (lastAns === 'yes' && !result[oData.lastWashFeedbackDate]) {
+            result[oData.lastWashFeedbackDate] = 'yes';
+          }
+        }
+        if (oData.dailyFeedbacks && typeof oData.dailyFeedbacks === 'object') {
+          Object.keys(oData.dailyFeedbacks).forEach((d) => {
+            const v = oData.dailyFeedbacks[d];
+            if (v === 'no') {
+              result[d] = 'no';
+            } else if (v === 'yes' && !result[d]) {
+              result[d] = 'yes';
+            }
+          });
+        }
       }
-    }
+    } catch (e) {}
 
     // 3. Scan vehicle washes and month subcollections for any documents with ownerFeedback or status
     try {
@@ -4796,8 +4814,12 @@ export async function fetchDailyWashFeedbackFromFirestore(
               wData.ownerFeedback ||
               wData.answer ||
               (wData.flaggedOrange || wData.flaggedNotCleaned || wData.status === 'missed' ? 'no' : (wData.status === 'completed' || wData.isCleaned ? 'yes' : undefined));
-            if (date && (fb === 'yes' || fb === 'no') && !result[date]) {
-              result[date] = fb;
+            if (date) {
+              if (fb === 'no') {
+                result[date] = 'no';
+              } else if (fb === 'yes' && !result[date]) {
+                result[date] = 'yes';
+              }
             }
           });
         } catch (e) {}
@@ -4812,8 +4834,12 @@ export async function fetchDailyWashFeedbackFromFirestore(
               mData.ownerFeedback ||
               mData.answer ||
               (mData.flaggedOrange || mData.flaggedNotCleaned || mData.status === 'missed' ? 'no' : (mData.status === 'completed' || mData.isCleaned ? 'yes' : undefined));
-            if (date && (fb === 'yes' || fb === 'no') && !result[date]) {
-              result[date] = fb;
+            if (date) {
+              if (fb === 'no') {
+                result[date] = 'no';
+              } else if (fb === 'yes' && !result[date]) {
+                result[date] = 'yes';
+              }
             }
           });
         } catch (e) {}
@@ -4828,8 +4854,12 @@ export async function fetchDailyWashFeedbackFromFirestore(
               nData.ownerFeedback ||
               nData.answer ||
               (nData.flaggedOrange || nData.flaggedNotCleaned || nData.status === 'missed' ? 'no' : (nData.status === 'completed' || nData.isCleaned ? 'yes' : undefined));
-            if (date && (fb === 'yes' || fb === 'no') && !result[date]) {
-              result[date] = fb;
+            if (date) {
+              if (fb === 'no') {
+                result[date] = 'no';
+              } else if (fb === 'yes' && !result[date]) {
+                result[date] = 'yes';
+              }
             }
           });
         } catch (e) {}
@@ -4843,51 +4873,123 @@ export async function fetchDailyWashFeedbackFromFirestore(
 }
 
 /**
- * Subscribes to real-time changes in Car_Owners/{ownerId}/DailyFeedback
+ * Subscribes to real-time changes in owner feedback across Car_Owners doc and DailyFeedback.
  * Returns an unsubscribe cleanup function.
  */
 export function subscribeToDailyWashFeedbackFromFirestore(
   ownerId?: string,
   callback?: (feedbacks: Record<string, 'yes' | 'no'>) => void
 ): () => void {
-  let resolvedOwnerId = resolveEffectiveOwnerId(ownerId);
-  if (!resolvedOwnerId && typeof window !== 'undefined') {
-    resolvedOwnerId = localStorage.getItem('torque_owner_id');
-  }
-  if (!resolvedOwnerId) {
-    resolvedOwnerId = 'usr_pranav_1';
-  }
   if (!callback) {
     return () => {};
   }
 
-  try {
-    const fbCollectionRef = collection(db, 'Car_Owners', resolvedOwnerId, 'DailyFeedback');
-    const unsub = onSnapshot(
-      fbCollectionRef,
-      (snap) => {
-        const feedbacks: Record<string, 'yes' | 'no'> = {};
-        snap.docs.forEach((d) => {
-          const data = d.data();
-          const rawAns =
-            data.ownerFeedback ||
-            data.answer ||
-            (data.flaggedOrange || data.flaggedNotCleaned || data.status === 'missed' ? 'no' : (data.status === 'completed' || data.isCleaned ? 'yes' : undefined));
-          if (rawAns === 'yes' || rawAns === 'no') {
-            feedbacks[d.id] = rawAns;
-          }
-        });
-        callback(feedbacks);
-      },
-      (err) => {
-        console.warn('subscribeToDailyWashFeedbackFromFirestore snapshot notice:', err);
-      }
-    );
-    return unsub;
-  } catch (err) {
-    console.warn('subscribeToDailyWashFeedbackFromFirestore setup notice:', err);
-    return () => {};
+  let resolvedOwnerId = resolveEffectiveOwnerId(ownerId);
+  if (!resolvedOwnerId && typeof window !== 'undefined') {
+    resolvedOwnerId = localStorage.getItem('torque_owner_id');
   }
+
+  const unsubs: (() => void)[] = [];
+
+  const attach = (activeOwnerId: string) => {
+    // 1. Subscribe to Car_Owners/{activeOwnerId} top-level document
+    try {
+      const ownerDocRef = doc(db, 'Car_Owners', activeOwnerId);
+      const unsubOwner = onSnapshot(
+        ownerDocRef,
+        (snap) => {
+          if (!snap.exists()) return;
+          const oData = snap.data();
+          const feedbacks: Record<string, 'yes' | 'no'> = {};
+          Object.keys(oData).forEach((k) => {
+            if (
+              k.startsWith('wash_feedback_') ||
+              k.startsWith('owner_feedback_') ||
+              k.startsWith('ownerFeedback_') ||
+              k.startsWith('feedback_')
+            ) {
+              const date = k.replace(/^wash_feedback_|^owner_feedback_|^ownerFeedback_|^feedback_/, '');
+              const val = oData[k];
+              if (val === 'no') {
+                feedbacks[date] = 'no';
+              } else if (val === 'yes' && !feedbacks[date]) {
+                feedbacks[date] = 'yes';
+              }
+            }
+          });
+          if (
+            oData.lastWashFeedbackDate &&
+            (oData.lastWashFeedbackAnswer || oData.lastOwnerFeedback)
+          ) {
+            const lastAns = oData.lastOwnerFeedback || oData.lastWashFeedbackAnswer;
+            if (lastAns === 'no') {
+              feedbacks[oData.lastWashFeedbackDate] = 'no';
+            } else if (lastAns === 'yes' && !feedbacks[oData.lastWashFeedbackDate]) {
+              feedbacks[oData.lastWashFeedbackDate] = 'yes';
+            }
+          }
+          if (Object.keys(feedbacks).length > 0) {
+            callback(feedbacks);
+          }
+        },
+        (err) => {
+          console.warn('subscribeToDailyWashFeedbackFromFirestore owner notice:', err);
+        }
+      );
+      unsubs.push(unsubOwner);
+    } catch (e) {}
+
+    // 2. Subscribe to DailyFeedback subcollection
+    try {
+      const fbCollectionRef = collection(db, 'Car_Owners', activeOwnerId, 'DailyFeedback');
+      const unsubDaily = onSnapshot(
+        fbCollectionRef,
+        (snap) => {
+          const feedbacks: Record<string, 'yes' | 'no'> = {};
+          snap.docs.forEach((d) => {
+            const data = d.data();
+            const rawAns =
+              data.ownerFeedback ||
+              data.answer ||
+              (data.flaggedOrange || data.flaggedNotCleaned || data.status === 'missed' ? 'no' : (data.status === 'completed' || data.isCleaned ? 'yes' : undefined));
+            if (rawAns === 'no') {
+              feedbacks[d.id] = 'no';
+            } else if (rawAns === 'yes' && !feedbacks[d.id]) {
+              feedbacks[d.id] = 'yes';
+            }
+          });
+          if (Object.keys(feedbacks).length > 0) {
+            callback(feedbacks);
+          }
+        },
+        () => {
+          // Ignore permission denied on subcollection
+        }
+      );
+      unsubs.push(unsubDaily);
+    } catch (e) {}
+  };
+
+  if (resolvedOwnerId) {
+    attach(resolvedOwnerId);
+  } else {
+    getDocs(collection(db, 'Car_Owners'))
+      .then((snap) => {
+        if (!snap.empty) {
+          const foundId = snap.docs[snap.docs.length - 1].id;
+          attach(foundId);
+        } else {
+          attach('usr_pranav_1');
+        }
+      })
+      .catch(() => {
+        attach('usr_pranav_1');
+      });
+  }
+
+  return () => {
+    unsubs.forEach((u) => u());
+  };
 }
 
 

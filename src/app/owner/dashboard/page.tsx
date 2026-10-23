@@ -89,7 +89,8 @@ export default function OwnerDashboardPage() {
         // ignore
       }
 
-      const fbData = await fetchOwnerDashboardFromFirestore(user.id, user.phone);
+      const effectiveId = resolveEffectiveOwnerId(user.id) || undefined;
+      const fbData = await fetchOwnerDashboardFromFirestore(effectiveId, user.phone);
       
       if (fbData.user) {
         setUser(fbData.user);
@@ -415,14 +416,7 @@ export default function OwnerDashboardPage() {
   // 1. Fetch & Subscribe in real-time to owner's daily wash feedbacks from Firestore
   useEffect(() => {
     let isMounted = true;
-    const targetOwnerId =
-      user.id && user.id !== 'usr_guest'
-        ? user.id
-        : typeof window !== 'undefined'
-        ? localStorage.getItem('torque_owner_id')
-        : null;
-
-    const effectiveOwnerId = targetOwnerId || resolveEffectiveOwnerId() || 'usr_pranav_1';
+    const effectiveOwnerId = resolveEffectiveOwnerId(user.id) || undefined;
 
     // Initial load from Firestore
     fetchDailyWashFeedbackFromFirestore(effectiveOwnerId).then((fb) => {
@@ -772,6 +766,7 @@ export default function OwnerDashboardPage() {
             assignedWasherAvatar={assignedWasher?.avatar}
             parkingLocation={dashboardLocationDisplay}
             selectedVehicleId={primaryVehicle?.id}
+            washes={allVehicleWashes}
             todayWash={activeTodayWash || todayWash}
             todayFeedbackStatus={todayFeedbackStatus}
             feedbacks={allDailyFeedbacks}

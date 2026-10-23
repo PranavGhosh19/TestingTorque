@@ -24,6 +24,7 @@ import {
   fetchDailyWashFeedbackFromFirestore,
   saveDailyWashFeedbackToFirestore,
   subscribeToDailyWashFeedbackFromFirestore,
+  resolveEffectiveOwnerId,
 } from '@/lib/firebaseService';
 import { getTodayISTDate, getNextDayIso } from '@/lib/washUtils';
 
@@ -136,14 +137,7 @@ export default function OwnerProofCalendar({
     }
 
     // Always fetch directly and subscribe to Firestore
-    const targetOwnerId =
-      user?.id && user.id !== 'usr_guest'
-        ? user.id
-        : typeof window !== 'undefined'
-        ? localStorage.getItem('torque_owner_id')
-        : null;
-
-    const resolvedOwnerId = targetOwnerId || (typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') : null) || 'usr_pranav_1';
+    const resolvedOwnerId = resolveEffectiveOwnerId(user?.id) || undefined;
 
     fetchDailyWashFeedbackFromFirestore(resolvedOwnerId).then((fb) => {
       if (fb && Object.keys(fb).length > 0) {
@@ -152,7 +146,7 @@ export default function OwnerProofCalendar({
     });
 
     const unsub = subscribeToDailyWashFeedbackFromFirestore(resolvedOwnerId, (fb) => {
-      if (fb) {
+      if (fb && Object.keys(fb).length > 0) {
         setDailyFeedbacks((prev) => ({ ...prev, ...fb }));
       }
     });
@@ -259,19 +253,14 @@ export default function OwnerProofCalendar({
       onFeedbackChange(dateIso, answer);
     }
 
-    const targetOwnerId =
-      user?.id && user.id !== 'usr_guest'
-        ? user.id
-        : typeof window !== 'undefined'
-        ? localStorage.getItem('torque_owner_id')
-        : null;
+    const targetOwnerId = resolveEffectiveOwnerId(user?.id) || undefined;
 
     setSavingDate(dateIso);
     setSavedDate(null);
 
     try {
       await saveDailyWashFeedbackToFirestore(
-        targetOwnerId || undefined,
+        targetOwnerId,
         currentVehicle?.id,
         dateIso,
         answer
