@@ -89,7 +89,7 @@ export default function OwnerDashboardPage() {
         // ignore
       }
 
-      const effectiveId = resolveEffectiveOwnerId(user.id) || undefined;
+      const effectiveId = resolveEffectiveOwnerId(user.id) || user.id || 'usr_pranav_1';
       const fbData = await fetchOwnerDashboardFromFirestore(effectiveId, user.phone);
       
       if (fbData.user) {
@@ -416,7 +416,7 @@ export default function OwnerDashboardPage() {
   // 1. Fetch & Subscribe in real-time to owner's daily wash feedbacks from Firestore
   useEffect(() => {
     let isMounted = true;
-    const effectiveOwnerId = resolveEffectiveOwnerId(user.id) || undefined;
+    const effectiveOwnerId = resolveEffectiveOwnerId(user.id) || user.id || 'usr_pranav_1';
 
     // Initial load from Firestore
     fetchDailyWashFeedbackFromFirestore(effectiveOwnerId).then((fb) => {

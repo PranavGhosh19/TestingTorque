@@ -1811,7 +1811,7 @@ export interface OwnerDashboardFirebaseData {
  * - Assigned Washer Partner from Washers collection
  */
 export async function fetchOwnerDashboardFromFirestore(
-  userId: string,
+  userId?: string,
   userPhone?: string
 ): Promise<OwnerDashboardFirebaseData> {
   const result: OwnerDashboardFirebaseData = {
