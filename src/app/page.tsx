@@ -25,6 +25,9 @@ import {
   Calculator,
   FileSpreadsheet,
   BookOpen,
+  ArrowUp,
+  Phone,
+  Mail,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 
@@ -672,31 +675,260 @@ export default function HomePage() {
       </section>
 
       {/* ========================================================================= */}
-      {/* 7. FOOTER */}
+      {/* 7. REDESIGNED LUXURY AUTOMOTIVE FOOTER                                   */}
       {/* ========================================================================= */}
-      <footer className="bg-[#05080E] border-t border-white/[0.08] pt-14 pb-28 md:py-14 px-4 sm:px-6 lg:px-8 text-xs text-white/40">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="hover:opacity-95 transition-opacity">
-              <TorqueLogo emblemSize={32} />
-            </Link>
-            <span>• Fair Car Cleaning Records &amp; Payment Tracking</span>
+      <footer className="relative bg-[#05080E] border-t border-white/[0.08] text-white overflow-hidden pt-16 pb-32 md:pb-16 px-4 sm:px-6 lg:px-8">
+        {/* Subtle Ambient Glows */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[200px] bg-[#2DD4A0]/5 blur-[120px] pointer-events-none -z-0" />
+        <div className="absolute -top-[1px] left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#2DD4A0]/40 to-transparent" />
+
+        <div className="relative z-10 max-w-7xl mx-auto space-y-12 sm:space-y-16">
+          {/* TOP AUDIT & STATUS RIBBON */}
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-[#0A0D12] border border-white/[0.06] shadow-lg">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#11161D] border border-white/[0.08] text-xs font-mono text-white/90">
+                <span className="w-2 h-2 rounded-full bg-[#2DD4A0] shadow-[0_0_8px_#2DD4A0] animate-pulse" />
+                <span className="text-[#2DD4A0] font-bold">LIVE:</span> Daily Verification Platform
+              </span>
+              <span className="hidden sm:inline-block text-xs text-white/40">•</span>
+              <span className="text-xs text-white/60 font-mono">
+                Track Yes / No washes • Clustered Society Routes
+              </span>
+            </div>
+
+            <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+              <Link
+                href="/car-wash-payment-calculator"
+                className="inline-flex items-center gap-1.5 text-xs text-[#2DD4A0] hover:text-[#2DD4A0]/80 font-mono transition-colors"
+              >
+                <Calculator className="w-3.5 h-3.5" />
+                <span>Try Payment Calculator</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs text-white/60 hover:text-white font-mono transition-all cursor-pointer"
+                aria-label="Scroll back to top"
+              >
+                <span>Back to Top</span>
+                <ArrowUp className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-5 sm:gap-6 text-white/60 flex-wrap justify-center font-medium">
-            <Link href="/" className="hover:text-white">Home</Link>
-            <Link href="/guides" className="hover:text-white">Guides</Link>
-            <Link href="/car-wash-payment-calculator" className="hover:text-[#2DD4A0]">Payment Calculator</Link>
-            <Link href="/car-wash-tracking" className="hover:text-[#2DD4A0]">Tracking Guide</Link>
-            <Link href="/car-wash-tracking-template" className="hover:text-[#2DD4A0]">Free Template</Link>
-            <Link href="/pricing" className="hover:text-white">Pricing</Link>
-            <Link href="/about" className="hover:text-white">About</Link>
-            <Link href="/privacy" className="hover:text-white">Privacy</Link>
-            <Link href="/terms" className="hover:text-white">Terms</Link>
-            <Link href="/contact" className="hover:text-white">Contact</Link>
+          {/* MAIN 5-COLUMN FOOTER GRID */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8">
+            {/* BRAND COLUMN (Spans 4 columns on lg) */}
+            <div className="lg:col-span-4 space-y-6">
+              <Link href="/" className="inline-block hover:opacity-95 transition-opacity">
+                <TorqueLogo emblemSize={38} />
+              </Link>
+
+              <p className="text-xs sm:text-sm text-white/60 leading-relaxed max-w-sm">
+                The verifiable daily automotive maintenance platform. Replacing unverified monthly cash payments with transparent Yes / No tracking, fair carry-forwards, and dignity for care technicians.
+              </p>
+
+              {/* Specification Chips */}
+              <div className="flex flex-wrap gap-2 pt-1">
+                <span className="px-2.5 py-1 rounded-md bg-[#11161D] border border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-white/70">
+                  Daily Yes / No Check
+                </span>
+                <span className="px-2.5 py-1 rounded-md bg-[#11161D] border border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#2DD4A0]">
+                  Zero Loss Audit
+                </span>
+                <span className="px-2.5 py-1 rounded-md bg-[#11161D] border border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-white/70">
+                  Gated Societies
+                </span>
+              </div>
+
+              {/* Direct Support Contacts */}
+              <div className="space-y-2 pt-2 text-xs text-white/60">
+                <div className="flex items-center gap-2.5">
+                  <Phone className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />
+                  <span className="font-mono text-white/80">+91 1800 420 9000</span>
+                  <span className="text-[10px] text-white/40 font-mono">(6 AM – 9 PM)</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Mail className="w-3.5 h-3.5 text-[#2DD4A0] shrink-0" />
+                  <a href="mailto:support@torquecare.com" className="font-mono text-white/80 hover:text-[#2DD4A0] transition-colors">
+                    support@torquecare.com
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {/* COLUMN 2: TOOLS & CALCULATORS (Spans 2 on lg) */}
+            <div className="lg:col-span-2 space-y-4">
+              <h3 className="text-xs font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
+                Tools &amp; Freebies
+              </h3>
+              <ul className="space-y-2.5 text-xs text-white/60">
+                <li>
+                  <Link
+                    href="/car-wash-payment-calculator"
+                    className="hover:text-white transition-colors flex items-center justify-between group"
+                  >
+                    <span>Payment Calculator</span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#2DD4A0]/15 text-[#2DD4A0] border border-[#2DD4A0]/30">
+                      Tool
+                    </span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/car-wash-tracking-template"
+                    className="hover:text-white transition-colors flex items-center justify-between group"
+                  >
+                    <span>Free Excel Template</span>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-white/80 border border-white/15">
+                      Sheets
+                    </span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/car-wash-tracking" className="hover:text-white transition-colors">
+                    Car Wash Tracking Guide
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/pricing" className="hover:text-white transition-colors">
+                    Plans &amp; Pricing
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/how-it-works" className="hover:text-white transition-colors">
+                    How It Works
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* COLUMN 3: GUIDES & RESEARCH (Spans 2 on lg) */}
+            <div className="lg:col-span-2 space-y-4">
+              <h3 className="text-xs font-mono font-bold uppercase tracking-[0.2em] text-white/90">
+                Knowledge Base
+              </h3>
+              <ul className="space-y-2.5 text-xs text-white/60">
+                <li>
+                  <Link href="/guides/pay-for-missed-car-wash-days" className="hover:text-white transition-colors">
+                    Pay for Missed Washes
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/guides/monthly-car-wash-cost-india" className="hover:text-white transition-colors">
+                    Monthly Wash Cost India
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/guides/car-washer-attendance-tracking" className="hover:text-white transition-colors">
+                    Attendance Tracking
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/guides/missed-car-washes" className="hover:text-white transition-colors">
+                    Resolving Missed Washes
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/guides" className="text-[#2DD4A0] hover:underline flex items-center gap-1">
+                    <span>View All Guides</span>
+                    <ArrowRight className="w-3 h-3" />
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* COLUMN 4: PLATFORMS & PORTALS (Spans 2 on lg) */}
+            <div className="lg:col-span-2 space-y-4">
+              <h3 className="text-xs font-mono font-bold uppercase tracking-[0.2em] text-white/90">
+                Portals &amp; Access
+              </h3>
+              <ul className="space-y-2.5 text-xs text-white/60">
+                <li>
+                  <Link href="/owner/dashboard" className="hover:text-white transition-colors flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0]" />
+                    <span>Owner Dashboard</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth/signup" className="hover:text-white transition-colors">
+                    Register Vehicle
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/auth/login" className="hover:text-white transition-colors">
+                    Owner Sign In
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/washer/login" className="hover:text-white transition-colors flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    <span>Washer Portal</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/admin/login" className="hover:text-white transition-colors flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    <span>Admin Operations</span>
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* COLUMN 5: COMPANY & SUPPORT (Spans 2 on lg) */}
+            <div className="lg:col-span-2 space-y-4">
+              <h3 className="text-xs font-mono font-bold uppercase tracking-[0.2em] text-white/90">
+                Company &amp; Legal
+              </h3>
+              <ul className="space-y-2.5 text-xs text-white/60">
+                <li>
+                  <Link href="/about" className="hover:text-white transition-colors">
+                    About Torque Care
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="hover:text-white transition-colors">
+                    Contact &amp; Society Audits
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/privacy" className="hover:text-white transition-colors">
+                    Privacy Policy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms" className="hover:text-white transition-colors">
+                    Terms of Service
+                  </Link>
+                </li>
+                <li className="pt-2">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-white/40">
+                    <ShieldCheck className="w-3.5 h-3.5 text-[#2DD4A0]" />
+                    <span>Verified Audit Engine</span>
+                  </span>
+                </li>
+              </ul>
+            </div>
           </div>
 
-          <div>© 2026 Torque Care Technologies Inc. All rights reserved.</div>
+          {/* BOTTOM COPYRIGHT & LEGAL BAR */}
+          <div className="border-t border-white/[0.08] pt-8 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-white/40">
+            <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center sm:text-left">
+              <span>© {new Date().getFullYear()} Torque Care Technologies Inc. All rights reserved.</span>
+              <span className="hidden sm:inline">•</span>
+              <span className="text-[11px] font-mono text-white/30">
+                Daily Verification Standard for Urban Automotive Care
+              </span>
+            </div>
+
+            <div className="flex items-center gap-6 font-mono text-[11px]">
+              <Link href="/privacy" className="hover:text-white/80 transition-colors">Privacy</Link>
+              <Link href="/terms" className="hover:text-white/80 transition-colors">Terms</Link>
+              <Link href="/contact" className="hover:text-white/80 transition-colors">Contact</Link>
+              <Link href="/car-wash-tracking-template" className="hover:text-[#2DD4A0] transition-colors">Free Template</Link>
+            </div>
+          </div>
         </div>
       </footer>
 
