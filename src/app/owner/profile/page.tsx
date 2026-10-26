@@ -21,7 +21,6 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
-  LayoutDashboard,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
@@ -329,34 +328,7 @@ export default function OwnerProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#0A0D12] text-white pb-28 md:pb-16 selection:bg-[#2DD4A0] selection:text-black">
-      <header className="bg-[#0A0D12]/90 backdrop-blur-xl border-b border-white/[0.08]">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between flex-wrap gap-4">
-          <div>
-            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
-              Account & Society Residency
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-              Owner Profile
-            </h1>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Link
-              href="/owner/dashboard"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08]"
-            >
-              <LayoutDashboard className="w-3.5 h-3.5 text-[#2DD4A0]" />
-              <span>Dashboard</span>
-            </Link>
-            <Link
-              href="/owner/vehicles"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08]"
-            >
-              <Car className="w-3.5 h-3.5 text-[#2DD4A0]" />
-              <span>Vehicles</span>
-            </Link>
-          </div>
-        </div>
-      </header>
+
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 space-y-6">
         {/* Status Notification */}
@@ -498,11 +470,6 @@ export default function OwnerProfilePage() {
                 <ShieldCheck className="w-3.5 h-3.5 text-[#2DD4A0]" />
                 Dedicated Care Specialist
               </span>
-              {hasWasher && (
-                <span className="text-[10px] font-mono text-emerald-400 font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                  ✓ Assigned Partner
-                </span>
-              )}
             </div>
 
             {!hasWasher ? (
