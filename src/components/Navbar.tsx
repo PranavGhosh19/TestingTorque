@@ -69,7 +69,7 @@ export default function Navbar() {
         </Link>
 
         {/* Center Nav: Owner Portal Desktop Nav (Dashboard, Vehicles, Profile) */}
-        {isOwnerPortal && !isOwnerDashboard ? (
+        {isOwnerDashboard ? null : isOwnerPortal ? (
           <nav className="hidden md:flex items-center gap-1.5 bg-white/5 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xl shadow-lg md:absolute md:left-1/2 md:-translate-x-1/2">
             <Link
               href="/owner/dashboard"
