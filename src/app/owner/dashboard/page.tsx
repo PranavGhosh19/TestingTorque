@@ -582,23 +582,6 @@ export default function OwnerDashboardPage() {
 
 
 
-  // WHILE INITIALIZING HYDRATION, RENDER SVELTE AMBIENT LOADER
-  if (!isHydrated) {
-    return (
-      <div className="min-h-screen bg-[#080D1A] text-slate-100 flex items-center justify-center selection:bg-blue-500">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shadow-lg">
-            <RefreshCw className="w-6 h-6 text-blue-400 animate-spin" />
-          </div>
-          <div className="text-center space-y-1">
-            <p className="text-xs font-mono font-bold text-slate-300">Loading Dashboard...</p>
-            <p className="text-[10px] text-slate-500">Retrieving vehicle tracking and verified proofs</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const ownerDisplayName = user?.name || user?.owner_name || 'Car Owner';
 
   return (
@@ -623,7 +606,15 @@ export default function OwnerDashboardPage() {
           <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
             <Link
               href="/owner/vehicles"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm"
+              onClick={(e) => {
+                e.preventDefault();
+                try {
+                  router.push('/owner/vehicles');
+                } catch {
+                  window.location.href = '/owner/vehicles';
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm cursor-pointer"
               id="dashboard-nav-vehicles-btn"
             >
               <Car className="w-3.5 h-3.5 text-[#2DD4A0]" />
@@ -631,7 +622,15 @@ export default function OwnerDashboardPage() {
             </Link>
             <Link
               href="/owner/profile"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm"
+              onClick={(e) => {
+                e.preventDefault();
+                try {
+                  router.push('/owner/profile');
+                } catch {
+                  window.location.href = '/owner/profile';
+                }
+              }}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm cursor-pointer"
               id="dashboard-nav-profile-btn"
             >
               <User className="w-3.5 h-3.5 text-[#2DD4A0]" />
@@ -660,7 +659,22 @@ export default function OwnerDashboardPage() {
               </p>
             </div>
 
-            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3 flex-wrap">
+              <Link
+                href="/owner/vehicles"
+                onClick={(e) => {
+                  e.preventDefault();
+                  try {
+                    router.push('/owner/vehicles');
+                  } catch {
+                    window.location.href = '/owner/vehicles';
+                  }
+                }}
+                className="w-full sm:w-auto px-5 py-3 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Car className="w-4 h-4" />
+                <span>My Vehicles ({vehicles?.length || 0})</span>
+              </Link>
               <Link
                 href="/auth/signup"
                 className="w-full sm:w-auto px-6 py-3 rounded-full bg-white hover:bg-neutral-200 text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
@@ -670,7 +684,7 @@ export default function OwnerDashboardPage() {
               </Link>
               <button
                 onClick={() => setShowAddVehicleModal(true)}
-                className="w-full sm:w-auto px-5 py-3 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08] flex items-center justify-center gap-2"
+                className="w-full sm:w-auto px-5 py-3 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08] flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-white/60" />
                 <span>Quick Add Vehicle</span>
@@ -678,7 +692,7 @@ export default function OwnerDashboardPage() {
               <button
                 onClick={loadFirebaseDashboard}
                 disabled={isFirebaseSyncing}
-                className="w-full sm:w-auto px-4 py-3 rounded-full bg-transparent hover:bg-white/5 text-white/70 hover:text-white text-xs font-medium transition-all border border-white/[0.08] flex items-center justify-center gap-1.5"
+                className="w-full sm:w-auto px-4 py-3 rounded-full bg-transparent hover:bg-white/5 text-white/70 hover:text-white text-xs font-medium transition-all border border-white/[0.08] flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isFirebaseSyncing ? 'animate-spin' : ''}`} />
                 <span>Sync Firestore</span>
@@ -823,6 +837,76 @@ export default function OwnerDashboardPage() {
               }
             }}
           />
+        </div>
+
+        {/* QUICK ACCESS: VEHICLES & PROFILE */}
+        <div className="pt-2 space-y-3">
+          <span className="text-[10px] font-mono uppercase tracking-[0.2em] text-white/50 block px-1 font-bold">
+            QUICK ACCESS &amp; GARAGE HUB
+          </span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Link
+              href="/owner/vehicles"
+              onClick={(e) => {
+                e.preventDefault();
+                try {
+                  router.push('/owner/vehicles');
+                } catch {
+                  window.location.href = '/owner/vehicles';
+                }
+              }}
+              className="p-5 rounded-[22px] bg-[#11161D] hover:bg-[#161C25] border border-white/[0.08] hover:border-[#2DD4A0]/40 transition-all shadow-xl group flex items-center justify-between cursor-pointer"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 flex items-center justify-center text-[#2DD4A0] group-hover:scale-105 transition-transform">
+                  <Car className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#2DD4A0] block">
+                    Garage Fleet
+                  </span>
+                  <h3 className="text-base font-bold text-white group-hover:text-[#2DD4A0] transition-colors">
+                    My Vehicles ({vehicles?.length || 0})
+                  </h3>
+                  <p className="text-xs text-white/50">Manage registered cars &amp; apartment bays</p>
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 group-hover:text-[#2DD4A0] group-hover:translate-x-0.5 transition-all">
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            </Link>
+
+            <Link
+              href="/owner/profile"
+              onClick={(e) => {
+                e.preventDefault();
+                try {
+                  router.push('/owner/profile');
+                } catch {
+                  window.location.href = '/owner/profile';
+                }
+              }}
+              className="p-5 rounded-[22px] bg-[#11161D] hover:bg-[#161C25] border border-white/[0.08] hover:border-[#2DD4A0]/40 transition-all shadow-xl group flex items-center justify-between cursor-pointer"
+            >
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 flex items-center justify-center text-[#2DD4A0] group-hover:scale-105 transition-transform">
+                  <User className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-[#2DD4A0] block">
+                    Account &amp; Residency
+                  </span>
+                  <h3 className="text-base font-bold text-white group-hover:text-[#2DD4A0] transition-colors">
+                    Profile &amp; Society
+                  </h3>
+                  <p className="text-xs text-white/50">{defaultOwnerSociety || 'Update apartment flat and specialist'}</p>
+                </div>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-white/40 group-hover:text-[#2DD4A0] group-hover:translate-x-0.5 transition-all">
+                <ChevronRight className="w-4 h-4" />
+              </div>
+            </Link>
+          </div>
         </div>
 
 

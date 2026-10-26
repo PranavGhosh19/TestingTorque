@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
@@ -46,6 +47,7 @@ export default function SignatureProofCard({
   todayFeedbackStatus,
 }: Props) {
   const [mounted, setMounted] = useState<boolean>(false);
+  const router = useRouter();
   const { vehicles, user } = useStore();
 
   useEffect(() => {
@@ -216,7 +218,15 @@ export default function SignatureProofCard({
               </span>
               <Link
                 href="/owner/vehicles"
-                className="group inline-flex items-center gap-1.5 hover:text-[#2DD4A0] transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  try {
+                    router.push('/owner/vehicles');
+                  } catch {
+                    window.location.href = '/owner/vehicles';
+                  }
+                }}
+                className="group inline-flex items-center gap-1.5 hover:text-[#2DD4A0] transition-colors cursor-pointer"
                 title="Manage vehicles in garage"
               >
                 <h2 suppressHydrationWarning className="text-xl sm:text-2xl font-bold text-white group-hover:text-[#2DD4A0] tracking-tight transition-colors">
@@ -227,7 +237,15 @@ export default function SignatureProofCard({
             </div>
             <Link
               href="/owner/vehicles"
-              className="text-xs font-mono font-medium text-[#2DD4A0] hover:underline"
+              onClick={(e) => {
+                e.preventDefault();
+                try {
+                  router.push('/owner/vehicles');
+                } catch {
+                  window.location.href = '/owner/vehicles';
+                }
+              }}
+              className="text-xs font-mono font-medium text-[#2DD4A0] hover:underline cursor-pointer"
             >
               Garage →
             </Link>
@@ -238,6 +256,14 @@ export default function SignatureProofCard({
         <div className="relative z-10 mb-3">
           <Link
             href="/owner/vehicles"
+            onClick={(e) => {
+              e.preventDefault();
+              try {
+                router.push('/owner/vehicles');
+              } catch {
+                window.location.href = '/owner/vehicles';
+              }
+            }}
             className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#161C25] hover:bg-white/10 border border-white/[0.12] hover:border-white/20 text-white font-mono text-xs sm:text-sm font-bold tracking-wider shadow-sm shrink-0 transition-all cursor-pointer"
             title="View in Garage"
           >
@@ -272,6 +298,14 @@ export default function SignatureProofCard({
               </div>
               <Link
                 href="/owner/profile"
+                onClick={(e) => {
+                  e.preventDefault();
+                  try {
+                    router.push('/owner/profile');
+                  } catch {
+                    window.location.href = '/owner/profile';
+                  }
+                }}
                 className="ml-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[#2DD4A0] border border-white/10 text-[11px] font-mono font-bold tracking-wider transition-all shrink-0 cursor-pointer"
               >
                 Change
@@ -282,6 +316,14 @@ export default function SignatureProofCard({
               <span className="text-xs text-white/50">No specialist assigned yet</span>
               <Link
                 href="/owner/profile"
+                onClick={(e) => {
+                  e.preventDefault();
+                  try {
+                    router.push('/owner/profile');
+                  } catch {
+                    window.location.href = '/owner/profile';
+                  }
+                }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold font-mono uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
               >
                 <UserPlus className="w-3.5 h-3.5" />

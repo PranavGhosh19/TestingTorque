@@ -133,7 +133,7 @@ export default function OwnerVehiclesPage() {
                       <ShieldCheck className="w-3.5 h-3.5 text-[#2DD4A0]" /> Assigned Specialist:
                     </span>
                     <span className="font-bold text-white">
-                      {v.assigned_washer_name || user.assigned_washer_name || 'Amit Kumar'}
+                      {v.assigned_washer_name || user?.assigned_washer_name || 'Amit Kumar'}
                     </span>
                   </div>
                 </div>

@@ -2,11 +2,12 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Home, Car, User } from 'lucide-react';
 
 export default function OwnerBottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const links = [
     { href: '/owner/dashboard', label: 'Home', icon: Home },
@@ -24,6 +25,9 @@ export default function OwnerBottomNav() {
             <Link
               key={link.href}
               href={link.href}
+              onClick={() => {
+                router.push(link.href);
+              }}
               className={`flex flex-col items-center justify-center py-1 transition-all ${
                 isActive ? 'text-white' : 'text-white/40 hover:text-white/70'
               }`}

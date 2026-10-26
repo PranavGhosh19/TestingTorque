@@ -318,19 +318,6 @@ export default function OwnerProfilePage() {
     }
   };
 
-  if (!isHydrated) {
-    return (
-      <div className="min-h-screen bg-[#0A0D12] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <RefreshCw className="w-6 h-6 text-[#2DD4A0] animate-spin" />
-          <p className="text-xs font-mono uppercase tracking-widest text-white/50">
-            Verifying profile session...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const displayName = user?.name || user?.owner_name || 'Car Owner';
   const nameInitials = displayName
     .split(' ')
