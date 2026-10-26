@@ -54,16 +54,6 @@ export default function OwnerDashboardPage() {
   const [calendarStats, setCalendarStats] = useState<{ verifiedCount: number; missingCount: number } | null>(null);
   const [liveWashersList, setLiveWashersList] = useState<WasherPartner[]>([]);
 
-  // REDIRECT TO LANDING PAGE IF NOT LOGGED IN
-  useEffect(() => {
-    if (!isHydrated) return;
-    const storedLoggedIn = typeof window !== 'undefined' && localStorage.getItem('torque_logged_in') === 'true';
-    const storedOwnerId = typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') : null;
-    if (!isLoggedIn && !storedLoggedIn && !storedOwnerId) {
-      router.replace('/');
-    }
-  }, [isHydrated, isLoggedIn, router]);
-
   // Firebase Live Sync State
   const [isFirebaseSyncing, setIsFirebaseSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
@@ -93,26 +83,20 @@ export default function OwnerDashboardPage() {
         // ignore
       }
 
-      const effectiveId = resolveEffectiveOwnerId(user.id) || user.id || 'usr_pranav_1';
-      const fbData = await fetchOwnerDashboardFromFirestore(effectiveId, user.phone);
+      const effectiveId = resolveEffectiveOwnerId(user?.id) || user?.id || 'usr_pranav_1';
+      const fbData = await fetchOwnerDashboardFromFirestore(effectiveId, user?.phone);
       
       if (fbData.user) {
         setUser(fbData.user);
         if (typeof window !== 'undefined') {
           const resolvedName = fbData.user.owner_name || fbData.user.name;
           if (resolvedName) localStorage.setItem('torque_owner_name', resolvedName);
-          localStorage.setItem('torque_logged_in', 'true');
-          localStorage.setItem('torque_owner_id', fbData.user.id || effectiveId);
         }
       }
       if (fbData.vehicles && fbData.vehicles.length > 0) {
         setVehicles(fbData.vehicles);
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('torque_logged_in', 'true');
-          localStorage.setItem('torque_owner_id', fbData.vehicles[0]?.owner_id || effectiveId);
-          if (fbData.vehicles[0]?.owner_name) {
-            localStorage.setItem('torque_owner_name', fbData.vehicles[0].owner_name);
-          }
+        if (typeof window !== 'undefined' && fbData.vehicles[0]?.owner_name) {
+          localStorage.setItem('torque_owner_name', fbData.vehicles[0].owner_name);
         }
       }
       if (fbData.assignedWasher) {
@@ -151,7 +135,7 @@ export default function OwnerDashboardPage() {
 
   useEffect(() => {
     loadFirebaseDashboard();
-  }, [user.id, user.phone]);
+  }, [user?.id, user?.phone]);
 
   const activeVehicles = vehicles || [];
   const hasVehicles = activeVehicles.length > 0;
@@ -304,7 +288,7 @@ export default function OwnerDashboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [user.society, user.societyName, user.state, user.city, user.district]);
+  }, [user?.society, user?.societyName, user?.state, user?.city, user?.district]);
 
   // Equal / Common Location & Society Match
   // Washer Selects: State - City - District - Societies (multiple)
@@ -330,7 +314,7 @@ export default function OwnerDashboardPage() {
     locationMatchedWasher?.id ||
     firebaseWasher?.id ||
     primaryVehicle?.assigned_washer_id ||
-    user.assigned_washer_id ||
+    user?.assigned_washer_id ||
     storedAssignedWasherId;
 
   const targetWasherName =
@@ -338,7 +322,7 @@ export default function OwnerDashboardPage() {
     locationMatchedWasher?.name ||
     firebaseWasher?.name ||
     primaryVehicle?.assigned_washer_name ||
-    user.assigned_washer_name ||
+    user?.assigned_washer_name ||
     storedAssignedWasherName;
 
   const matchedStoreWasher = washers.find(
@@ -356,7 +340,7 @@ export default function OwnerDashboardPage() {
   const validTargetName = !isDummyName(targetWasherName) ? targetWasherName : null;
 
   const defaultOwnerSociety =
-    primaryVehicle?.society_name || user.society || (user as any).societyName || 'Assigned Society';
+    primaryVehicle?.society_name || user?.society || (user as any)?.societyName || 'Assigned Society';
 
   const assignedWasher: WasherPartner | null =
     (primaryVehicle?.isBackupActive ? null : locationMatchedWasher) ||
@@ -426,7 +410,7 @@ export default function OwnerDashboardPage() {
   // 1. Fetch & Subscribe in real-time to owner's daily wash feedbacks from Firestore
   useEffect(() => {
     let isMounted = true;
-    const effectiveOwnerId = resolveEffectiveOwnerId(user.id) || user.id || 'usr_pranav_1';
+    const effectiveOwnerId = resolveEffectiveOwnerId(user?.id) || user?.id || 'usr_pranav_1';
 
     // Initial load from Firestore
     fetchDailyWashFeedbackFromFirestore(effectiveOwnerId).then((fb) => {
@@ -452,7 +436,7 @@ export default function OwnerDashboardPage() {
       isMounted = false;
       unsubscribe();
     };
-  }, [user.id, todayIso]);
+  }, [user?.id, todayIso]);
 
   // 2. Check if owner should be prompted for today's wash verification modal
   useEffect(() => {
@@ -515,7 +499,7 @@ export default function OwnerDashboardPage() {
       isMounted = false;
       if (timer) clearTimeout(timer);
     };
-  }, [todayIso, user.id, primaryVehicle, todayFeedbackStatus, allDailyFeedbacks]);
+  }, [todayIso, user?.id, primaryVehicle, todayFeedbackStatus, allDailyFeedbacks]);
 
   const handleDailyFeedbackAnswer = async (answer: 'yes' | 'no', targetDate?: string) => {
     const effectiveDate = targetDate || todayIso;
@@ -534,7 +518,7 @@ export default function OwnerDashboardPage() {
     }
 
     const targetOwnerId =
-      user.id && user.id !== 'usr_guest'
+      user?.id && user.id !== 'usr_guest'
         ? user.id
         : typeof window !== 'undefined'
         ? localStorage.getItem('torque_owner_id')
@@ -598,8 +582,8 @@ export default function OwnerDashboardPage() {
 
 
 
-  // WHILE CHECKING AUTH OR IF NOT LOGGED IN, RENDER DARK AMBIENT LOADER (REDIRECTING TO LANDING)
-  if (!isHydrated || !isLoggedIn) {
+  // WHILE INITIALIZING HYDRATION, RENDER SVELTE AMBIENT LOADER
+  if (!isHydrated) {
     return (
       <div className="min-h-screen bg-[#080D1A] text-slate-100 flex items-center justify-center selection:bg-blue-500">
         <div className="flex flex-col items-center gap-3">
@@ -607,13 +591,15 @@ export default function OwnerDashboardPage() {
             <RefreshCw className="w-6 h-6 text-blue-400 animate-spin" />
           </div>
           <div className="text-center space-y-1">
-            <p className="text-xs font-mono font-bold text-slate-300">Authenticating Torque Care...</p>
-            <p className="text-[10px] text-slate-500">Redirecting to landing page if not signed in</p>
+            <p className="text-xs font-mono font-bold text-slate-300">Loading Dashboard...</p>
+            <p className="text-[10px] text-slate-500">Retrieving vehicle tracking and verified proofs</p>
           </div>
         </div>
       </div>
     );
   }
+
+  const ownerDisplayName = user?.name || user?.owner_name || 'Car Owner';
 
   return (
     <div className="min-h-screen bg-[#0A0D12] text-white pb-28 md:pb-16 selection:bg-[#2DD4A0] selection:text-black">
@@ -621,48 +607,35 @@ export default function OwnerDashboardPage() {
       <div className="fixed top-0 left-1/4 w-[500px] h-[500px] bg-[#2DD4A0]/5 rounded-full blur-[140px] pointer-events-none -z-10" />
       <div className="fixed bottom-10 right-10 w-[450px] h-[450px] bg-blue-600/5 rounded-full blur-[150px] pointer-events-none -z-10" />
 
-
-
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
-
-        {/* QUICK ACCESS BAR: MY VEHICLES & OWNER PROFILE */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#11161D] border border-white/[0.08] shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 flex items-center justify-center text-[#2DD4A0] shrink-0">
-              <Car className="w-5 h-5" />
+        {/* TOP OWNER CONTEXT BAR WITH VEHICLES & PROFILE ACTIONS */}
+        <div className="flex items-center justify-between flex-wrap gap-4 pb-2 border-b border-white/[0.06]">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 text-[#2DD4A0] text-xs font-mono font-bold">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0] animate-pulse" />
+              <span>OWNER DASHBOARD</span>
             </div>
-            <div>
-              <div className="text-xs font-bold text-white flex items-center gap-2 flex-wrap">
-                <span>{primaryVehicle ? `${primaryVehicle.make} ${primaryVehicle.model}` : 'Garage Overview'}</span>
-                {primaryVehicle?.registration_number && (
-                  <span className="font-mono text-[10px] text-white/80 bg-[#161C25] px-2 py-0.5 rounded border border-white/[0.08]">
-                    {primaryVehicle.registration_number}
-                  </span>
-                )}
-              </div>
-              <p className="text-[11px] text-white/50 font-mono">
-                {activeVehicles.length} {activeVehicles.length === 1 ? 'Vehicle Registered' : 'Vehicles Registered'}
-              </p>
-            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight mt-1">
+              Welcome back, {ownerDisplayName}
+            </h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
             <Link
               href="/owner/vehicles"
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#161C25] hover:bg-white/10 border border-white/[0.08] hover:border-[#2DD4A0]/40 text-xs font-bold text-white transition-all shadow-sm"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm"
+              id="dashboard-nav-vehicles-btn"
             >
               <Car className="w-3.5 h-3.5 text-[#2DD4A0]" />
-              <span>My Vehicles</span>
-              <ChevronRight className="w-3 h-3 text-white/40" />
+              <span>My Vehicles ({vehicles?.length || 0})</span>
             </Link>
-
             <Link
               href="/owner/profile"
-              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#161C25] hover:bg-white/10 border border-white/[0.08] hover:border-[#2DD4A0]/40 text-xs font-bold text-white transition-all shadow-sm"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08] hover:border-white/20 active:scale-95 shadow-sm"
+              id="dashboard-nav-profile-btn"
             >
               <User className="w-3.5 h-3.5 text-[#2DD4A0]" />
-              <span>Owner Profile</span>
-              <ChevronRight className="w-3 h-3 text-white/40" />
+              <span>Profile & Society</span>
             </Link>
           </div>
         </div>
@@ -728,7 +701,7 @@ export default function OwnerDashboardPage() {
         )}
 
         {/* STEP 4: WASHER APPOINTMENT NOTICE IF NONE APPOINTED */}
-        {(!user.assigned_washer_id && !primaryVehicle?.assigned_washer_id && !storedAssignedWasherId) && (
+        {(!user?.assigned_washer_id && !primaryVehicle?.assigned_washer_id && !storedAssignedWasherId) && (
           <div className="p-5 rounded-[22px] bg-gradient-to-r from-[#2DD4A0]/20 via-[#162325]/70 to-[#11161D] border border-[#2DD4A0]/40 shadow-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start sm:items-center gap-3.5">
               <div className="w-11 h-11 rounded-2xl bg-[#2DD4A0]/20 border border-[#2DD4A0]/40 flex items-center justify-center text-[#2DD4A0] shrink-0 mt-0.5 sm:mt-0">

@@ -209,22 +209,41 @@ export default function SignatureProofCard({
           </div>
 
           {/* LINE SECOND: Vehicle Name */}
-          <div>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 block mb-0.5">
-              Assigned Vehicle
-            </span>
-            <h2 suppressHydrationWarning className="text-xl sm:text-2xl font-bold text-white tracking-tight">
-              {vehicleName}
-            </h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-white/40 block mb-0.5">
+                Assigned Vehicle
+              </span>
+              <Link
+                href="/owner/vehicles"
+                className="group inline-flex items-center gap-1.5 hover:text-[#2DD4A0] transition-colors"
+                title="Manage vehicles in garage"
+              >
+                <h2 suppressHydrationWarning className="text-xl sm:text-2xl font-bold text-white group-hover:text-[#2DD4A0] tracking-tight transition-colors">
+                  {vehicleName}
+                </h2>
+                <ChevronRight className="w-4 h-4 text-white/40 group-hover:text-[#2DD4A0] group-hover:translate-x-0.5 transition-all" />
+              </Link>
+            </div>
+            <Link
+              href="/owner/vehicles"
+              className="text-xs font-mono font-medium text-[#2DD4A0] hover:underline"
+            >
+              Garage →
+            </Link>
           </div>
         </div>
 
         {/* LINE THIRD: Car Number Plate */}
         <div className="relative z-10 mb-3">
-          <div className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#161C25] border border-white/[0.12] text-white font-mono text-xs sm:text-sm font-bold tracking-wider shadow-sm shrink-0">
+          <Link
+            href="/owner/vehicles"
+            className="inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1.5 rounded-lg bg-[#161C25] hover:bg-white/10 border border-white/[0.12] hover:border-white/20 text-white font-mono text-xs sm:text-sm font-bold tracking-wider shadow-sm shrink-0 transition-all cursor-pointer"
+            title="View in Garage"
+          >
             <span className="text-[9px] sm:text-[10px] font-sans font-bold text-[#2DD4A0] border-r border-white/20 pr-1.5">IND</span>
             <span>{regNumber}</span>
-          </div>
+          </Link>
         </div>
 
         {/* LINE FORTH: Washer Details & Change button */}
@@ -252,7 +271,7 @@ export default function SignatureProofCard({
                 </div>
               </div>
               <Link
-                href="/owner/settings"
+                href="/owner/profile"
                 className="ml-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[#2DD4A0] border border-white/10 text-[11px] font-mono font-bold tracking-wider transition-all shrink-0 cursor-pointer"
               >
                 Change
@@ -262,7 +281,7 @@ export default function SignatureProofCard({
             <div className="flex items-center justify-between">
               <span className="text-xs text-white/50">No specialist assigned yet</span>
               <Link
-                href="/owner/settings"
+                href="/owner/profile"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold font-mono uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
               >
                 <UserPlus className="w-3.5 h-3.5" />

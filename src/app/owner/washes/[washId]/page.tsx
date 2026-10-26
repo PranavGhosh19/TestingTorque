@@ -27,13 +27,7 @@ export default function WashDetailsPage() {
   const washId = (params?.washId as string) || '';
   const { todayWash, washes, isLoggedIn, isHydrated } = useStore();
 
-  useEffect(() => {
-    if (isHydrated && !isLoggedIn) {
-      router.replace('/');
-    }
-  }, [isHydrated, isLoggedIn, router]);
-
-  if (!isHydrated || !isLoggedIn) {
+  if (!isHydrated) {
     return (
       <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center gap-3 text-white">
         <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />

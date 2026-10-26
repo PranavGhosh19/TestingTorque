@@ -53,13 +53,6 @@ export default function OwnerSettingsPage() {
   const [washerError, setWasherError] = useState('');
   const [isSavingWasher, setIsSavingWasher] = useState(false);
 
-  // Authentication check
-  useEffect(() => {
-    if (isHydrated && !isLoggedIn) {
-      router.replace('/');
-    }
-  }, [isHydrated, isLoggedIn, router]);
-
   // Resolve currently assigned washer
   const currentAssignedWasherId = useMemo(() => {
     if (typeof window !== 'undefined') {
@@ -68,8 +61,8 @@ export default function OwnerSettingsPage() {
     }
     return (
       vehicles[0]?.assigned_washer_id ||
-      user.assigned_washer_id ||
-      user.selectedWasherId ||
+      user?.assigned_washer_id ||
+      user?.selectedWasherId ||
       null
     );
   }, [vehicles, user]);
@@ -81,8 +74,8 @@ export default function OwnerSettingsPage() {
     }
     return (
       vehicles[0]?.assigned_washer_name ||
-      user.assigned_washer_name ||
-      user.selectedWasherName ||
+      user?.assigned_washer_name ||
+      user?.selectedWasherName ||
       null
     );
   }, [vehicles, user]);
@@ -93,7 +86,7 @@ export default function OwnerSettingsPage() {
     async function loadWashers() {
       setIsLoadingWashers(true);
       try {
-        const societyKey = user.societyName || user.society || '';
+        const societyKey = user?.societyName || user?.society || '';
         let list: WasherPartner[] = [];
 
         // 1. Fetch from Firestore Washers collection (canonical source of truth)
@@ -138,14 +131,16 @@ export default function OwnerSettingsPage() {
 
           // If there is a matched washer and user doesn't have an assigned washer yet, auto-select them
           const matched = list.find((w) => isWasherMatchForOwner(w, user));
-          if (matched && !user.assigned_washer_id && !user.selectedWasherId) {
-            setUser({
-              ...user,
-              assigned_washer_id: matched.id,
-              assigned_washer_name: matched.name,
-              selectedWasherId: matched.id,
-              selectedWasherName: matched.name,
-            });
+          if (matched && !user?.assigned_washer_id && !user?.selectedWasherId) {
+            if (user) {
+              setUser({
+                ...user,
+                assigned_washer_id: matched.id,
+                assigned_washer_name: matched.name,
+                selectedWasherId: matched.id,
+                selectedWasherName: matched.name,
+              });
+            }
             if (typeof window !== 'undefined') {
               localStorage.setItem('torque_assigned_washer_id', matched.id);
               localStorage.setItem('torque_assigned_washer_name', matched.name);
@@ -163,7 +158,7 @@ export default function OwnerSettingsPage() {
     return () => {
       isMounted = false;
     };
-  }, [user.society, user.societyName, user.state, user.city, user.district, storeWashers]);
+  }, [user?.society, user?.societyName, user?.state, user?.city, user?.district, storeWashers]);
 
   // Handler to appoint a washer to all owner's registered vehicles
   const handleAppointWasher = async (washer: WasherPartner) => {
@@ -172,7 +167,7 @@ export default function OwnerSettingsPage() {
 
     try {
       const ownerId =
-        user.id ||
+        user?.id ||
         (typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') || 'usr_owner' : 'usr_owner');
 
       // 1. Appoint washer to each vehicle in store & Firestore
@@ -283,8 +278,8 @@ export default function OwnerSettingsPage() {
         avatar: '/images/washer_amit.jpg',
         rating: '5.0',
         reviewsCount: 1,
-        society: user.societyName || user.society || '',
-        societies: [user.societyName || user.society || ''],
+        society: user?.societyName || user?.society || '',
+        societies: [user?.societyName || user?.society || ''],
         assignedCarsPerDay: vehicles.length || 1,
         routeWindow: '06:30 AM – 09:30 AM',
         avgTimePerCar: '6.0 mins',
@@ -344,8 +339,8 @@ export default function OwnerSettingsPage() {
         avatar: '/images/washer_amit.jpg',
         rating: '5.0',
         reviewsCount: 1,
-        society: user.societyName || user.society || '',
-        societies: [user.societyName || user.society || ''],
+        society: user?.societyName || user?.society || '',
+        societies: [user?.societyName || user?.society || ''],
         assignedCarsPerDay: vehicles.length || 1,
         routeWindow: '06:30 AM – 09:30 AM',
         avgTimePerCar: '6.0 mins',
