@@ -45,11 +45,11 @@ export default function Navbar() {
     <header
       className="sticky top-0 z-40 w-full bg-[#080D1A]/95 backdrop-blur-xl border-b border-white/10 transition-colors pt-[max(env(safe-area-inset-top),1rem)] md:pt-0"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-center md:justify-between relative">
         {/* Brand Logo - Performance Shield Emblem & Spec-sheet Wordmark */}
         <Link
           href={isOwnerPortal ? '/owner/dashboard' : '/'}
-          className="flex items-center group transition-transform hover:opacity-95 shrink-0"
+          className="flex items-center group transition-transform hover:opacity-95 shrink-0 mx-auto md:mx-0"
         >
           <TorqueLogo emblemSize={36} />
         </Link>
