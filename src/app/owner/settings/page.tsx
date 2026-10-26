@@ -1,18 +1,15 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft,
   ShieldCheck,
   CheckCircle2,
   Sparkles,
   RefreshCw,
   Check,
   AlertCircle,
-  ChevronRight,
   UserPlus,
   X,
   Loader2,
@@ -368,35 +365,7 @@ export default function OwnerSettingsPage() {
       {/* Background glow */}
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-[#2DD4A0]/10 rounded-full blur-[140px] pointer-events-none -z-10" />
 
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 bg-[#0A0D12]/90 backdrop-blur-xl border-b border-white/[0.08]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/owner/dashboard"
-              className="p-2 rounded-xl bg-[#161C25] hover:bg-white/10 text-white/70 hover:text-white transition-colors border border-white/[0.08]"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </Link>
-            <div>
-              <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0] block">
-                Settings & Specialist Management
-              </span>
-              <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                Owner Settings
-              </h1>
-            </div>
-          </div>
 
-          <Link
-            href="/owner/dashboard"
-            className="text-xs font-bold font-mono text-[#2DD4A0] hover:underline flex items-center gap-1"
-          >
-            <span>Dashboard</span>
-            <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-8">
         {/* Success Alert Banner */}

@@ -297,13 +297,13 @@ export default function SignatureProofCard({
                 </div>
               </div>
               <Link
-                href="/owner/profile"
+                href="/owner/settings"
                 onClick={(e) => {
                   e.preventDefault();
                   try {
-                    router.push('/owner/profile');
+                    router.push('/owner/settings');
                   } catch {
-                    window.location.href = '/owner/profile';
+                    window.location.href = '/owner/settings';
                   }
                 }}
                 className="ml-1 inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-[#2DD4A0] border border-white/10 text-[11px] font-mono font-bold tracking-wider transition-all shrink-0 cursor-pointer"
@@ -315,13 +315,13 @@ export default function SignatureProofCard({
             <div className="flex items-center justify-between">
               <span className="text-xs text-white/50">No specialist assigned yet</span>
               <Link
-                href="/owner/profile"
+                href="/owner/settings"
                 onClick={(e) => {
                   e.preventDefault();
                   try {
-                    router.push('/owner/profile');
+                    router.push('/owner/settings');
                   } catch {
-                    window.location.href = '/owner/profile';
+                    window.location.href = '/owner/settings';
                   }
                 }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#2DD4A0] hover:bg-[#25B88A] text-black text-xs font-bold font-mono uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer shrink-0"
