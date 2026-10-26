@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Car, Plus, MapPin, Clock, ShieldCheck, ChevronRight, CheckCircle2, RefreshCw, LayoutDashboard, User } from 'lucide-react';
+import { Car, Plus, MapPin, Clock, ShieldCheck, ChevronRight, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import AddVehicleModal from '@/components/modals/AddVehicleModal';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
@@ -27,20 +27,6 @@ export default function OwnerVehiclesPage() {
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Link
-              href="/owner/dashboard"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08]"
-            >
-              <LayoutDashboard className="w-3.5 h-3.5 text-[#2DD4A0]" />
-              <span>Dashboard</span>
-            </Link>
-            <Link
-              href="/owner/profile"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08]"
-            >
-              <User className="w-3.5 h-3.5 text-[#2DD4A0]" />
-              <span>Profile</span>
-            </Link>
             <button
               onClick={() => setShowAddModal(true)}
               className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
