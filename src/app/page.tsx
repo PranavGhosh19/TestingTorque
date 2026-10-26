@@ -25,7 +25,6 @@ import {
   Calculator,
   FileSpreadsheet,
   BookOpen,
-  ArrowUp,
   Phone,
   Mail,
 } from 'lucide-react';
@@ -683,44 +682,10 @@ export default function HomePage() {
         <div className="absolute -top-[1px] left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-[#2DD4A0]/40 to-transparent" />
 
         <div className="relative z-10 max-w-7xl mx-auto space-y-12 sm:space-y-16">
-          {/* TOP AUDIT & STATUS RIBBON */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 p-4 sm:p-5 rounded-2xl bg-[#0A0D12] border border-white/[0.06] shadow-lg">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#11161D] border border-white/[0.08] text-xs font-mono text-white/90">
-                <span className="w-2 h-2 rounded-full bg-[#2DD4A0] shadow-[0_0_8px_#2DD4A0] animate-pulse" />
-                <span className="text-[#2DD4A0] font-bold">LIVE:</span> Daily Verification Platform
-              </span>
-              <span className="hidden sm:inline-block text-xs text-white/40">•</span>
-              <span className="text-xs text-white/60 font-mono">
-                Track Yes / No washes • Clustered Society Routes
-              </span>
-            </div>
-
-            <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
-              <Link
-                href="/car-wash-payment-calculator"
-                className="inline-flex items-center gap-1.5 text-xs text-[#2DD4A0] hover:text-[#2DD4A0]/80 font-mono transition-colors"
-              >
-                <Calculator className="w-3.5 h-3.5" />
-                <span>Try Payment Calculator</span>
-                <ArrowRight className="w-3 h-3" />
-              </Link>
-              <button
-                type="button"
-                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-xs text-white/60 hover:text-white font-mono transition-all cursor-pointer"
-                aria-label="Scroll back to top"
-              >
-                <span>Back to Top</span>
-                <ArrowUp className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-
-          {/* MAIN 5-COLUMN FOOTER GRID */}
+          {/* MAIN 4-COLUMN FOOTER GRID */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8">
-            {/* BRAND COLUMN (Spans 4 columns on lg) */}
-            <div className="lg:col-span-4 space-y-6">
+            {/* BRAND COLUMN (Spans 5 columns on lg) */}
+            <div className="lg:col-span-5 space-y-6">
               <Link href="/" className="inline-block hover:opacity-95 transition-opacity">
                 <TorqueLogo emblemSize={38} />
               </Link>
@@ -728,19 +693,6 @@ export default function HomePage() {
               <p className="text-xs sm:text-sm text-white/60 leading-relaxed max-w-sm">
                 The verifiable daily automotive maintenance platform. Replacing unverified monthly cash payments with transparent Yes / No tracking, fair carry-forwards, and dignity for care technicians.
               </p>
-
-              {/* Specification Chips */}
-              <div className="flex flex-wrap gap-2 pt-1">
-                <span className="px-2.5 py-1 rounded-md bg-[#11161D] border border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-white/70">
-                  Daily Yes / No Check
-                </span>
-                <span className="px-2.5 py-1 rounded-md bg-[#11161D] border border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-[#2DD4A0]">
-                  Zero Loss Audit
-                </span>
-                <span className="px-2.5 py-1 rounded-md bg-[#11161D] border border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-white/70">
-                  Gated Societies
-                </span>
-              </div>
 
               {/* Direct Support Contacts */}
               <div className="space-y-2 pt-2 text-xs text-white/60">
@@ -758,8 +710,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* COLUMN 2: TOOLS & CALCULATORS (Spans 2 on lg) */}
-            <div className="lg:col-span-2 space-y-4">
+            {/* COLUMN 2: TOOLS & CALCULATORS (Spans 3 on lg) */}
+            <div className="lg:col-span-3 space-y-4">
               <h3 className="text-xs font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
                 Tools &amp; Freebies
               </h3>
@@ -839,44 +791,7 @@ export default function HomePage() {
               </ul>
             </div>
 
-            {/* COLUMN 4: PLATFORMS & PORTALS (Spans 2 on lg) */}
-            <div className="lg:col-span-2 space-y-4">
-              <h3 className="text-xs font-mono font-bold uppercase tracking-[0.2em] text-white/90">
-                Portals &amp; Access
-              </h3>
-              <ul className="space-y-2.5 text-xs text-white/60">
-                <li>
-                  <Link href="/owner/dashboard" className="hover:text-white transition-colors flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0]" />
-                    <span>Owner Dashboard</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/auth/signup" className="hover:text-white transition-colors">
-                    Register Vehicle
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/auth/login" className="hover:text-white transition-colors">
-                    Owner Sign In
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/washer/login" className="hover:text-white transition-colors flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                    <span>Washer Portal</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/admin/login" className="hover:text-white transition-colors flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-                    <span>Admin Operations</span>
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            {/* COLUMN 5: COMPANY & SUPPORT (Spans 2 on lg) */}
+            {/* COLUMN 4: COMPANY & SUPPORT (Spans 2 on lg) */}
             <div className="lg:col-span-2 space-y-4">
               <h3 className="text-xs font-mono font-bold uppercase tracking-[0.2em] text-white/90">
                 Company &amp; Legal
