@@ -329,7 +329,7 @@ export default function OwnerProfilePage() {
 
   return (
     <div className="min-h-screen bg-[#0A0D12] text-white pb-28 md:pb-16 selection:bg-[#2DD4A0] selection:text-black">
-      <header className="bg-[#0A0D12]/90 backdrop-blur-xl border-b border-white/[0.08] pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
+      <header className="bg-[#0A0D12]/90 backdrop-blur-xl border-b border-white/[0.08]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between flex-wrap gap-4">
           <div>
             <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">

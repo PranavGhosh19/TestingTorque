@@ -17,13 +17,6 @@ export default function Navbar() {
     return null;
   }
 
-  const isAppRoute =
-    (pathname.startsWith('/owner') && pathname !== '/owner/login') ||
-    (pathname.startsWith('/washer') && !pathname.startsWith('/washer/login')) ||
-    (pathname.startsWith('/admin') && pathname !== '/admin/login');
-
-  const hideOnMobile = pathname === '/owner/dashboard' ? false : isAppRoute;
-
   const isPublicPage =
     pathname === '/' ||
     pathname.startsWith('/about') ||
@@ -50,9 +43,7 @@ export default function Navbar() {
 
   return (
     <header
-      className={`sticky top-0 z-40 w-full bg-[#080D1A]/95 backdrop-blur-xl border-b border-white/10 transition-colors pt-[max(env(safe-area-inset-top),1rem)] md:pt-0 ${
-        hideOnMobile ? 'hidden md:block' : ''
-      }`}
+      className="sticky top-0 z-40 w-full bg-[#080D1A]/95 backdrop-blur-xl border-b border-white/10 transition-colors pt-[max(env(safe-area-inset-top),1rem)] md:pt-0"
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between relative">
         {/* Brand Logo - Performance Shield Emblem & Spec-sheet Wordmark */}
