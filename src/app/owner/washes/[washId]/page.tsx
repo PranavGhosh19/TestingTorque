@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import SignatureProofCard from '@/components/SignatureProofCard';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
+import LoadingScreen from '@/components/brand/LoadingScreen';
 import { useStore } from '@/lib/store';
 
 export default function WashDetailsPage() {
@@ -28,12 +29,7 @@ export default function WashDetailsPage() {
   const { todayWash, washes, isLoggedIn, isHydrated } = useStore();
 
   if (!isHydrated) {
-    return (
-      <div className="min-h-screen bg-[#070B14] flex flex-col items-center justify-center gap-3 text-white">
-        <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-        <p className="text-xs tracking-wider text-slate-400 font-mono uppercase">Authenticating...</p>
-      </div>
-    );
+    return <LoadingScreen message="FETCHING WASH VERIFICATION..." submessage="High-fidelity visual proof" />;
   }
 
   // Find targeted wash or fallback to todayWash or fallbackWash

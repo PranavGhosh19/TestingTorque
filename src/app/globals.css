@@ -273,3 +273,35 @@ body {
   }
 }
 
+/* --- Torque Loading Animations --- */
+@keyframes torqueShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(200%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+
+.animate-torque-shimmer {
+  animation: torqueShimmer 2.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes torqueGlowPulse {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.04);
+  }
+}
+
+.animate-torque-glow {
+  animation: torqueGlowPulse 3.5s ease-in-out infinite;
+}
+
