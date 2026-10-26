@@ -543,6 +543,14 @@ export default function OwnerProofCalendar({
     (d) => !d.isPriorToStart && (d.isFuture || d.isToday) && !d.isRestDay && !d.hasProofUploaded && !d.isMissingProof && d.feedback !== 'no'
   ).length;
 
+  // Sundays calculation for the viewed month
+  const sundaysList = useMemo(() => days.filter((d) => d.isSunday), [days]);
+  const sundaysCount = sundaysList.length;
+  const sundaysDatesFormatted = useMemo(
+    () => sundaysList.map((d) => (d.date < 10 ? `0${d.date}` : `${d.date}`)).join(', '),
+    [sundaysList]
+  );
+
   useEffect(() => {
     if (onStatsChange) {
       onStatsChange({
@@ -629,34 +637,91 @@ export default function OwnerProofCalendar({
         </div>
       </div>
 
-      {/* COMPACT STATS RIBBON */}
-      <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#2DD4A0]/10 border border-[#2DD4A0]/30 text-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0]" />
-          <span className="text-white/70 text-[11px]">Verified Proofs:</span>
-          <span className="text-[#2DD4A0] font-bold font-mono">{verifiedCount}</span>
-        </div>
-
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-400/25 text-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-          <span className="text-white/70 text-[11px]">Flagged / Away:</span>
-          <span className="text-amber-300 font-bold font-mono">{missingOrAlertCount}</span>
-        </div>
-
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#161C25] border border-white/[0.08] text-xs">
-          <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0]/50" />
-          <span className="text-white/70 text-[11px]">Scheduled Route Washes:</span>
-          <span className="text-white font-bold font-mono">{scheduledCount}</span>
-        </div>
-
-        <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/[0.08] text-xs">
-          <span className="text-[11px] text-white/50 font-mono">
-            {hasNoWeeklyLeave
-              ? 'Plan: 7-Day Care (No Weekly Off)'
-              : washerLeaveDay && washerLeaveDay !== 'Sunday'
-              ? `Plan: Daily Care (${washerLeaveDay}s Off)`
-              : 'Plan: Mon–Sat Care (Sundays Off)'}
-          </span>
+      {/* MONTHLY WASH AUDIT METRICS TABLE */}
+      <div className="w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#161C25]/50 backdrop-blur-sm shadow-lg">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse min-w-[580px]" aria-label="Monthly Wash Audit Statistics">
+            <thead>
+              <tr className="border-b border-white/[0.08] bg-white/[0.02] text-[10px] font-mono uppercase tracking-wider text-white/50">
+                <th scope="col" className="py-3 px-4 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0] shadow-[0_0_8px_rgba(45,212,160,0.8)]" />
+                    Verified Proofs
+                  </span>
+                </th>
+                <th scope="col" className="py-3 px-4 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                    Flagged / Away
+                  </span>
+                </th>
+                <th scope="col" className="py-3 px-4 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0]/50" />
+                    Scheduled Route Washes
+                  </span>
+                </th>
+                <th scope="col" className="py-3 px-4 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+                    Sundays ({monthData.name.split(' ')[0]})
+                  </span>
+                </th>
+                <th scope="col" className="py-3 px-4 font-semibold">
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                    Care Schedule
+                  </span>
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-white/[0.04]">
+              <tr className="hover:bg-white/[0.02] transition-colors">
+                <td className="py-3.5 px-4 align-top">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl sm:text-2xl font-bold font-mono text-[#2DD4A0]">{verifiedCount}</span>
+                    <span className="text-[11px] text-[#2DD4A0]/70 font-mono">Cleaned ✓</span>
+                  </div>
+                  <span className="text-[10px] text-white/40 block mt-0.5">Verified washes</span>
+                </td>
+                <td className="py-3.5 px-4 align-top">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl sm:text-2xl font-bold font-mono text-amber-300">{missingOrAlertCount}</span>
+                    <span className="text-[11px] text-amber-400/70 font-mono">Missed</span>
+                  </div>
+                  <span className="text-[10px] text-white/40 block mt-0.5">Flagged not cleaned</span>
+                </td>
+                <td className="py-3.5 px-4 align-top">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl sm:text-2xl font-bold font-mono text-white">{scheduledCount}</span>
+                    <span className="text-[11px] text-white/50 font-mono">Upcoming</span>
+                  </div>
+                  <span className="text-[10px] text-white/40 block mt-0.5">Remaining in month</span>
+                </td>
+                <td className="py-3.5 px-4 align-top">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-xl sm:text-2xl font-bold font-mono text-blue-300">{sundaysCount}</span>
+                    <span className="text-[11px] text-blue-400/70 font-mono">Sundays</span>
+                  </div>
+                  <span className="text-[10px] text-white/40 block mt-0.5 font-mono">
+                    {sundaysDatesFormatted ? `${sundaysDatesFormatted} ${monthData.name.split(' ')[0]}` : 'Sundays off'}
+                  </span>
+                </td>
+                <td className="py-3.5 px-4 align-top">
+                  <span className="text-xs font-semibold text-white/90 block">
+                    {hasNoWeeklyLeave
+                      ? '7-Day Care (No Weekly Off)'
+                      : washerLeaveDay && washerLeaveDay !== 'Sunday'
+                      ? `Daily Care (${washerLeaveDay}s Off)`
+                      : 'Mon–Sat Care (Sundays Off)'}
+                  </span>
+                  <span className="text-[10px] text-white/40 font-mono block mt-0.5">
+                    {monthData.daysCount} total days in {monthData.name}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
