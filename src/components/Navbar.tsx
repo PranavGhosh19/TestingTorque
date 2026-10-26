@@ -191,39 +191,41 @@ export default function Navbar() {
           ) : isOwnerPortal ? (
             <div className="flex items-center gap-3">
               {isOwnerDashboard && (
-                <Link
-                  href="/owner/vehicles"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    try {
-                      router.push('/owner/vehicles');
-                    } catch {
-                      window.location.href = '/owner/vehicles';
-                    }
-                  }}
-                  className="flex items-center gap-2 p-1.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer"
-                >
-                  <Car className="w-4 h-4 text-[#2DD4A0]" />
-                  <span>Vehicles</span>
-                </Link>
+                <>
+                  <Link
+                    href="/owner/vehicles"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      try {
+                        router.push('/owner/vehicles');
+                      } catch {
+                        window.location.href = '/owner/vehicles';
+                      }
+                    }}
+                    className="flex items-center gap-2 p-1.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <Car className="w-4 h-4 text-[#2DD4A0]" />
+                    <span>Vehicles</span>
+                  </Link>
+                  <Link
+                    href="/owner/profile"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      try {
+                        router.push('/owner/profile');
+                      } catch {
+                        window.location.href = '/owner/profile';
+                      }
+                    }}
+                    className="flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-colors cursor-pointer"
+                  >
+                    <div className="w-7 h-7 rounded-lg overflow-hidden border border-[#2DD4A0]/50 bg-[#2DD4A0]/10 flex items-center justify-center text-[#2DD4A0]">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <span>Profile</span>
+                  </Link>
+                </>
               )}
-              <Link
-                href="/owner/profile"
-                onClick={(e) => {
-                  e.preventDefault();
-                  try {
-                    router.push('/owner/profile');
-                  } catch {
-                    window.location.href = '/owner/profile';
-                  }
-                }}
-                className="flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-colors cursor-pointer"
-              >
-                <div className="w-7 h-7 rounded-lg overflow-hidden border border-[#2DD4A0]/50 bg-[#2DD4A0]/10 flex items-center justify-center text-[#2DD4A0]">
-                  <User className="w-4 h-4" />
-                </div>
-                <span>Profile</span>
-              </Link>
             </div>
           ) : isWasherPortal ? (
             <div className="flex items-center gap-3">
