@@ -19,14 +19,6 @@ export default function AboutPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-20 sm:pt-32 sm:pb-28 space-y-16 sm:space-y-20">
         {/* HEADER SECTION */}
         <div className="text-center max-w-3xl mx-auto">
-          {/* Kicker Pill */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#161C25] border border-white/[0.08] shadow-md text-xs font-semibold text-white/70 mb-8">
-            <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0] animate-pulse" />
-            <span className="tracking-[0.2em] uppercase font-mono text-[10px] text-[#2DD4A0]">
-              OUR PHILOSOPHY & STORY
-            </span>
-          </div>
-
           {/* Grand Headline */}
           <h1 className="text-4xl sm:text-6xl font-bold text-white tracking-tight leading-[1.1] mb-6">
             Bringing Dignity & Verification to Urban Car Care
@@ -46,13 +38,10 @@ export default function AboutPage() {
           <p>
             We created <strong className="text-white">Torque Care</strong> with one clear mission: <em className="text-white">Your car. Always cared for.</em> By introducing daily Yes / No wash tracking, automated missed wash deductions, clustered neighborhood routes, and full monthly service audits, we ensure owners pay only for the washes they actually receive while care technicians earn predictable, dignified livelihoods.
           </p>
-          <p>
-            Whether your vehicle is parked in your society basement or parked at a hotel during out-of-town travel, Torque Care unifies your automotive maintenance under one verifiable standard of excellence.
-          </p>
         </div>
 
-        {/* 3 CORE STATS GRID */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        {/* 2 CORE STATS GRID */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div className="p-8 rounded-[20px] bg-[#11161D] border border-white/[0.08] hover:border-white/20 shadow-xl transition-all text-center space-y-2 relative">
             <div className="text-4xl font-bold text-white">100%</div>
             <div className="text-xs font-mono font-bold uppercase tracking-wider text-[#2DD4A0]">Daily Tracked</div>
@@ -60,15 +49,9 @@ export default function AboutPage() {
           </div>
 
           <div className="p-8 rounded-[20px] bg-[#11161D] border border-white/[0.08] hover:border-white/20 shadow-xl transition-all text-center space-y-2 relative">
-            <div className="text-4xl font-bold text-[#2DD4A0]">Peer Assigned</div>
-            <div className="text-xs font-mono font-bold uppercase tracking-wider text-white/80">Leave Backup Protocol</div>
-            <p className="text-xs text-white/60 mt-1">Primary washer assigns a trusted peer to cover, else money is credited</p>
-          </div>
-
-          <div className="p-8 rounded-[20px] bg-[#11161D] border border-white/[0.08] hover:border-white/20 shadow-xl transition-all text-center space-y-2 relative">
             <div className="text-4xl font-bold text-white">Zero Loss</div>
-            <div className="text-xs font-mono font-bold uppercase tracking-wider text-amber-300">Missed-Wash Credit</div>
-            <p className="text-xs text-white/60 mt-1">Never pay for absent washers — automated credit applied if unverified</p>
+            <div className="text-xs font-mono font-bold uppercase tracking-wider text-amber-300">Carry Forward Washes</div>
+            <p className="text-xs text-white/60 mt-1">Owners can check their calendar and ask their respective washer to carry forward missed washes next month</p>
           </div>
         </div>
 

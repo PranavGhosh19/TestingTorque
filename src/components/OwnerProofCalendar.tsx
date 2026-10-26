@@ -637,92 +637,117 @@ export default function OwnerProofCalendar({
         </div>
       </div>
 
-      {/* MONTHLY WASH AUDIT METRICS TABLE */}
+      {/* MONTHLY WASH AUDIT METRICS TABLE (2-COLUMN KEY / VALUE ROWS) */}
       <div className="w-full overflow-hidden rounded-2xl border border-white/[0.08] bg-[#161C25]/50 backdrop-blur-sm shadow-lg">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-[580px]" aria-label="Monthly Wash Audit Statistics">
-            <thead>
-              <tr className="border-b border-white/[0.08] bg-white/[0.02] text-[10px] font-mono uppercase tracking-wider text-white/50">
-                <th scope="col" className="py-3 px-4 font-semibold">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0] shadow-[0_0_8px_rgba(45,212,160,0.8)]" />
-                    Verified Proofs
-                  </span>
-                </th>
-                <th scope="col" className="py-3 px-4 font-semibold">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
-                    Flagged / Away
-                  </span>
-                </th>
-                <th scope="col" className="py-3 px-4 font-semibold">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#2DD4A0]/50" />
-                    Scheduled Route Washes
-                  </span>
-                </th>
-                <th scope="col" className="py-3 px-4 font-semibold">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
-                    Sundays ({monthData.name.split(' ')[0]})
-                  </span>
-                </th>
-                <th scope="col" className="py-3 px-4 font-semibold">
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-white/30" />
-                    Care Schedule
-                  </span>
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-white/[0.04]">
-              <tr className="hover:bg-white/[0.02] transition-colors">
-                <td className="py-3.5 px-4 align-top">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-xl sm:text-2xl font-bold font-mono text-[#2DD4A0]">{verifiedCount}</span>
-                    <span className="text-[11px] text-[#2DD4A0]/70 font-mono">Cleaned ✓</span>
-                  </div>
-                  <span className="text-[10px] text-white/40 block mt-0.5">Verified washes</span>
-                </td>
-                <td className="py-3.5 px-4 align-top">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-xl sm:text-2xl font-bold font-mono text-amber-300">{missingOrAlertCount}</span>
-                    <span className="text-[11px] text-amber-400/70 font-mono">Missed</span>
-                  </div>
-                  <span className="text-[10px] text-white/40 block mt-0.5">Flagged not cleaned</span>
-                </td>
-                <td className="py-3.5 px-4 align-top">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-xl sm:text-2xl font-bold font-mono text-white">{scheduledCount}</span>
-                    <span className="text-[11px] text-white/50 font-mono">Upcoming</span>
-                  </div>
-                  <span className="text-[10px] text-white/40 block mt-0.5">Remaining in month</span>
-                </td>
-                <td className="py-3.5 px-4 align-top">
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-xl sm:text-2xl font-bold font-mono text-blue-300">{sundaysCount}</span>
-                    <span className="text-[11px] text-blue-400/70 font-mono">Sundays</span>
-                  </div>
-                  <span className="text-[10px] text-white/40 block mt-0.5 font-mono">
-                    {sundaysDatesFormatted ? `${sundaysDatesFormatted} ${monthData.name.split(' ')[0]}` : 'Sundays off'}
-                  </span>
-                </td>
-                <td className="py-3.5 px-4 align-top">
-                  <span className="text-xs font-semibold text-white/90 block">
+        <table className="w-full text-left border-collapse" aria-label="Monthly Wash Audit Statistics">
+          <thead>
+            <tr className="border-b border-white/[0.08] bg-white/[0.02] text-[10px] font-mono uppercase tracking-wider text-white/50">
+              <th scope="col" className="py-2.5 sm:py-3 px-3.5 sm:px-4 font-semibold w-1/2 sm:w-2/5">
+                Metric / Category
+              </th>
+              <th scope="col" className="py-2.5 sm:py-3 px-3.5 sm:px-4 font-semibold w-1/2 sm:w-3/5">
+                Monthly Audit Details
+              </th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-white/[0.04] text-xs sm:text-sm">
+            {/* Row 1: Verified Proofs */}
+            <tr className="hover:bg-white/[0.02] transition-colors">
+              <td className="py-3 px-3.5 sm:px-4 text-white/80 font-medium">
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#2DD4A0] shadow-[0_0_8px_rgba(45,212,160,0.8)]" />
+                  <span>Verified Proofs</span>
+                </span>
+              </td>
+              <td className="py-3 px-3.5 sm:px-4">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-base sm:text-lg font-bold font-mono text-[#2DD4A0]">{verifiedCount}</span>
+                  <span className="text-[11px] text-[#2DD4A0]/80 font-mono font-semibold">Cleaned ✓</span>
+                  <span className="text-[11px] text-white/40 font-mono hidden sm:inline">(Verified washes recorded)</span>
+                </div>
+              </td>
+            </tr>
+
+            {/* Row 2: Flagged / Away */}
+            <tr className="hover:bg-white/[0.02] transition-colors">
+              <td className="py-3 px-3.5 sm:px-4 text-white/80 font-medium">
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                  <span>Flagged / Away</span>
+                </span>
+              </td>
+              <td className="py-3 px-3.5 sm:px-4">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-base sm:text-lg font-bold font-mono text-amber-300">{missingOrAlertCount}</span>
+                  <span className="text-[11px] text-amber-400/80 font-mono font-semibold">Missed</span>
+                  <span className="text-[11px] text-white/40 font-mono hidden sm:inline">(Flagged not cleaned / away)</span>
+                </div>
+              </td>
+            </tr>
+
+            {/* Row 3: Scheduled Route Washes */}
+            <tr className="hover:bg-white/[0.02] transition-colors">
+              <td className="py-3 px-3.5 sm:px-4 text-white/80 font-medium">
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-[#2DD4A0]/50" />
+                  <span>Scheduled Route Washes</span>
+                </span>
+              </td>
+              <td className="py-3 px-3.5 sm:px-4">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-base sm:text-lg font-bold font-mono text-white">{scheduledCount}</span>
+                  <span className="text-[11px] text-white/60 font-mono font-semibold">Upcoming</span>
+                  <span className="text-[11px] text-white/40 font-mono hidden sm:inline">(Remaining scheduled in month)</span>
+                </div>
+              </td>
+            </tr>
+
+            {/* Row 4: Sundays */}
+            <tr className="hover:bg-white/[0.02] transition-colors">
+              <td className="py-3 px-3.5 sm:px-4 text-white/80 font-medium">
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 shadow-[0_0_8px_rgba(96,165,250,0.8)]" />
+                  <span>Sundays ({monthData.name.split(' ')[0]})</span>
+                </span>
+              </td>
+              <td className="py-3 px-3.5 sm:px-4">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-base sm:text-lg font-bold font-mono text-blue-300">{sundaysCount}</span>
+                  <span className="text-[11px] text-blue-400/80 font-mono font-semibold">Sundays Off</span>
+                  {sundaysDatesFormatted && (
+                    <span className="text-[11px] text-white/50 font-mono">
+                      ({sundaysDatesFormatted} {monthData.name.split(' ')[0]})
+                    </span>
+                  )}
+                </div>
+              </td>
+            </tr>
+
+            {/* Row 5: Care Schedule */}
+            <tr className="hover:bg-white/[0.02] transition-colors">
+              <td className="py-3 px-3.5 sm:px-4 text-white/80 font-medium">
+                <span className="inline-flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-white/30" />
+                  <span>Care Schedule</span>
+                </span>
+              </td>
+              <td className="py-3 px-3.5 sm:px-4">
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <span className="text-xs sm:text-sm font-semibold text-white/90">
                     {hasNoWeeklyLeave
                       ? '7-Day Care (No Weekly Off)'
                       : washerLeaveDay && washerLeaveDay !== 'Sunday'
                       ? `Daily Care (${washerLeaveDay}s Off)`
                       : 'Mon–Sat Care (Sundays Off)'}
                   </span>
-                  <span className="text-[10px] text-white/40 font-mono block mt-0.5">
-                    {monthData.daysCount} total days in {monthData.name}
+                  <span className="text-[11px] text-white/40 font-mono">
+                    ({monthData.daysCount} total days in {monthData.name})
                   </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
       {/* CALENDAR GRID */}
