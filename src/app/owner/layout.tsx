@@ -27,6 +27,9 @@ export default function OwnerLayout({
       return;
     }
 
+    // Wait for client storage and state hydration to complete
+    if (!isHydrated) return;
+
     // Always check if the car owner is logged in
     const authed = checkIsOwnerAuthenticated(isHydrated, isLoggedIn, user, role);
 

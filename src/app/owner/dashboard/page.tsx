@@ -9,6 +9,7 @@ import {
   Sparkles,
   AlertTriangle,
   ChevronRight,
+  User,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import SignatureProofCard from '@/components/SignatureProofCard';
@@ -55,7 +56,10 @@ export default function OwnerDashboardPage() {
 
   // REDIRECT TO LANDING PAGE IF NOT LOGGED IN
   useEffect(() => {
-    if (isHydrated && !isLoggedIn) {
+    if (!isHydrated) return;
+    const storedLoggedIn = typeof window !== 'undefined' && localStorage.getItem('torque_logged_in') === 'true';
+    const storedOwnerId = typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') : null;
+    if (!isLoggedIn && !storedLoggedIn && !storedOwnerId) {
       router.replace('/');
     }
   }, [isHydrated, isLoggedIn, router]);
@@ -97,12 +101,18 @@ export default function OwnerDashboardPage() {
         if (typeof window !== 'undefined') {
           const resolvedName = fbData.user.owner_name || fbData.user.name;
           if (resolvedName) localStorage.setItem('torque_owner_name', resolvedName);
+          localStorage.setItem('torque_logged_in', 'true');
+          localStorage.setItem('torque_owner_id', fbData.user.id || effectiveId);
         }
       }
       if (fbData.vehicles && fbData.vehicles.length > 0) {
         setVehicles(fbData.vehicles);
-        if (typeof window !== 'undefined' && fbData.vehicles[0]?.owner_name) {
-          localStorage.setItem('torque_owner_name', fbData.vehicles[0].owner_name);
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('torque_logged_in', 'true');
+          localStorage.setItem('torque_owner_id', fbData.vehicles[0]?.owner_id || effectiveId);
+          if (fbData.vehicles[0]?.owner_name) {
+            localStorage.setItem('torque_owner_name', fbData.vehicles[0].owner_name);
+          }
         }
       }
       if (fbData.assignedWasher) {
@@ -614,6 +624,48 @@ export default function OwnerDashboardPage() {
 
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-8">
+
+        {/* QUICK ACCESS BAR: MY VEHICLES & OWNER PROFILE */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-[#11161D] border border-white/[0.08] shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#2DD4A0]/10 border border-[#2DD4A0]/20 flex items-center justify-center text-[#2DD4A0] shrink-0">
+              <Car className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white flex items-center gap-2 flex-wrap">
+                <span>{primaryVehicle ? `${primaryVehicle.make} ${primaryVehicle.model}` : 'Garage Overview'}</span>
+                {primaryVehicle?.registration_number && (
+                  <span className="font-mono text-[10px] text-white/80 bg-[#161C25] px-2 py-0.5 rounded border border-white/[0.08]">
+                    {primaryVehicle.registration_number}
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-white/50 font-mono">
+                {activeVehicles.length} {activeVehicles.length === 1 ? 'Vehicle Registered' : 'Vehicles Registered'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link
+              href="/owner/vehicles"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#161C25] hover:bg-white/10 border border-white/[0.08] hover:border-[#2DD4A0]/40 text-xs font-bold text-white transition-all shadow-sm"
+            >
+              <Car className="w-3.5 h-3.5 text-[#2DD4A0]" />
+              <span>My Vehicles</span>
+              <ChevronRight className="w-3 h-3 text-white/40" />
+            </Link>
+
+            <Link
+              href="/owner/profile"
+              className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-[#161C25] hover:bg-white/10 border border-white/[0.08] hover:border-[#2DD4A0]/40 text-xs font-bold text-white transition-all shadow-sm"
+            >
+              <User className="w-3.5 h-3.5 text-[#2DD4A0]" />
+              <span>Owner Profile</span>
+              <ChevronRight className="w-3 h-3 text-white/40" />
+            </Link>
+          </div>
+        </div>
 
         {!hasVehicles ? (
           /* CLEAN RESET / EMPTY GARAGE ONBOARDING HERO BANNER */

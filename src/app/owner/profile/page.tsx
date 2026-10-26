@@ -21,6 +21,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
@@ -31,12 +32,13 @@ import {
   fetchCarOwnerProfileData,
   updateOwnerPhoneInFirestore,
   updateOwnerWasherInFirestore,
+  resolveEffectiveOwnerId,
 } from '@/lib/firebaseService';
 import { WasherPartner } from '@/lib/types';
 
 export default function OwnerProfilePage() {
   const router = useRouter();
-  const { user, setUser, vehicles, setVehicles, isLoggedIn, isHydrated, logout } = useStore();
+  const { user, setUser, vehicles, setVehicles, isLoggedIn, isHydrated, role, logout } = useStore();
 
   // Modals
   const [showEditLocationModal, setShowEditLocationModal] = useState(false);
@@ -67,15 +69,21 @@ export default function OwnerProfilePage() {
   const [isLoadingOwnerData, setIsLoadingOwnerData] = useState(false);
 
   useEffect(() => {
-    if (isHydrated && !isLoggedIn) {
+    if (!isHydrated) return;
+
+    const storedLoggedIn = typeof window !== 'undefined' && localStorage.getItem('torque_logged_in') === 'true';
+    const storedOwnerId = typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') : null;
+
+    if (!isLoggedIn && !storedLoggedIn && !storedOwnerId && role !== 'owner') {
       router.replace('/');
     }
-  }, [isHydrated, isLoggedIn, router]);
+  }, [isHydrated, isLoggedIn, role, router]);
 
   // Load Car Owner profile and vehicles from Firestore
   useEffect(() => {
     let isMounted = true;
     async function loadOwnerFromFirestore() {
+      if (!isHydrated) return;
       setIsLoadingOwnerData(true);
       try {
         const storedId =
@@ -83,13 +91,22 @@ export default function OwnerProfilePage() {
         const ownerId =
           user?.role === 'owner' && user?.id && user.id !== 'usr_guest'
             ? user.id
-            : storedId || undefined;
+            : storedId || resolveEffectiveOwnerId(user?.id) || 'usr_pranav_1';
         const res = await fetchCarOwnerProfileData(ownerId, user?.phone);
         if (isMounted && res) {
           setFirestoreOwner(res.owner);
           setFirestoreVehicles(res.vehicles);
           if (res.vehicles && res.vehicles.length > 0) {
             setVehicles(res.vehicles);
+          }
+          if (res.owner) {
+            setUser({
+              ...user,
+              ...res.owner,
+              id: res.owner.id || user.id,
+              name: res.owner.name || res.owner.owner_name || user.name,
+              owner_name: res.owner.name || res.owner.owner_name || user.name,
+            });
           }
         }
       } catch (err) {
@@ -102,7 +119,7 @@ export default function OwnerProfilePage() {
     return () => {
       isMounted = false;
     };
-  }, [user?.id, user?.phone, setVehicles]);
+  }, [isHydrated, user?.id, user?.phone, setVehicles, setUser]);
 
   // Load all washers to find common / equal match for this owner's State, City, District, Society
   useEffect(() => {
@@ -127,11 +144,11 @@ export default function OwnerProfilePage() {
   }, []);
 
   // Compute matching washer based on live Firestore location
-  const ownerState = firestoreOwner?.state || user.state;
-  const ownerCity = firestoreOwner?.city || user.city;
-  const ownerDistrict = firestoreOwner?.district || user.district;
+  const ownerState = firestoreOwner?.state || user?.state || '';
+  const ownerCity = firestoreOwner?.city || user?.city || '';
+  const ownerDistrict = firestoreOwner?.district || user?.district || '';
   const ownerSociety =
-    firestoreOwner?.societyName || firestoreOwner?.society || user.societyName || user.society;
+    firestoreOwner?.societyName || firestoreOwner?.society || user?.societyName || user?.society || '';
 
   const matchedWasher = useMemo(() => {
     const ownerLocation = {
@@ -163,12 +180,28 @@ export default function OwnerProfilePage() {
 
   const effectivePhone = isDummyPhone ? '' : rawPhone.trim();
 
+  // Resolved owner name and safe initials
+  const effectiveOwnerName =
+    firestoreOwner?.name ||
+    firestoreOwner?.owner_name ||
+    user?.name ||
+    user?.owner_name ||
+    (typeof window !== 'undefined' ? localStorage.getItem('torque_owner_name') : null) ||
+    'Vehicle Owner';
+
+  const ownerInitials = useMemo(() => {
+    const parts = effectiveOwnerName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'VO';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }, [effectiveOwnerName]);
+
   // Society evaluation
   const currentSociety = (
     firestoreOwner?.societyName ||
     firestoreOwner?.society ||
-    user.societyName ||
-    user.society ||
+    user?.societyName ||
+    user?.society ||
     (typeof window !== 'undefined' ? localStorage.getItem('torque_society_name') : null) ||
     ''
   ).trim();
@@ -179,8 +212,8 @@ export default function OwnerProfilePage() {
   const rawWasherName =
     firestoreOwner?.assignedWasherName ||
     firestoreOwner?.assigned_washer_name ||
-    user.assigned_washer_name ||
-    user.selectedWasherName ||
+    user?.assigned_washer_name ||
+    user?.selectedWasherName ||
     matchedWasher?.name ||
     (typeof window !== 'undefined' ? localStorage.getItem('torque_assigned_washer_name') : null);
 
@@ -339,13 +372,41 @@ export default function OwnerProfilePage() {
   return (
     <div className="min-h-screen bg-[#0A0D12] text-white pb-28 md:pb-16 selection:bg-[#2DD4A0] selection:text-black">
       <header className="bg-[#0A0D12]/90 backdrop-blur-xl border-b border-white/[0.08] pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6">
-          <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
-            Account & Society Residency
-          </span>
-          <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-            Owner Profile
-          </h1>
+        <div className="max-w-3xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
+                Account &amp; Society Residency
+              </span>
+              <span className="text-white/30 text-xs">•</span>
+              <Link
+                href="/owner/dashboard"
+                className="inline-flex items-center gap-1 text-[11px] font-mono text-white/60 hover:text-[#2DD4A0] transition-colors"
+              >
+                <LayoutDashboard className="w-3 h-3" />
+                <span>Back to Dashboard</span>
+              </Link>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              Owner Profile
+            </h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/owner/dashboard"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08]"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5 text-[#2DD4A0]" />
+              <span>Dashboard</span>
+            </Link>
+            <Link
+              href="/owner/vehicles"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08]"
+            >
+              <Car className="w-3.5 h-3.5 text-[#2DD4A0]" />
+              <span>Vehicles</span>
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -361,10 +422,10 @@ export default function OwnerProfilePage() {
         {/* User Card */}
         <div className="p-6 bg-[#11161D] rounded-[20px] border border-white/[0.08] flex items-center gap-4">
           <div className="w-14 h-14 rounded-xl bg-[#161C25] border border-white/[0.08] text-[#2DD4A0] flex items-center justify-center text-xl font-bold font-mono">
-            {user.name.split(' ').map((n) => n[0]).join('')}
+            {ownerInitials}
           </div>
           <div className="flex-1">
-            <h2 className="text-lg font-bold text-white">{user.name}</h2>
+            <h2 className="text-lg font-bold text-white">{effectiveOwnerName}</h2>
             <div className="text-xs text-white/60 flex items-center gap-2 mt-1 flex-wrap">
               {effectivePhone ? (
                 <div className="inline-flex items-center gap-1.5 font-mono text-white/90">
@@ -450,9 +511,9 @@ export default function OwnerProfilePage() {
                 {firestoreOwner?.flat ||
                   firestoreOwner?.flatNumber ||
                   firestoreOwner?.address ||
-                  user.flat ||
-                  user.flatNumber ||
-                  user.address || (
+                  user?.flat ||
+                  user?.flatNumber ||
+                  user?.address || (
                     <span className="text-white/40 italic font-normal">Not set</span>
                   )}
               </span>
@@ -464,8 +525,8 @@ export default function OwnerProfilePage() {
               </span>
               <span className="text-xs font-semibold text-white/90 truncate block">
                 {[
-                  firestoreOwner?.district || user.district,
-                  firestoreOwner?.city || user.city,
+                  firestoreOwner?.district || user?.district,
+                  firestoreOwner?.city || user?.city,
                 ].filter(Boolean).join(', ') || (
                   <span className="text-white/40 italic font-normal">Not set</span>
                 )}

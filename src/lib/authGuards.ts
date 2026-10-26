@@ -98,7 +98,7 @@ export function checkIsOwnerAuthenticated(
   user: User | null | undefined,
   role: UserRole
 ): boolean {
-  if (typeof window === 'undefined') return false;
+  if (typeof window === 'undefined') return true;
 
   const storedLoggedIn = localStorage.getItem('torque_logged_in') === 'true';
   const storedOwnerId = localStorage.getItem('torque_owner_id');
@@ -117,16 +117,18 @@ export function checkIsOwnerAuthenticated(
     // ignore
   }
 
+  // Active storage flags for owner
   const hasOwnerStorage =
-    storedLoggedIn &&
-    ((storedUserRole === 'owner' && storedUserId !== 'usr_guest') ||
-      Boolean(storedOwnerId) ||
-      Boolean(storedOwnerName));
+    (storedLoggedIn && (storedUserRole === 'owner' || Boolean(storedOwnerId) || Boolean(storedOwnerName))) ||
+    Boolean(storedOwnerId) ||
+    Boolean(storedOwnerName) ||
+    storedUserRole === 'owner';
 
+  // Active reactive store state
   const hasOwnerStore =
-    isLoggedIn &&
-    (role === 'owner' || user?.role === 'owner') &&
-    user?.id !== 'usr_guest';
+    isLoggedIn ||
+    role === 'owner' ||
+    user?.role === 'owner';
 
   return Boolean(hasOwnerStorage || hasOwnerStore);
 }

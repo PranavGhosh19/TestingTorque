@@ -883,33 +883,7 @@ export default function OwnerProofCalendar({
         </div>
       </div>
 
-      {/* COLOR GUIDE LEGEND */}
-      <div className="flex items-center justify-center gap-4 sm:gap-6 flex-wrap text-xs pt-1">
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#2DD4A0] shadow-[0_0_6px_rgba(45,212,160,0.8)]" />
-          <span className="text-[11px] font-medium text-white/70">
-            Cleaned ({verifiedCount})
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-amber-400 shadow-[0_0_6px_rgba(251,191,36,0.8)]" />
-          <span className="text-[11px] font-medium text-white/70">
-            Flagged Orange: Not Cleaned ({missingOrAlertCount})
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-[#2DD4A0]/40 border border-[#2DD4A0]/60" />
-          <span className="text-[11px] font-medium text-white/70">
-            Upcoming Covered ({scheduledCount})
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-white/20" />
-          <span className="text-[11px] font-medium text-white/40">
-            {hasNoWeeklyLeave ? 'All Days Covered' : `${washerLeaveDay || 'Sunday'} Rest`}
-          </span>
-        </div>
-      </div>
+
 
       {/* ============================================================ */}
       {/* MODAL: PROOF INSPECTION ON DATE CLICK                        */}

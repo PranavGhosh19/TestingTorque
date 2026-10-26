@@ -3,23 +3,69 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Car, Plus, MapPin, Clock, ShieldCheck, ChevronRight, CheckCircle2, RefreshCw } from 'lucide-react';
+import {
+  Car,
+  Plus,
+  MapPin,
+  Clock,
+  ShieldCheck,
+  ChevronRight,
+  RefreshCw,
+  LayoutDashboard,
+  User,
+} from 'lucide-react';
 import { useStore } from '@/lib/store';
 import AddVehicleModal from '@/components/modals/AddVehicleModal';
 import OwnerBottomNav from '@/components/OwnerBottomNav';
+import { resolveEffectiveOwnerId, fetchCarOwnerProfileData } from '@/lib/firebaseService';
 
 export default function OwnerVehiclesPage() {
   const router = useRouter();
-  const { vehicles, user, isLoggedIn, isHydrated } = useStore();
+  const { vehicles, setVehicles, user, isLoggedIn, isHydrated, role } = useStore();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
 
+  // Authentication check: Wait for hydration before verifying
   useEffect(() => {
-    if (isHydrated && !isLoggedIn) {
+    if (!isHydrated) return;
+
+    const storedLoggedIn = typeof window !== 'undefined' && localStorage.getItem('torque_logged_in') === 'true';
+    const storedOwnerId = typeof window !== 'undefined' ? localStorage.getItem('torque_owner_id') : null;
+
+    if (!isLoggedIn && !storedLoggedIn && !storedOwnerId && role !== 'owner') {
       router.replace('/');
     }
-  }, [isHydrated, isLoggedIn, router]);
+  }, [isHydrated, isLoggedIn, role, router]);
 
-  if (!isHydrated || !isLoggedIn) {
+  // Load vehicles from Firestore if store is empty or needs refresh
+  useEffect(() => {
+    let isMounted = true;
+    async function loadVehicles() {
+      if (!isHydrated) return;
+      setIsLoadingVehicles(true);
+      try {
+        const effectiveId = resolveEffectiveOwnerId(user?.id) || user?.id || 'usr_pranav_1';
+        const res = await fetchCarOwnerProfileData(effectiveId, user?.phone);
+        if (isMounted && res?.vehicles && res.vehicles.length > 0) {
+          setVehicles(res.vehicles);
+        }
+      } catch (err) {
+        console.warn('Notice loading vehicles from Firestore:', err);
+      } finally {
+        if (isMounted) setIsLoadingVehicles(false);
+      }
+    }
+
+    if (vehicles.length === 0) {
+      loadVehicles();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isHydrated, user?.id, user?.phone, vehicles.length, setVehicles]);
+
+  if (!isHydrated) {
     return (
       <div className="min-h-screen bg-[#0A0D12] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
@@ -34,27 +80,53 @@ export default function OwnerVehiclesPage() {
     <div className="min-h-screen bg-[#0A0D12] text-white pb-28 md:pb-16 selection:bg-[#2DD4A0] selection:text-black">
       {/* Header */}
       <header className="bg-[#0A0D12]/90 backdrop-blur-xl border-b border-white/[0.08] pt-4 md:pt-0 pt-[max(env(safe-area-inset-top),1rem)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex items-center justify-between">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
-              Garage & Fleet
-            </span>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
+                Garage &amp; Fleet
+              </span>
+              <span className="text-white/30 text-xs">•</span>
+              <Link
+                href="/owner/dashboard"
+                className="inline-flex items-center gap-1 text-[11px] font-mono text-white/60 hover:text-[#2DD4A0] transition-colors"
+              >
+                <LayoutDashboard className="w-3 h-3" />
+                <span>Back to Dashboard</span>
+              </Link>
+            </div>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               My Vehicles
             </h1>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Add Vehicle</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/owner/dashboard"
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-full bg-[#161C25] hover:bg-white/10 text-white text-xs font-bold transition-all border border-white/[0.08]"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5 text-[#2DD4A0]" />
+              <span>Dashboard</span>
+            </Link>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#2DD4A0] hover:bg-[#25B88A] text-[#0A0D12] text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Vehicle</span>
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {vehicles.length === 0 ? (
+        {isLoadingVehicles && vehicles.length === 0 ? (
+          <div className="p-12 text-center bg-[#11161D] rounded-[20px] border border-white/[0.08] space-y-3 max-w-lg mx-auto my-6">
+            <RefreshCw className="w-8 h-8 text-[#2DD4A0] animate-spin mx-auto" />
+            <p className="text-xs font-mono uppercase tracking-widest text-white/60">
+              Loading vehicles from Firestore...
+            </p>
+          </div>
+        ) : vehicles.length === 0 ? (
           <div className="p-10 text-center bg-[#11161D] rounded-[20px] border border-white/[0.08] space-y-4 max-w-lg mx-auto my-6">
             <div className="w-16 h-16 rounded-2xl bg-[#161C25] text-[#2DD4A0] flex items-center justify-center mx-auto text-2xl border border-white/[0.06]">
               🚗
@@ -119,7 +191,7 @@ export default function OwnerVehiclesPage() {
                     <span className="flex items-center gap-1 text-white/50">
                       <MapPin className="w-3.5 h-3.5 text-[#2DD4A0]" /> Parking Bay:
                     </span>
-                    <span className="font-mono font-bold text-white">{v.parking_location}</span>
+                    <span className="font-mono font-bold text-white">{v.parking_location || 'Bay Assigned'}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-1 text-white/50">
@@ -134,7 +206,7 @@ export default function OwnerVehiclesPage() {
                       <ShieldCheck className="w-3.5 h-3.5 text-[#2DD4A0]" /> Assigned Specialist:
                     </span>
                     <span className="font-bold text-white">
-                      {v.assigned_washer_name || user.assigned_washer_name || 'Amit Kumar'}
+                      {v.assigned_washer_name || user?.assigned_washer_name || 'Amit Kumar'}
                     </span>
                   </div>
                 </div>

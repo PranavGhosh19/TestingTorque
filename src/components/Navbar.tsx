@@ -62,7 +62,7 @@ export default function Navbar() {
           <TorqueLogo emblemSize={36} />
         </Link>
 
-        {/* Center Nav: Owner Portal Desktop Nav (Dashboard, Vehicle) */}
+        {/* Center Nav: Owner Portal Desktop Nav (Dashboard, Vehicles, Profile) */}
         {isOwnerPortal ? (
           <nav className="hidden md:flex items-center gap-1.5 bg-white/5 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xl shadow-lg md:absolute md:left-1/2 md:-translate-x-1/2">
             <Link
@@ -86,7 +86,19 @@ export default function Navbar() {
               }`}
             >
               <Car className="w-3.5 h-3.5" />
-              <span>Vehicle</span>
+              <span>Vehicles</span>
+            </Link>
+
+            <Link
+              href="/owner/profile"
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+                pathname.startsWith('/owner/profile')
+                  ? 'bg-[#2DD4A0] text-slate-950 shadow-md shadow-[#2DD4A0]/25 font-black'
+                  : 'text-slate-300 hover:text-white hover:bg-white/10'
+              }`}
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Profile</span>
             </Link>
           </nav>
         ) : isWasherPortal ? (
