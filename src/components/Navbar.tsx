@@ -48,8 +48,6 @@ export default function Navbar() {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const isOwnerDashboard = pathname === '/owner/dashboard';
-
   return (
     <header
       className={`sticky top-0 z-40 w-full bg-[#080D1A]/95 backdrop-blur-xl border-b border-white/10 transition-colors pt-[max(env(safe-area-inset-top),1rem)] md:pt-0 ${
@@ -60,17 +58,13 @@ export default function Navbar() {
         {/* Brand Logo - Performance Shield Emblem & Spec-sheet Wordmark */}
         <Link
           href={isOwnerPortal ? '/owner/dashboard' : '/'}
-          className={`flex items-center group transition-transform hover:opacity-95 shrink-0 ${
-            isOwnerDashboard
-              ? 'absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10'
-              : ''
-          }`}
+          className="flex items-center group transition-transform hover:opacity-95 shrink-0"
         >
           <TorqueLogo emblemSize={36} />
         </Link>
 
         {/* Center Nav: Owner Portal Desktop Nav (Dashboard, Vehicles, Profile) */}
-        {isOwnerDashboard ? null : isOwnerPortal ? (
+        {isOwnerPortal ? (
           <nav className="hidden md:flex items-center gap-1.5 bg-white/5 border border-white/10 p-1.5 rounded-2xl backdrop-blur-xl shadow-lg md:absolute md:left-1/2 md:-translate-x-1/2">
             <Link
               href="/owner/dashboard"
@@ -189,44 +183,7 @@ export default function Navbar() {
               <span>Track Your Car</span>
             </Link>
           ) : isOwnerPortal ? (
-            <div className="flex items-center gap-3">
-              {isOwnerDashboard && (
-                <>
-                  <Link
-                    href="/owner/vehicles"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      try {
-                        router.push('/owner/vehicles');
-                      } catch {
-                        window.location.href = '/owner/vehicles';
-                      }
-                    }}
-                    className="flex items-center gap-2 p-1.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer"
-                  >
-                    <Car className="w-4 h-4 text-[#2DD4A0]" />
-                    <span>Vehicles</span>
-                  </Link>
-                  <Link
-                    href="/owner/profile"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      try {
-                        router.push('/owner/profile');
-                      } catch {
-                        window.location.href = '/owner/profile';
-                      }
-                    }}
-                    className="flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-colors cursor-pointer"
-                  >
-                    <div className="w-7 h-7 rounded-lg overflow-hidden border border-[#2DD4A0]/50 bg-[#2DD4A0]/10 flex items-center justify-center text-[#2DD4A0]">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <span>Profile</span>
-                  </Link>
-                </>
-              )}
-            </div>
+            <div className="flex items-center gap-3"></div>
           ) : isWasherPortal ? (
             <div className="flex items-center gap-3">
               <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 font-mono">
