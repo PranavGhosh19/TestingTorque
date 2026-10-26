@@ -2,13 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Bell, CalendarCheck, UserCheck, Car, CheckCircle2, User, Settings, LayoutDashboard } from 'lucide-react';
 import { useStore } from '@/lib/store';
 import TorqueLogo from '@/components/brand/TorqueLogo';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const { role, notifications } = useStore();
 
   // Auth and role selection pages have their own dedicated centered navigation
@@ -192,7 +193,15 @@ export default function Navbar() {
               {isOwnerDashboard && (
                 <Link
                   href="/owner/vehicles"
-                  className="flex items-center gap-2 p-1.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 hover:text-white transition-colors"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    try {
+                      router.push('/owner/vehicles');
+                    } catch {
+                      window.location.href = '/owner/vehicles';
+                    }
+                  }}
+                  className="flex items-center gap-2 p-1.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 hover:text-white transition-colors cursor-pointer"
                 >
                   <Car className="w-4 h-4 text-[#2DD4A0]" />
                   <span>Vehicles</span>
@@ -200,7 +209,15 @@ export default function Navbar() {
               )}
               <Link
                 href="/owner/profile"
-                className="flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  try {
+                    router.push('/owner/profile');
+                  } catch {
+                    window.location.href = '/owner/profile';
+                  }
+                }}
+                className="flex items-center gap-2 p-1.5 pr-3 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-colors cursor-pointer"
               >
                 <div className="w-7 h-7 rounded-lg overflow-hidden border border-[#2DD4A0]/50 bg-[#2DD4A0]/10 flex items-center justify-center text-[#2DD4A0]">
                   <User className="w-4 h-4" />

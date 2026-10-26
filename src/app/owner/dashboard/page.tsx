@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Plus,
@@ -50,6 +50,27 @@ export default function OwnerDashboardPage() {
   const [allDailyFeedbacks, setAllDailyFeedbacks] = useState<Record<string, 'yes' | 'no'>>({});
   const [calendarStats, setCalendarStats] = useState<{ verifiedCount: number; missingCount: number } | null>(null);
   const [liveWashersList, setLiveWashersList] = useState<WasherPartner[]>([]);
+
+  const handleCalendarStatsChange = useCallback(
+    (stats: { verifiedCount: number; missingCount: number; isCurrentMonth: boolean }) => {
+      if (stats.isCurrentMonth) {
+        setCalendarStats((prev) => {
+          if (
+            prev &&
+            prev.verifiedCount === stats.verifiedCount &&
+            prev.missingCount === stats.missingCount
+          ) {
+            return prev;
+          }
+          return {
+            verifiedCount: stats.verifiedCount,
+            missingCount: stats.missingCount,
+          };
+        });
+      }
+    },
+    []
+  );
 
   // Firebase Live Sync State
   const [isFirebaseSyncing, setIsFirebaseSyncing] = useState(false);
@@ -775,14 +796,7 @@ export default function OwnerDashboardPage() {
             onFeedbackChange={(dateIso, ans) => {
               handleDailyFeedbackAnswer(ans, dateIso);
             }}
-            onStatsChange={(stats) => {
-              if (stats.isCurrentMonth) {
-                setCalendarStats({
-                  verifiedCount: stats.verifiedCount,
-                  missingCount: stats.missingCount,
-                });
-              }
-            }}
+            onStatsChange={handleCalendarStatsChange}
           />
         </div>
 

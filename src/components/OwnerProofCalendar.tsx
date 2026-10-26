@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Calendar as CalendarIcon,
   ChevronLeft,
@@ -551,15 +551,20 @@ export default function OwnerProofCalendar({
     [sundaysList]
   );
 
+  const onStatsChangeRef = useRef(onStatsChange);
   useEffect(() => {
-    if (onStatsChange) {
-      onStatsChange({
+    onStatsChangeRef.current = onStatsChange;
+  });
+
+  useEffect(() => {
+    if (onStatsChangeRef.current) {
+      onStatsChangeRef.current({
         verifiedCount,
         missingCount: missingOrAlertCount,
         isCurrentMonth: monthOffset === 0,
       });
     }
-  }, [verifiedCount, missingOrAlertCount, monthOffset, onStatsChange]);
+  }, [verifiedCount, missingOrAlertCount, monthOffset]);
 
   return (
     <div className="w-full rounded-[20px] bg-[#11161D] border border-white/[0.08] shadow-xl p-6 sm:p-8 space-y-6 relative overflow-hidden">
