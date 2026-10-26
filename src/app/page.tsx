@@ -710,8 +710,8 @@ export default function HomePage() {
               </div>
             </div>
 
-            {/* COLUMN 2: TOOLS & CALCULATORS (Spans 3 on lg) */}
-            <div className="lg:col-span-3 space-y-4">
+            {/* COLUMN 2: TOOLS & CALCULATORS (Spans 2 on lg) */}
+            <div className="lg:col-span-2 space-y-4">
               <h3 className="text-xs font-mono font-bold uppercase tracking-[0.2em] text-[#2DD4A0]">
                 Tools &amp; Freebies
               </h3>
@@ -756,8 +756,8 @@ export default function HomePage() {
               </ul>
             </div>
 
-            {/* COLUMN 3: GUIDES & RESEARCH (Spans 2 on lg) */}
-            <div className="lg:col-span-2 space-y-4">
+            {/* COLUMN 3: GUIDES & RESEARCH (Spans 3 on lg) */}
+            <div className="lg:col-span-3 space-y-4">
               <h3 className="text-xs font-mono font-bold uppercase tracking-[0.2em] text-white/90">
                 Knowledge Base
               </h3>
